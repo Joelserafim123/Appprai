@@ -113,14 +113,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const getPinIcon = (tent: Tent) => {
     const isSelected = selectedTent?.id === tent.id;
     return {
-      path: "M16.5,3A3.5,3.5,0,0,0,13,6.5V10H11A1,1,0,0,0,10,11V12A1,1,0,0,0,11,13H5.5A3.5,3.5,0,1,0,9,16.4V21A1,1,0,0,0,10,22A1,1,0,0,0,11,21V16H13V21A1,1,0,0,0,14,22A1,1,0,0,0,15,21V16.4A3.5,3.5,0,1,0,18.5,13H13V12A1,1,0,0,0,12,11A1,1,0,0,0,11,10H13V6.5A1.5,1.5,0,0,1,14.5,5A1.5,1.5,0,0,1,16,6.5V10H18V6.5A3.5,3.5,0,0,0,14.5,3Z",
-      fillColor: isSelected ? "#FFB347" : "#FFFFFF",
-      fillOpacity: isSelected ? 1 : 0.9,
-      strokeColor: isSelected ? "#FFB347" : "#000000",
-      strokeWeight: 1,
-      scale: 1.5,
-      anchor: new google.maps.Point(12, 24),
-      labelOrigin: new google.maps.Point(12, -10),
+      url: '/beach-umbrella.svg',
+      scaledSize: isSelected ? new google.maps.Size(48, 48) : new google.maps.Size(32, 32),
+      anchor: new google.maps.Point(16, 32),
     };
   };
 
@@ -198,10 +193,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 position={getTentLocation(tent)}
                 onClick={() => handleMarkerClick(tent)}
                 icon={getPinIcon(tent)}
-                label={{
-                  text: tent.name,
-                  className: `font-bold bg-white/70 backdrop-blur-sm rounded-md px-2 py-1 text-sm ${selectedTent?.id === tent.id ? 'text-accent-foreground' : ''}`
-                }}
+                title={tent.name}
               />
             ))}
           </GoogleMap>
