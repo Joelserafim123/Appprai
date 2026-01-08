@@ -18,12 +18,12 @@ import { useToast } from "@/hooks/use-toast"
 import { User, Mail, KeyRound, Home, Briefcase, UserCircle } from "lucide-react"
 
 const formSchema = z.object({
-  fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  cpf: z.string().length(11, { message: "CPF must have 11 digits." }),
-  address: z.string().min(5, { message: "Please enter a valid address." }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-  role: z.enum(["customer", "owner"], { required_error: "You need to select a role." }),
+  fullName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
+  email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
+  cpf: z.string().length(11, { message: "O CPF deve ter 11 dígitos." }),
+  address: z.string().min(5, { message: "Por favor, insira um endereço válido." }),
+  password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
+  role: z.enum(["customer", "owner"], { required_error: "Você precisa selecionar um papel." }),
 })
 
 export function SignUpForm() {
@@ -42,8 +42,8 @@ export function SignUpForm() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values)
     toast({
-      title: "Account Created!",
-      description: "Welcome to BeachPal. Please log in to continue.",
+      title: "Conta criada!",
+      description: "Bem-vindo ao BeachPal. Por favor, faça login para continuar.",
     })
     // Here you would typically redirect the user to the login page
     // window.location.href = '/login';
@@ -57,7 +57,7 @@ export function SignUpForm() {
           name="role"
           render={({ field }) => (
             <FormItem className="space-y-3">
-              <FormLabel>I am a...</FormLabel>
+              <FormLabel>Eu sou...</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
@@ -68,13 +68,13 @@ export function SignUpForm() {
                     <FormControl>
                       <RadioGroupItem value="customer" />
                     </FormControl>
-                    <FormLabel className="font-normal flex items-center gap-2"><UserCircle className="w-4 h-4" /> Customer</FormLabel>
+                    <FormLabel className="font-normal flex items-center gap-2"><UserCircle className="w-4 h-4" /> Cliente</FormLabel>
                   </FormItem>
                   <FormItem className="flex items-center space-x-2 space-y-0">
                     <FormControl>
                       <RadioGroupItem value="owner" />
                     </FormControl>
-                    <FormLabel className="font-normal flex items-center gap-2"><Briefcase className="w-4 h-4" /> Tent Owner</FormLabel>
+                    <FormLabel className="font-normal flex items-center gap-2"><Briefcase className="w-4 h-4" /> Dono de Barraca</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>
@@ -87,7 +87,7 @@ export function SignUpForm() {
           name="fullName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nome Completo</FormLabel>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
@@ -107,7 +107,7 @@ export function SignUpForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="m@example.com" {...field} className="pl-10" />
+                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" />
                 </FormControl>
               </div>
               <FormMessage />
@@ -132,11 +132,11 @@ export function SignUpForm() {
           name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Address</FormLabel>
+              <FormLabel>Endereço</FormLabel>
                <div className="relative">
                 <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="Your street, number" {...field} className="pl-10" />
+                  <Input placeholder="Sua rua, número" {...field} className="pl-10" />
                 </FormControl>
               </div>
               <FormMessage />
@@ -148,7 +148,7 @@ export function SignUpForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Senha</FormLabel>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
@@ -160,7 +160,7 @@ export function SignUpForm() {
           )}
         />
         <Button type="submit" className="w-full">
-          Create Account
+          Criar Conta
         </Button>
       </form>
     </Form>

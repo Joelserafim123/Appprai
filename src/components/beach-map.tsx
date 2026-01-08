@@ -47,7 +47,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                   <CardTitle className="text-base">{tent.name}</CardTitle>
                    <CardDescription className="flex items-center text-xs pt-1">
                     <Star className="w-3 h-3 mr-1 fill-accent stroke-accent" /> 
-                    4.5 (25 reviews)
+                    4.5 (25 avaliações)
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

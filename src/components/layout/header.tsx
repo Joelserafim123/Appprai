@@ -17,16 +17,16 @@ export function Header() {
             <Button asChild variant="ghost" size="icon">
               <Link href="/dashboard">
                 <UserCircle2 className="h-5 w-5" />
-                <span className="sr-only">Dashboard</span>
+                <span className="sr-only">Painel</span>
               </Link>
             </Button>
           ) : (
             <>
               <Button asChild variant="ghost">
-                <Link href="/login">Login</Link>
+                <Link href="/login">Entrar</Link>
               </Button>
               <Button asChild>
-                <Link href="/signup">Sign Up</Link>
+                <Link href="/signup">Inscrever-se</Link>
               </Button>
             </>
           )}

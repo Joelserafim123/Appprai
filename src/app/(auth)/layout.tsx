@@ -12,7 +12,7 @@ export default function AuthLayout({
         <div className="mx-auto grid w-[350px] gap-6">
           <Link href="/" className="mx-auto">
              <Logo />
-             <span className="sr-only">BeachPal Home</span>
+             <span className="sr-only">BeachPal Início</span>
           </Link>
           {children}
         </div>
@@ -21,7 +21,7 @@ export default function AuthLayout({
         <img
           src="https://picsum.photos/seed/auth-beach/1200/1800"
           data-ai-hint="sunny beach"
-          alt="A beautiful sunny beach"
+          alt="Uma bela praia ensolarada"
           className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/30 to-background/10" />

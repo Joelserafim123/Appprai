@@ -11,8 +11,8 @@ export default function DashboardPage() {
       <main className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="max-w-4xl mx-auto">
           <header className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">Manage your BeachPal experience.</p>
+            <h1 className="text-3xl font-bold tracking-tight">Painel</h1>
+            <p className="text-muted-foreground">Gerencie sua experiência no BeachPal.</p>
           </header>
 
           <div className="grid gap-6 md:grid-cols-2">
@@ -23,20 +23,20 @@ export default function DashboardPage() {
                         <User className="h-6 w-6" />
                     </div>
                     <div>
-                        <CardTitle>Customer View</CardTitle>
-                        <CardDescription>Manage your reservations and orders.</CardDescription>
+                        <CardTitle>Visão do Cliente</CardTitle>
+                        <CardDescription>Gerencie suas reservas e pedidos.</CardDescription>
                     </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button variant="outline" className="w-full justify-start gap-2">
-                    <Star className="w-4 h-4"/> My Reservations
+                    <Star className="w-4 h-4"/> Minhas Reservas
                 </Button>
                 <Button variant="outline" className="w-full justify-start gap-2">
-                    <Settings className="w-4 h-4"/> Account Settings
+                    <Settings className="w-4 h-4"/> Configurações da Conta
                 </Button>
                  <Button asChild className="w-full mt-4">
-                  <Link href="/">Find a Tent</Link>
+                  <Link href="/">Encontrar uma Barraca</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -48,20 +48,20 @@ export default function DashboardPage() {
                         <Briefcase className="h-6 w-6" />
                     </div>
                     <div>
-                        <CardTitle>Tent Owner View</CardTitle>
-                        <CardDescription>Manage your tent, menu, and orders.</CardDescription>
+                        <CardTitle>Visão do Dono da Barraca</CardTitle>
+                        <CardDescription>Gerencie sua barraca, cardápio e pedidos.</CardDescription>
                     </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button variant="outline" className="w-full justify-start gap-2">
-                    Manage My Tent
+                    Gerenciar Minha Barraca
                 </Button>
                  <Button variant="outline" className="w-full justify-start gap-2">
-                    Update Menu
+                    Atualizar Cardápio
                 </Button>
                 <Button variant="outline" className="w-full justify-start gap-2">
-                    View Orders
+                    Ver Pedidos
                 </Button>
               </CardContent>
             </Card>

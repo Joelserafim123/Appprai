@@ -17,8 +17,8 @@ import { useToast } from "@/hooks/use-toast"
 import { KeyRound, Mail } from "lucide-react"
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(1, { message: "Password is required." }),
+  email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
+  password: z.string().min(1, { message: "A senha é obrigatória." }),
 })
 
 export function LoginForm() {
@@ -34,8 +34,8 @@ export function LoginForm() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values)
     toast({
-      title: "Login Successful",
-      description: "Redirecting you to the dashboard...",
+      title: "Login bem-sucedido",
+      description: "Redirecionando para o painel...",
     })
     // Here you would typically redirect the user
     // window.location.href = '/dashboard';
@@ -53,7 +53,7 @@ export function LoginForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="m@example.com" {...field} className="pl-10" />
+                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" />
                 </FormControl>
               </div>
               <FormMessage />
@@ -66,9 +66,9 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <div className="flex items-center">
-                <FormLabel>Password</FormLabel>
+                <FormLabel>Senha</FormLabel>
                 <a href="#" className="ml-auto inline-block text-sm underline">
-                  Forgot your password?
+                  Esqueceu sua senha?
                 </a>
               </div>
               <div className="relative">
@@ -82,7 +82,7 @@ export function LoginForm() {
           )}
         />
         <Button type="submit" className="w-full">
-          Login
+          Entrar
         </Button>
       </form>
     </Form>
