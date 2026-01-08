@@ -6,16 +6,74 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, Star } from "lucide-react";
-import { getMapBackground } from "@/lib/placeholder-data";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+
+const containerStyle = {
+  width: '100%',
+  height: '100%'
+};
+
+const center = {
+  lat: -22.9845,
+  lng: -43.2040
+};
+
+const mapOptions = {
+  styles: [
+    {
+      "featureType": "poi",
+      "stylers": [
+        { "visibility": "off" }
+      ]
+    },
+    {
+      "featureType": "road",
+      "elementType": "labels",
+      "stylers": [
+        { "visibility": "off" }
+      ]
+    },
+    {
+      "featureType": "transit",
+      "stylers": [
+        { "visibility": "off" }
+      ]
+    },
+     {
+        "featureType": "landscape.natural",
+        "elementType": "geometry.fill",
+        "stylers": [
+            {
+                "color": "#e0ffff"
+            }
+        ]
+    },
+    {
+        "featureType": "water",
+        "elementType": "geometry.fill",
+        "stylers": [
+            {
+                "color": "#87ceeb"
+            }
+        ]
+    }
+  ],
+  disableDefaultUI: true,
+  zoomControl: true,
+};
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(tents[0] || null);
   const [isSheetOpen, setSheetOpen] = useState(false);
-  const mapBg = getMapBackground();
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+  })
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
@@ -25,6 +83,28 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     setSelectedTent(tent);
     setSheetOpen(true);
   };
+  
+  const getPinIcon = (tent: Tent) => {
+    const isSelected = selectedTent?.id === tent.id;
+    return {
+      path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+      fillColor: isSelected ? "#FFB347" : "#FFFFFF",
+      fillOpacity: isSelected ? 1 : 0.8,
+      strokeColor: isSelected ? "#FFB347" : "#000000",
+      strokeWeight: 1,
+      scale: 2,
+      anchor: new google.maps.Point(12, 24),
+    };
+  };
+
+  const getTentLocation = (tent: Tent) => {
+    // This is a mock location generator based on index, replace with real data
+    const baseLat = -22.9845;
+    const baseLng = -43.2040;
+    const offset = tents.indexOf(tent) * 0.005;
+    return { lat: baseLat + offset, lng: baseLng + offset };
+  }
+
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full">
@@ -62,38 +142,27 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       </div>
 
       <div className="relative h-full w-full">
-        <Image
-          src={mapBg.imageUrl}
-          alt={mapBg.description}
-          data-ai-hint={mapBg.imageHint}
-          fill
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-        {tents.map((tent) => (
-          <div
-            key={`marker-${tent.id}`}
-            className="absolute -translate-x-1/2 -translate-y-full"
-            style={{ left: `${tent.location.lng}%`, top: `${tent.location.lat}%` }}
+        {isLoaded ? (
+          <GoogleMap
+            mapContainerStyle={containerStyle}
+            center={center}
+            zoom={13}
+            options={mapOptions}
           >
-            <button onClick={() => handleMarkerClick(tent)} className="group focus:outline-none">
-              <div className="relative">
-                <MapPin
-                  className={`w-10 h-10 transition-all duration-300 drop-shadow-lg
-                    ${selectedTent?.id === tent.id 
-                      ? "text-accent fill-accent/50 scale-125 -translate-y-1" 
-                      : "text-white/80 fill-black/30 group-hover:text-accent group-focus:text-accent"
-                    }`}
-                />
-                <Badge 
-                  className="absolute -top-2 -right-4 transition-all opacity-0 group-hover:opacity-100 group-hover:-translate-y-1"
-                >
-                  {tent.name}
-                </Badge>
-              </div>
-            </button>
-          </div>
-        ))}
+            {tents.map((tent) => (
+              <Marker
+                key={`marker-${tent.id}`}
+                position={getTentLocation(tent)}
+                onClick={() => handleMarkerClick(tent)}
+                icon={getPinIcon(tent)}
+                label={{
+                  text: tent.name,
+                  className: `-mt-10 font-bold bg-white/70 backdrop-blur-sm rounded-md px-2 py-1 text-sm ${selectedTent?.id === tent.id ? 'text-accent-foreground' : ''}`
+                }}
+              />
+            ))}
+          </GoogleMap>
+        ) : <div>Carregando...</div>}
       </div>
 
       <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>

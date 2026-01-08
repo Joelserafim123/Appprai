@@ -38,7 +38,7 @@ const tents: Tent[] = [
     name: 'Barraca do Sol',
     description: 'A melhor barraca da praia, com cerveja gelada e peixe fresco. Venha aproveitar o sol conosco!',
     images: [images['tent-1-gallery-1'], images['tent-1-gallery-2'], images['tent-1-gallery-3']],
-    location: { lat: 25, lng: 30 },
+    location: { lat: -22.9845, lng: -43.2040 },
     rentals: [
       { id: 'r1', name: 'Guarda-sol', price: 15.00 },
       { id: 'r2', name: 'Cadeira', price: 10.00 },
@@ -57,7 +57,7 @@ const tents: Tent[] = [
     name: 'Recanto da Onda',
     description: 'Música ao vivo e os melhores petiscos. O seu ponto de encontro na praia.',
     images: [images['tent-2-gallery-1'], images['tent-2-gallery-2']],
-    location: { lat: 50, lng: 60 },
+    location: { lat: -22.9865, lng: -43.2080 },
     rentals: [
       { id: 'r1', name: 'Guarda-sol', price: 20.00 },
       { id: 'r2', name: 'Cadeira', price: 12.00 },
@@ -76,7 +76,7 @@ const tents: Tent[] = [
     name: 'Paraíso Tropical',
     description: 'Ambiente familiar e comida caseira. Sua casa na praia.',
     images: [images['tent-3-gallery-1']],
-    location: { lat: 75, lng: 45 },
+    location: { lat: -22.9885, lng: -43.2120 },
      rentals: [
       { id: 'r1', name: 'Guarda-sol', price: 18.00 },
       { id: 'r2', name: 'Cadeira', price: 10.00 },
