@@ -1,14 +1,13 @@
 "use client";
 
 import type { Tent } from "@/lib/placeholder-data";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Star } from "lucide-react";
+import { LocateIcon, Star } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Link from "next/link";
-import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
@@ -17,7 +16,7 @@ const containerStyle = {
   height: '100%'
 };
 
-const center = {
+const defaultCenter = {
   lat: -22.9845,
   lng: -43.2040
 };
@@ -69,11 +68,38 @@ const mapOptions = {
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(tents[0] || null);
   const [isSheetOpen, setSheetOpen] = useState(false);
+  const [center, setCenter] = useState(defaultCenter);
+  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(true);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
   })
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userCoords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(userCoords);
+          setCenter(userCoords);
+          setLoadingLocation(false);
+        },
+        () => {
+          // Error or permission denied
+          setLoadingLocation(false);
+          // Keep default center
+        }
+      );
+    } else {
+      // Browser doesn't support Geolocation
+      setLoadingLocation(false);
+    }
+  }, []);
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
@@ -87,22 +113,25 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const getPinIcon = (tent: Tent) => {
     const isSelected = selectedTent?.id === tent.id;
     return {
-      path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+      path: "M16.5,3A3.5,3.5,0,0,0,13,6.5V10H11A1,1,0,0,0,10,11V12A1,1,0,0,0,11,13H5.5A3.5,3.5,0,1,0,9,16.4V21A1,1,0,0,0,10,22A1,1,0,0,0,11,21V16H13V21A1,1,0,0,0,14,22A1,1,0,0,0,15,21V16.4A3.5,3.5,0,1,0,18.5,13H13V12A1,1,0,0,0,12,11A1,1,0,0,0,11,10H13V6.5A1.5,1.5,0,0,1,14.5,5A1.5,1.5,0,0,1,16,6.5V10H18V6.5A3.5,3.5,0,0,0,14.5,3Z",
       fillColor: isSelected ? "#FFB347" : "#FFFFFF",
-      fillOpacity: isSelected ? 1 : 0.8,
+      fillOpacity: isSelected ? 1 : 0.9,
       strokeColor: isSelected ? "#FFB347" : "#000000",
       strokeWeight: 1,
-      scale: 2,
+      scale: 1.5,
       anchor: new google.maps.Point(12, 24),
+      labelOrigin: new google.maps.Point(12, -10),
     };
   };
 
   const getTentLocation = (tent: Tent) => {
-    // This is a mock location generator based on index, replace with real data
-    const baseLat = -22.9845;
-    const baseLng = -43.2040;
-    const offset = tents.indexOf(tent) * 0.005;
-    return { lat: baseLat + offset, lng: baseLng + offset };
+    return tent.location;
+  }
+  
+  const handleUseMyLocatioClick = () => {
+    if(userLocation) {
+        setCenter(userLocation)
+    }
   }
 
 
@@ -110,8 +139,16 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full">
       <div className="hidden md:flex flex-col border-r">
         <div className="p-4 border-b">
-          <h2 className="text-lg font-bold">Barracas Próximas</h2>
-          <p className="text-sm text-muted-foreground">Encontre o seu lugar ao sol</p>
+            <div className="flex justify-between items-center">
+                <div>
+                    <h2 className="text-lg font-bold">Barracas Próximas</h2>
+                    <p className="text-sm text-muted-foreground">Encontre o seu lugar ao sol</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={handleUseMyLocatioClick} disabled={!userLocation}>
+                    <LocateIcon className="h-5 w-5"/>
+                    <span className="sr-only">Usar minha localização</span>
+                </Button>
+            </div>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
@@ -142,13 +179,19 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       </div>
 
       <div className="relative h-full w-full">
+        {loadingLocation && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+                <p>Procurando sua localização...</p>
+            </div>
+        )}
         {isLoaded ? (
           <GoogleMap
             mapContainerStyle={containerStyle}
             center={center}
-            zoom={13}
+            zoom={15}
             options={mapOptions}
           >
+            {userLocation && <Marker position={userLocation} title="Sua Localização" />}
             {tents.map((tent) => (
               <Marker
                 key={`marker-${tent.id}`}
@@ -157,7 +200,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 icon={getPinIcon(tent)}
                 label={{
                   text: tent.name,
-                  className: `-mt-10 font-bold bg-white/70 backdrop-blur-sm rounded-md px-2 py-1 text-sm ${selectedTent?.id === tent.id ? 'text-accent-foreground' : ''}`
+                  className: `font-bold bg-white/70 backdrop-blur-sm rounded-md px-2 py-1 text-sm ${selectedTent?.id === tent.id ? 'text-accent-foreground' : ''}`
                 }}
               />
             ))}

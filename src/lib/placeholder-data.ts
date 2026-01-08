@@ -29,6 +29,7 @@ export interface Tent {
   location: { lat: number; lng: number };
   menu: MenuItem[];
   rentals: RentalItem[];
+  minimumOrderForFeeWaiver?: number;
 }
 
 const tents: Tent[] = [
@@ -50,6 +51,7 @@ const tents: Tent[] = [
       { id: 'm3', name: 'Isca de Peixe', description: 'Porção generosa de peixe frito.', price: 45.00, category: 'Appetizers' },
       { id: 'm4', name: 'Moqueca de Camarão', description: 'Acompanha arroz e pirão.', price: 95.00, category: 'Main Courses' },
     ],
+    minimumOrderForFeeWaiver: 100,
   },
   {
     id: '2',
@@ -87,6 +89,7 @@ const tents: Tent[] = [
         { id: 'm10', name: 'Pastel de Queijo', description: 'Porção com 6 unidades.', price: 25.00, category: 'Appetizers' },
         { id: 'm11', name: 'Picanha na Chapa', description: 'Com fritas, arroz e farofa.', price: 120.00, category: 'Main Courses' },
     ],
+    minimumOrderForFeeWaiver: 150,
   },
 ];
 

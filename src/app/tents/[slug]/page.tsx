@@ -7,11 +7,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Separator } from '@/components/ui/separator';
-import { Armchair, Minus, Plus, ShoppingCart, Umbrella, MapPin, Phone } from 'lucide-react';
+import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 export default function TentPage({ params }: { params: { slug: string } }) {
   const tent = getTentBySlug(params.slug);
@@ -95,6 +93,14 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                     <CardHeader>
                         <CardTitle>Reservar Mesas e Cadeiras</CardTitle>
                         <CardDescription>Garanta seu lugar ao sol antes de chegar.</CardDescription>
+                         {tent.minimumOrderForFeeWaiver && (
+                            <div className="mt-4 p-3 bg-primary/10 text-primary-foreground rounded-lg text-sm flex items-center gap-3">
+                                <Info className="w-5 h-5 text-primary"/>
+                                <div>
+                                <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {tent.minimumOrderForFeeWaiver.toFixed(2)}</span> e ganhe a isenção da taxa de aluguel.
+                                </div>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {tent.rentals.map((rental) => (
