@@ -136,16 +136,21 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         <div className="flex items-center justify-center h-full p-4 sm:p-8">
             <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Erro ao Carregar o Mapa do Google</AlertTitle>
+                <AlertTitle>Ação Necessária: Erro na API do Google Maps</AlertTitle>
                 <AlertDescription>
                     <p className="font-semibold mb-2">
-                        A API do Google Maps está bloqueada. Isso geralmente acontece devido a restrições na sua chave de API.
+                        O mapa não pode ser carregado. O erro `ApiTargetBlockedMapError` indica que a sua chave de API do Google Maps não tem permissão para ser usada neste domínio.
                     </p>
-                    <p className="text-sm">
-                        Para corrigir, vá ao <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-medium">Console do Google Cloud</a>, 
-                        edite sua chave de API e na seção "Restrições de aplicativo", certifique-se de que a opção "Restrições de site" esteja definida como "Nenhuma" para desenvolvimento ou que o domínio do seu aplicativo esteja na lista de permissões.
+                    <p className="text-sm mt-3">
+                        **Como corrigir:**
                     </p>
-                     <p className="text-xs mt-3 text-muted-foreground">Pode levar alguns minutos para que as alterações entrem em vigor.</p>
+                    <ol className="list-decimal list-inside text-sm space-y-1 mt-1">
+                        <li>Vá ao <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-medium">Console do Google Cloud</a>.</li>
+                        <li>Edite a sua chave de API.</li>
+                        <li>Na seção "Restrições de aplicativo", selecione a opção **"Nenhuma"** para as "Restrições de site".</li>
+                        <li>Clique em "Salvar".</li>
+                    </ol>
+                     <p className="text-xs mt-3 text-muted-foreground">Pode levar alguns minutos para que as alterações entrem em vigor. Após salvar, reinicie o servidor de desenvolvimento.</p>
                 </AlertDescription>
             </Alert>
         </div>
