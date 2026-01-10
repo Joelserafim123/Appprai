@@ -15,13 +15,14 @@ import {
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
-import { User, Mail, KeyRound, Home, Briefcase, UserCircle } from "lucide-react"
+import { User, Mail, KeyRound, Home, Briefcase, UserCircle, Loader2 } from "lucide-react"
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
 import { getFirestore, doc, setDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
+import { useState } from "react"
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
@@ -36,6 +37,8 @@ export function SignUpForm() {
   const { toast } = useToast()
   const { app } = useFirebase();
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -44,11 +47,13 @@ export function SignUpForm() {
       cpf: "",
       address: "",
       password: "",
+      role: "customer"
     },
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!app) return;
+    setIsSubmitting(true);
 
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -76,6 +81,7 @@ export function SignUpForm() {
               requestResourceData: userProfileData,
             });
             errorEmitter.emit('permission-error', permissionError);
+            throw permissionError;
         });
 
       toast({
@@ -94,6 +100,8 @@ export function SignUpForm() {
         title: "Falha ao criar conta",
         description,
       })
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -111,6 +119,7 @@ export function SignUpForm() {
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                   className="flex space-x-4"
+                  disabled={isSubmitting}
                 >
                   <FormItem className="flex items-center space-x-2 space-y-0">
                     <FormControl>
@@ -139,7 +148,7 @@ export function SignUpForm() {
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} className="pl-10" />
+                  <Input placeholder="John Doe" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -155,7 +164,7 @@ export function SignUpForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" />
+                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -169,7 +178,7 @@ export function SignUpForm() {
             <FormItem>
               <FormLabel>CPF</FormLabel>
               <FormControl>
-                <Input placeholder="00000000000" {...field} />
+                <Input placeholder="00000000000" {...field} disabled={isSubmitting} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -184,7 +193,7 @@ export function SignUpForm() {
                <div className="relative">
                 <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="Sua rua, número" {...field} className="pl-10" />
+                  <Input placeholder="Sua rua, número" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -200,15 +209,15 @@ export function SignUpForm() {
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
+                  <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-          Criar Conta
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
         </Button>
       </form>
     </Form>

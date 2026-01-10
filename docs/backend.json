@@ -34,6 +34,53 @@
         }
       },
       "required": ["uid", "email", "displayName", "role", "cpf", "address"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "Represents a user's reservation at a tent.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who made the reservation."
+        },
+        "tentId": {
+          "type": "string",
+          "description": "The ID of the tent for the reservation."
+        },
+        "tentName": {
+          "type": "string",
+          "description": "The name of the tent."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "itemId": {"type": "string"},
+              "name": {"type": "string"},
+              "price": {"type": "number"},
+              "quantity": {"type": "number"}
+            },
+            "required": ["itemId", "name", "price", "quantity"]
+          }
+        },
+        "total": {
+          "type": "number",
+          "description": "The total cost of the reservation."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the reservation was created."
+        },
+        "status": {
+            "type": "string",
+            "enum": ["confirmed", "cancelled", "completed"],
+            "description": "The status of the reservation."
+        }
+      },
+      "required": ["userId", "tentId", "tentName", "items", "total", "createdAt", "status"]
     }
   },
   "auth": {
@@ -43,6 +90,10 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Stores public user profile information."
+    },
+    "/reservations/{reservationId}": {
+        "schema": { "$ref": "#/entities/Reservation" },
+        "description": "Stores reservation data for users and tents."
     }
   }
 }

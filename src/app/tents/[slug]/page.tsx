@@ -1,5 +1,7 @@
+'use client';
+
 import { getTentBySlug } from '@/lib/placeholder-data';
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -7,12 +9,27 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useState } from 'react';
+import type { RentalItem } from '@/lib/placeholder-data';
+import { useUser } from '@/firebase/auth/use-user';
+import { useFirebase } from '@/firebase/provider';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import Link from 'next/link';
 
 export default function TentPage({ params }: { params: { slug: string } }) {
   const tent = getTentBySlug(params.slug);
+  const { user } = useUser();
+  const { db } = useFirebase();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [reservation, setReservation] = useState<Record<string, { item: RentalItem; quantity: number }>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   if (!tent) {
     notFound();
@@ -26,6 +43,87 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     return acc;
   }, {} as Record<string, typeof tent.menu>);
 
+  const handleQuantityChange = (item: RentalItem, change: number) => {
+    setReservation((prev) => {
+      const existing = prev[item.id] || { item, quantity: 0 };
+      const newQuantity = Math.max(0, existing.quantity + change);
+      if (newQuantity === 0) {
+        const { [item.id]: _, ...rest } = prev;
+        return rest;
+      }
+      return {
+        ...prev,
+        [item.id]: { ...existing, quantity: newQuantity },
+      };
+    });
+  };
+
+  const total = Object.values(reservation).reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
+  
+  const isReservationEmpty = Object.keys(reservation).length === 0;
+
+  const handleCreateReservation = async () => {
+    if (!user || !db || isReservationEmpty) {
+      if(!user) {
+        toast({
+          variant: "destructive",
+          title: "Login Necessário",
+          description: "Você precisa estar logado para fazer uma reserva.",
+        });
+        router.push(`/login?redirect=/tents/${tent.slug}`);
+      }
+      return;
+    };
+    
+    setIsSubmitting(true);
+
+    const reservationData = {
+      userId: user.uid,
+      tentId: tent.id,
+      tentName: tent.name,
+      items: Object.values(reservation).map(({ item, quantity }) => ({
+        itemId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: quantity,
+      })),
+      total,
+      createdAt: serverTimestamp(),
+      status: 'confirmed',
+    };
+
+    try {
+      const reservationsColRef = collection(db, 'reservations');
+      addDoc(reservationsColRef, reservationData)
+        .catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+            path: reservationsColRef.path,
+            operation: 'create',
+            requestResourceData: reservationData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          // Re-throw to be caught by the outer try-catch
+          throw permissionError;
+        });
+
+      toast({
+        title: "Reserva Confirmada!",
+        description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
+      });
+      router.push('/dashboard/my-reservations');
+
+    } catch (error) {
+       toast({
+          variant: "destructive",
+          title: "Erro ao criar reserva",
+          description: "Não foi possível completar sua reserva. Tente novamente.",
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -37,6 +135,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             data-ai-hint={tent.images[0].imageHint}
             className="object-cover"
             fill
+            priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 text-white">
@@ -92,7 +191,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                 <Card>
                     <CardHeader>
                         <CardTitle>Reservar Mesas e Cadeiras</CardTitle>
-                        <CardDescription>Garanta seu lugar ao sol antes de chegar.</CardDescription>
+                        <CardDescription>Garanta seu lugar ao sol antes de chegar. { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para reservar</Link>}</CardDescription>
                          {tent.minimumOrderForFeeWaiver && (
                             <div className="mt-4 p-3 bg-primary/10 text-primary-foreground rounded-lg text-sm flex items-center gap-3">
                                 <Info className="w-5 h-5 text-primary"/>
@@ -113,9 +212,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                     <p className="text-2xl font-bold text-primary">R$ {rental.price.toFixed(2)}</p>
                                 </div>
                                 <div className="flex items-center gap-2 mt-4 sm:mt-0">
-                                    <Button variant="outline" size="icon" className="h-8 w-8"><Minus className="h-4 w-4"/></Button>
-                                    <Input type="number" readOnly value={0} className="w-16 h-8 text-center" />
-                                    <Button variant="outline" size="icon" className="h-8 w-8"><Plus className="h-4 w-4"/></Button>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                    <Input type="number" readOnly value={reservation[rental.id]?.quantity || 0} className="w-16 h-8 text-center" disabled={isSubmitting}/>
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
                                 </div>
                             </div>
                         ))}
@@ -123,9 +222,11 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                     <CardFooter className="flex-col sm:flex-row gap-4 items-stretch sm:items-center">
                          <div className="flex-1">
                             <p className="text-sm text-muted-foreground">Total</p>
-                            <p className="text-3xl font-bold">R$ 0.00</p>
+                            <p className="text-3xl font-bold">R$ {total.toFixed(2)}</p>
                         </div>
-                        <Button size="lg" className="w-full sm:w-auto">Finalizar Reserva</Button>
+                        <Button size="lg" className="w-full sm:w-auto" onClick={handleCreateReservation} disabled={isReservationEmpty || isSubmitting}>
+                           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Finalizar Reserva'}
+                        </Button>
                     </CardFooter>
                 </Card>
             </TabsContent>

@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { KeyRound, Mail } from "lucide-react"
+import { KeyRound, Mail, Loader2 } from "lucide-react"
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
-import { useRouter } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
+import { useState } from "react"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
@@ -28,6 +29,10 @@ export function LoginForm() {
   const { toast } = useToast()
   const { app } = useFirebase();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/dashboard';
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -38,14 +43,15 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!app) return;
+    setIsSubmitting(true);
     const auth = getAuth(app);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: "Login bem-sucedido",
-        description: "Redirecionando para o painel...",
+        description: "Redirecionando...",
       })
-      router.push('/dashboard');
+      router.push(redirectUrl);
     } catch (error: any) {
       console.error(error);
       let description = "Ocorreu um erro desconhecido.";
@@ -57,6 +63,8 @@ export function LoginForm() {
         title: "Falha no login",
         description,
       })
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -72,7 +80,7 @@ export function LoginForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" />
+                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -93,15 +101,15 @@ export function LoginForm() {
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
+                  <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={isSubmitting}/>
                 </FormControl>
               </div>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
-          Entrar
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="animate-spin" /> : 'Entrar'}
         </Button>
       </form>
     </Form>
