@@ -5,11 +5,12 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LocateIcon, Star } from "lucide-react";
+import { LocateIcon, Star, AlertTriangle } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const containerStyle = {
   width: '100%',
@@ -72,7 +73,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
 
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
   })
@@ -129,6 +130,56 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     }
   }
 
+  const renderMap = () => {
+    if (loadError) {
+      return (
+        <div className="flex items-center justify-center h-full p-8">
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Erro ao Carregar o Mapa do Google</AlertTitle>
+                <AlertDescription>
+                    <p className="font-semibold mb-2">
+                        A API do Google Maps está bloqueada. Isso geralmente acontece devido a restrições na sua chave de API.
+                    </p>
+                    <p className="text-sm">
+                        Para corrigir, vá ao <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-medium">Console do Google Cloud</a>, 
+                        edite sua chave de API e certifique-se de que o domínio deste site está autorizado, ou remova as restrições de site para desenvolvimento.
+                    </p>
+                </AlertDescription>
+            </Alert>
+        </div>
+      );
+    }
+
+    if (!isLoaded || loadingLocation) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p>Carregando mapa e localização...</p>
+            </div>
+        );
+    }
+
+    return (
+        <GoogleMap
+            mapContainerStyle={containerStyle}
+            center={center}
+            zoom={15}
+            options={mapOptions}
+        >
+            {userLocation && <Marker position={userLocation} title="Sua Localização" />}
+            {tents.map((tent) => (
+            <Marker
+                key={`marker-${tent.id}`}
+                position={getTentLocation(tent)}
+                onClick={() => handleMarkerClick(tent)}
+                icon={getPinIcon(tent)}
+                title={tent.name}
+            />
+            ))}
+        </GoogleMap>
+    );
+  }
+
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full">
@@ -173,31 +224,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         </ScrollArea>
       </div>
 
-      <div className="relative h-full w-full">
-        {loadingLocation && (
-            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
-                <p>Procurando sua localização...</p>
-            </div>
-        )}
-        {isLoaded ? (
-          <GoogleMap
-            mapContainerStyle={containerStyle}
-            center={center}
-            zoom={15}
-            options={mapOptions}
-          >
-            {userLocation && <Marker position={userLocation} title="Sua Localização" />}
-            {tents.map((tent) => (
-              <Marker
-                key={`marker-${tent.id}`}
-                position={getTentLocation(tent)}
-                onClick={() => handleMarkerClick(tent)}
-                icon={getPinIcon(tent)}
-                title={tent.name}
-              />
-            ))}
-          </GoogleMap>
-        ) : <div>Carregando...</div>}
+      <div className="relative h-full w-full bg-muted">
+        {renderMap()}
       </div>
 
       <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
