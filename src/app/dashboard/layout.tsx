@@ -1,3 +1,5 @@
+'use client';
+
 import { Header } from '@/components/layout/header';
 import { useUser } from '@/firebase/auth/use-user';
 import {
