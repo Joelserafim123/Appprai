@@ -40,7 +40,8 @@ const mapOptions = {
     {
       "featureType": "transit",
       "stylers": [
-        { "visibility": "off" }
+        { "visibility": "off"
+        }
       ]
     },
      {
@@ -139,18 +140,17 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 <AlertTitle>Ação Necessária: Erro na API do Google Maps</AlertTitle>
                 <AlertDescription>
                     <p className="font-semibold mb-2">
-                        O mapa não pode ser carregado. O erro `ApiTargetBlockedMapError` indica que a sua chave de API do Google Maps não tem permissão para ser usada neste domínio.
+                        O mapa não pode ser carregado porque a chave da API do Google Maps é inválida, expirou ou está bloqueada.
                     </p>
                     <p className="text-sm mt-3">
                         **Como corrigir:**
                     </p>
                     <ol className="list-decimal list-inside text-sm space-y-1 mt-1">
-                        <li>Vá ao <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-medium">Console do Google Cloud</a>.</li>
-                        <li>Edite a sua chave de API.</li>
-                        <li>Na seção "Restrições de aplicativo", selecione a opção **"Nenhuma"** para as "Restrições de site".</li>
-                        <li>Clique em "Salvar".</li>
+                        <li>Gere uma nova chave de API no <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-medium">Console do Google Cloud</a>.</li>
+                        <li>Certifique-se de que a **Maps JavaScript API** esteja ativada para seu projeto.</li>
+                        <li>Se estiver usando restrições de site, certifique-se de que o domínio do aplicativo está permitido, ou selecione "Nenhuma" para desenvolvimento.</li>
+                        <li>Forneça-me a **nova chave de API** para que eu possa atualizar o aplicativo.</li>
                     </ol>
-                     <p className="text-xs mt-3 text-muted-foreground">Pode levar alguns minutos para que as alterações entrem em vigor. Após salvar, reinicie o servidor de desenvolvimento.</p>
                 </AlertDescription>
             </Alert>
         </div>
