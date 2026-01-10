@@ -15,6 +15,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { KeyRound, Mail } from "lucide-react"
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
+import { useFirebase } from "@/firebase/provider"
+import { useRouter } from "next/navigation"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
@@ -23,6 +26,8 @@ const formSchema = z.object({
 
 export function LoginForm() {
   const { toast } = useToast()
+  const { app } = useFirebase();
+  const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -31,14 +36,28 @@ export function LoginForm() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values)
-    toast({
-      title: "Login bem-sucedido",
-      description: "Redirecionando para o painel...",
-    })
-    // Here you would typically redirect the user
-    // window.location.href = '/dashboard';
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!app) return;
+    const auth = getAuth(app);
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: "Login bem-sucedido",
+        description: "Redirecionando para o painel...",
+      })
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error(error);
+      let description = "Ocorreu um erro desconhecido.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = "Email ou senha inválidos. Por favor, tente novamente.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Falha no login",
+        description,
+      })
+    }
   }
 
   return (

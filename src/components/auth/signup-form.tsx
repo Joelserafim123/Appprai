@@ -16,6 +16,12 @@ import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
 import { User, Mail, KeyRound, Home, Briefcase, UserCircle } from "lucide-react"
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { getFirestore, doc, setDoc } from "firebase/firestore"
+import { useFirebase } from "@/firebase/provider"
+import { useRouter } from "next/navigation"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
@@ -28,6 +34,8 @@ const formSchema = z.object({
 
 export function SignUpForm() {
   const { toast } = useToast()
+  const { app } = useFirebase();
+  const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -39,14 +47,54 @@ export function SignUpForm() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values)
-    toast({
-      title: "Conta criada!",
-      description: "Bem-vindo ao BeachPal. Por favor, faça login para continuar.",
-    })
-    // Here you would typically redirect the user to the login page
-    // window.location.href = '/login';
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!app) return;
+
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      const userProfileData = {
+        uid: user.uid,
+        email: values.email,
+        displayName: values.fullName,
+        cpf: values.cpf,
+        address: values.address,
+        role: values.role,
+      };
+
+      const userDocRef = doc(db, "users", user.uid);
+      
+      setDoc(userDocRef, userProfileData)
+        .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'create',
+              requestResourceData: userProfileData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+
+      toast({
+        title: "Conta criada!",
+        description: "Bem-vindo ao BeachPal. Redirecionando para o login...",
+      })
+      router.push('/login');
+    } catch (error: any) {
+      console.error("Error creating account:", error);
+       let description = "Ocorreu um erro desconhecido.";
+      if (error.code === 'auth/email-already-in-use') {
+        description = "Este endereço de e-mail já está em uso.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Falha ao criar conta",
+        description,
+      })
+    }
   }
 
   return (
@@ -121,7 +169,7 @@ export function SignUpForm() {
             <FormItem>
               <FormLabel>CPF</FormLabel>
               <FormControl>
-                <Input placeholder="000.000.000-00" {...field} />
+                <Input placeholder="00000000000" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
