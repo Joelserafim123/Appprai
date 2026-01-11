@@ -29,48 +29,57 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (!app || !db) {
-      // Firebase might not be initialized yet
+      if (!loading) setLoading(true); // Ensure loading is true until firebase is ready
       return;
     }
 
     const auth = getAuth(app);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      setLoading(true);
       if (firebaseUser) {
-        // User is signed in. Fetch custom user data from Firestore.
-        const userDocRef = doc(db as Firestore, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
+        try {
+          // User is signed in. Fetch custom user data from Firestore.
+          const userDocRef = doc(db as Firestore, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
 
-        if (userDoc.exists()) {
-          setUser({
-            // Firebase Auth data
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            // Firestore data
-            ...userDoc.data(),
-          });
-        } else {
-          // This might happen if the user record in Firestore is not created yet
-          // or was deleted. We'll set the basic auth info.
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-          });
+          if (userDoc.exists()) {
+            setUser({
+              // Firebase Auth data
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              // Firestore data
+              ...userDoc.data(),
+            });
+          } else {
+            // This might happen if the user record in Firestore is not created yet
+            // or was deleted. We'll set the basic auth info.
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+            });
+          }
+        } catch (error) {
+            console.error("Error fetching user data from Firestore:", error);
+            // If Firestore fetch fails, set user to null to prevent partial login state
+            setUser(null);
+        } finally {
+            setLoading(false);
         }
       } else {
         // User is signed out.
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [app, db]);
+  }, [app, db, loading]); // Added loading to dependency array
 
   return (
     <UserContext.Provider value={{ user, loading }}>
