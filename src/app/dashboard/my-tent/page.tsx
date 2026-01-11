@@ -44,10 +44,10 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const { register, handleSubmit, formState: { errors }, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      beachName: '',
-      minimumOrderForFeeWaiver: 0,
+      name: existingTent?.name || '',
+      description: existingTent?.description || '',
+      beachName: existingTent?.beachName || '',
+      minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || 0,
     },
   });
 
@@ -189,6 +189,10 @@ function ImageManager({ tentId }: { tentId: string | null }) {
         }
     };
 
+    if (!tentId) {
+        return null;
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -298,7 +302,7 @@ export default function MyTentPage() {
         </CardContent>
       </Card>
 
-      {tent && <ImageManager tentId={tent.id} />}
+      <ImageManager tentId={tent?.id || null} />
     </div>
   );
 
