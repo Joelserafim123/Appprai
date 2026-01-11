@@ -7,6 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import { Loader2 } from 'lucide-react';
+import { useMemo } from 'react';
 
 export interface Tent {
   id: string;
@@ -20,8 +21,13 @@ export interface Tent {
 
 export default function Home() {
   const { db } = useFirebase();
-  const tentsCollection = collection(db!, 'tents');
-  const { data: tents, loading } = useCollection<Tent>(tentsCollection);
+  
+  const tentsQuery = useMemo(() => {
+    if (!db) return null;
+    return collection(db, 'tents');
+  }, [db]);
+
+  const { data: tents, loading } = useCollection<Tent>(tentsQuery);
 
   if (loading || !tents) {
     return (
