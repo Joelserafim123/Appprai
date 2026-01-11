@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
@@ -109,7 +110,6 @@ export default function SettingsPage() {
         if (currentUser) {
             await updateProfile(currentUser, {
                 displayName: data.displayName,
-                ...(photoPreview && { photoURL: photoPreview }),
             });
         }
       
