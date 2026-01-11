@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Camera, UserCircle } from 'lucide-react';
+import { Loader2, UploadCloud } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -34,70 +33,9 @@ export default function SettingsPage() {
   const { app, db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [selfie, setSelfie] = useState<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      // Cleanup: Stop video stream when component unmounts
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
   
-  const getCameraPermission = async () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast({
-          variant: 'destructive',
-          title: 'Câmera não suportada',
-          description: 'Seu navegador não suporta acesso à câmera.',
-        });
-        setHasCameraPermission(false);
-        return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({video: true});
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Acesso à câmera negado',
-          description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
-        });
-      }
-    };
-
-
-  const takeSelfie = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      if(context) {
-          context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-          const dataUrl = canvas.toDataURL('image/png');
-          setSelfie(dataUrl);
-
-          // Stop the camera stream
-          const stream = video.srcObject as MediaStream;
-          stream.getTracks().forEach(track => track.stop());
-          video.srcObject = null;
-          setHasCameraPermission(null);
-      }
-    }
-  };
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
@@ -116,9 +54,7 @@ export default function SettingsPage() {
         cpf: user.cpf || '',
         address: user.address || '',
       });
-      if (user.photoURL) {
-        setSelfie(user.photoURL);
-      }
+       setPhotoPreview(user.photoURL);
     }
   }, [user, reset]);
 
@@ -141,6 +77,17 @@ export default function SettingsPage() {
     return name.substring(0, 2).toUpperCase();
   }
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = async (data: ProfileFormData) => {
     if (!user || !app || !db) return;
     setIsSubmitting(true);
@@ -155,20 +102,20 @@ export default function SettingsPage() {
             cpf: data.cpf.replace(/\D/g, ""),
         };
         
-        if (selfie && selfie !== user.photoURL) {
-            firestoreData.photoURL = selfie;
+        if (photoPreview && photoPreview !== user.photoURL) {
+            firestoreData.photoURL = photoPreview;
         }
 
         if (currentUser) {
             await updateProfile(currentUser, {
                 displayName: data.displayName,
-                ...(selfie && { photoURL: selfie }),
+                ...(photoPreview && { photoURL: photoPreview }),
             });
         }
       
       const userDocRef = doc(db, "users", user.uid);
       
-      updateDoc(userDocRef, firestoreData).catch(async (serverError) => {
+      await updateDoc(userDocRef, firestoreData).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: userDocRef.path,
           operation: 'update',
@@ -224,7 +171,7 @@ export default function SettingsPage() {
           <CardHeader>
              <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
-                    <AvatarImage src={selfie ?? user.photoURL ?? ''} alt={user.displayName ?? ''} />
+                    <AvatarImage src={photoPreview ?? undefined} alt={user.displayName ?? ''} />
                     <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-1">
@@ -236,25 +183,26 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-             <div className="space-y-2">
-                <Label>Foto de Perfil</Label>
-                <div className='flex flex-col gap-4 items-center'>
-                  <canvas ref={canvasRef} className="hidden"></canvas>
-                  {hasCameraPermission === true && <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted />}
-                  {hasCameraPermission === false && (
-                     <Alert variant="destructive">
-                      <AlertTitle>Câmera necessária</AlertTitle>
-                      <AlertDescription>
-                        Por favor, permita o acesso à câmera para tirar uma selfie.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  {hasCameraPermission === true ? (
-                     <Button type="button" onClick={takeSelfie}><Camera className="mr-2"/>Tirar Selfie</Button>
-                  ) : (
-                     <Button type="button" onClick={getCameraPermission}><UserCircle className="mr-2"/>Atualizar Foto de Perfil</Button>
-                  )}
-                </div>
+            <div className="space-y-2">
+                <Label htmlFor="profile-picture">Foto de Perfil</Label>
+                <Input
+                    id="profile-picture"
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/png, image/jpeg"
+                />
+                <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSubmitting}
+                >
+                    <UploadCloud className="mr-2" />
+                    Carregar foto
+                </Button>
+                <p className="text-sm text-muted-foreground">Recomendado: imagem quadrada (ex: 1:1).</p>
             </div>
 
             <div className="space-y-2">
