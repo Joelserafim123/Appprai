@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useForm } from "react-hook-form"
@@ -47,13 +48,13 @@ export function LoginForm() {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: "Login bem-sucedido",
-        description: "Redirecionando...",
+        description: "Redirecionando para o seu painel...",
       })
       router.push('/dashboard');
     } catch (error: any) {
       console.error(error);
-      let description = "Ocorreu um erro desconhecido.";
-      if (error.code === 'auth/invalid-credential') {
+      let description = "Ocorreu um erro ao tentar fazer login. Tente novamente.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         description = "Credenciais inválidas. Verifique seu e-mail e senha e tente novamente.";
       }
       toast({
@@ -92,9 +93,9 @@ export function LoginForm() {
             <FormItem>
               <div className="flex items-center">
                 <FormLabel>Senha</FormLabel>
-                <a href="#" className="ml-auto inline-block text-sm underline">
+                {/* <a href="#" className="ml-auto inline-block text-sm underline">
                   Esqueceu sua senha?
-                </a>
+                </a> */}
               </div>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
