@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, Tent } from 'lucide-react';
 import { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
 
 type ReservationItem = {
   name: string;
