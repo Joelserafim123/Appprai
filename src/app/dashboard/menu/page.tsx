@@ -51,14 +51,13 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
     if (!db) return;
     setIsSubmitting(true);
     
-    const collectionRef = collection(db, 'tents', tentId, 'menuItems');
-    
     try {
       if (item) {
         const docRef = doc(db, 'tents', tentId, 'menuItems', item.id);
         await updateDoc(docRef, data);
         toast({ title: "Item atualizado com sucesso!" });
       } else {
+        const collectionRef = collection(db, 'tents', tentId, 'menuItems');
         await addDoc(collectionRef, data);
         toast({ title: "Item adicionado com sucesso!" });
       }
@@ -70,7 +69,6 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
             requestResourceData: data,
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: "Erro ao salvar item." });
     } finally {
         setIsSubmitting(false);
     }
@@ -180,7 +178,7 @@ export default function MenuPage() {
   }
 
 
-  if (userLoading || (menuLoading && !menu)) {
+  if (userLoading || menuLoading) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -195,6 +193,19 @@ export default function MenuPage() {
   if (error) {
       return <p className='text-destructive'>Erro ao carregar cardápio: {error.message}</p>
   }
+  
+    if (!tentId && !menuLoading) {
+        return (
+            <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
+                <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Você precisa de uma barraca para gerenciar um cardápio.</p>
+                 <Button asChild className="mt-6">
+                    <a href="/dashboard/my-tent">Ir para Minha Barraca</a>
+                </Button>
+            </div>
+        );
+    }
 
   return (
     <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -210,15 +221,7 @@ export default function MenuPage() {
             </Button>
         </header>
 
-        {!tentId && !menuLoading && (
-            <div className="text-center py-16 border-2 border-dashed rounded-lg">
-                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Você precisa de uma barraca para gerenciar um cardápio.</p>
-            </div>
-        )}
-
-        {tentId && menu && menu.length > 0 ? (
+        {menu && menu.length > 0 ? (
             <div className="space-y-4">
             {menu.map((item) => (
                 <Card key={item.id}>
@@ -247,7 +250,7 @@ export default function MenuPage() {
                 </Card>
             ))}
             </div>
-        ) : tentId && !menuLoading && (
+        ) : (
             <div className="text-center py-16 border-2 border-dashed rounded-lg">
                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-medium">Seu cardápio está vazio</h3>
@@ -269,5 +272,3 @@ export default function MenuPage() {
     </Dialog>
   );
 }
-
-    
