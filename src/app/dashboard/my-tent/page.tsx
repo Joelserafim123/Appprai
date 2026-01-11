@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
@@ -71,7 +70,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script-my-tent',
+    id: 'google-map-script',
     googleMapsApiKey: googleMapsApiKey
   });
 
@@ -392,5 +391,5 @@ export default function MyTentPage() {
   );
 
 }
-
+    
     
