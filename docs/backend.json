@@ -6,52 +6,76 @@
       "description": "Represents a user of the application.",
       "type": "object",
       "properties": {
-        "uid": {
-          "type": "string",
-          "description": "The unique ID of the user."
-        },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "The user's email address."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The user's full name."
-        },
-        "cpf": {
-            "type": "string",
-            "description": "The user's CPF."
-        },
-        "address": {
-            "type": "string",
-            "description": "The user's address."
-        },
-        "role": {
-          "type": "string",
-          "enum": ["customer", "owner"],
-          "description": "The role of the user."
-        }
+        "uid": { "type": "string", "description": "The unique ID of the user." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's full name." },
+        "cpf": { "type": "string", "description": "The user's CPF." },
+        "address": { "type": "string", "description": "The user's address." },
+        "role": { "type": "string", "enum": ["customer", "owner"], "description": "The role of the user." }
       },
       "required": ["uid", "email", "displayName", "role", "cpf", "address"]
+    },
+    "Tent": {
+      "title": "Tent",
+      "description": "Represents a beach tent business.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "imageUrl": { "type": "string" },
+              "imageHint": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "minimumOrderForFeeWaiver": { "type": "number" }
+      },
+      "required": ["ownerId", "name", "slug", "description", "location"]
+    },
+    "MenuItem": {
+      "title": "Menu Item",
+      "description": "An item on a tent's menu.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["Drinks", "Appetizers", "Main Courses"] }
+      },
+      "required": ["name", "price", "category"]
+    },
+    "RentalItem": {
+        "title": "Rental Item",
+        "description": "An item available for rent at a tent.",
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "price": {"type": "number"}
+        },
+        "required": ["name", "price"]
     },
     "Reservation": {
       "title": "Reservation",
       "description": "Represents a user's reservation at a tent.",
       "type": "object",
       "properties": {
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user who made the reservation."
-        },
-        "tentId": {
-          "type": "string",
-          "description": "The ID of the tent for the reservation."
-        },
-        "tentName": {
-          "type": "string",
-          "description": "The name of the tent."
-        },
+        "userId": { "type": "string" },
+        "tentId": { "type": "string" },
+        "tentName": { "type": "string" },
         "items": {
           "type": "array",
           "items": {
@@ -65,20 +89,9 @@
             "required": ["itemId", "name", "price", "quantity"]
           }
         },
-        "total": {
-          "type": "number",
-          "description": "The total cost of the reservation."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the reservation was created."
-        },
-        "status": {
-            "type": "string",
-            "enum": ["confirmed", "cancelled", "completed"],
-            "description": "The status of the reservation."
-        }
+        "total": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed"] }
       },
       "required": ["userId", "tentId", "tentName", "items", "total", "createdAt", "status"]
     }
@@ -90,6 +103,18 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Stores public user profile information."
+    },
+    "/tents/{tentId}": {
+        "schema": { "$ref": "#/entities/Tent" },
+        "description": "Stores information about each beach tent."
+    },
+    "/tents/{tentId}/menuItems/{menuItemId}": {
+        "schema": { "$ref": "#/entities/MenuItem" },
+        "description": "Menu items for a specific tent."
+    },
+    "/tents/{tentId}/rentalItems/{rentalItemId}": {
+        "schema": { "$ref": "#/entities/RentalItem" },
+        "description": "Rental items for a specific tent."
     },
     "/reservations/{reservationId}": {
         "schema": { "$ref": "#/entities/Reservation" },

@@ -1,11 +1,12 @@
+
 "use client";
 
-import type { Tent } from "@/lib/placeholder-data";
+import type { Tent } from "@/app/page";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LocateIcon, Star, AlertTriangle } from "lucide-react";
+import { LocateIcon, Star, AlertTriangle, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
@@ -24,44 +25,11 @@ const defaultCenter = {
 
 const mapOptions = {
   styles: [
-    {
-      "featureType": "poi",
-      "stylers": [
-        { "visibility": "off" }
-      ]
-    },
-    {
-      "featureType": "road",
-      "elementType": "labels",
-      "stylers": [
-        { "visibility": "off" }
-      ]
-    },
-    {
-      "featureType": "transit",
-      "stylers": [
-        { "visibility": "off"
-        }
-      ]
-    },
-     {
-        "featureType": "landscape.natural",
-        "elementType": "geometry.fill",
-        "stylers": [
-            {
-                "color": "#e0ffff"
-            }
-        ]
-    },
-    {
-        "featureType": "water",
-        "elementType": "geometry.fill",
-        "stylers": [
-            {
-                "color": "#87ceeb"
-            }
-        ]
-    }
+    { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
+    { "featureType": "road", "elementType": "labels", "stylers": [{ "visibility": "off" }] },
+    { "featureType": "transit", "stylers": [{ "visibility": "off" }] },
+    { "featureType": "landscape.natural", "elementType": "geometry.fill", "stylers": [{ "color": "#e0ffff" }] },
+    { "featureType": "water", "elementType": "geometry.fill", "stylers": [{ "color": "#87ceeb" }] }
   ],
   disableDefaultUI: true,
   zoomControl: true,
@@ -93,13 +61,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           setLoadingLocation(false);
         },
         () => {
-          // Error or permission denied
           setLoadingLocation(false);
-          // Keep default center
         }
       );
     } else {
-      // Browser doesn't support Geolocation
       setLoadingLocation(false);
     }
   }, []);
@@ -135,22 +100,22 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const renderMap = () => {
     if (loadError) {
       return (
-        <div className="flex items-center justify-center h-full p-4 sm:p-8">
+        <div className="flex h-full items-center justify-center p-4 sm:p-8">
             <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Ação Necessária: Erro na API do Google Maps</AlertTitle>
                 <AlertDescription>
-                    <p className="font-semibold mb-2">
-                        O mapa não pode ser carregado porque a chave da API do Google Maps é inválida, expirou ou está bloqueada.
+                    <p className="mb-2 font-semibold">
+                        O mapa não pode ser carregado. Isso pode acontecer porque a chave da API do Google Maps expirou, é inválida, ou está sendo bloqueada.
                     </p>
-                    <p className="text-sm mt-3">
+                    <p className="mt-3 text-sm">
                         **Como corrigir:**
                     </p>
-                    <ol className="list-decimal list-inside text-sm space-y-1 mt-1">
-                        <li>Gere uma nova chave de API no <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline font-medium">Console do Google Cloud</a>.</li>
-                        <li>Certifique-se de que a **Maps JavaScript API** esteja ativada para seu projeto.</li>
-                        <li>Se estiver usando restrições de site, certifique-se de que o domínio do aplicativo está permitido, ou selecione "Nenhuma" para desenvolvimento.</li>
-                        <li>Forneça-me a **nova chave de API** para que eu possa atualizar o aplicativo.</li>
+                    <ol className="mt-1 list-inside list-decimal space-y-1 text-sm">
+                        <li>Gere uma nova chave de API no <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="font-medium underline">Console do Google Cloud</a>.</li>
+                        <li>Certifique-se de que a **Maps JavaScript API** está ativada para seu projeto.</li>
+                        <li>Se usar restrições de site, certifique-se de que o domínio da aplicação está permitido, ou selecione "Nenhuma" para desenvolvimento.</li>
+                        <li>Forneça a **nova chave de API** para atualizar o aplicativo.</li>
                     </ol>
                 </AlertDescription>
             </Alert>
@@ -160,11 +125,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
     if (!isLoaded || loadingLocation) {
         return (
-            <div className="flex flex-col items-center justify-center h-full gap-4">
-                 <svg className="animate-spin h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+            <div className="flex h-full flex-col items-center justify-center gap-4">
+                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-muted-foreground">Carregando mapa e sua localização...</p>
             </div>
         );
@@ -191,12 +153,11 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     );
   }
 
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full">
-      <div className="hidden md:flex flex-col border-r">
-        <div className="p-4 border-b">
-            <div className="flex justify-between items-center">
+    <div className="grid h-full grid-cols-1 md:grid-cols-[350px_1fr]">
+      <div className="hidden flex-col border-r md:flex">
+        <div className="border-b p-4">
+            <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-bold">Barracas Próximas</h2>
                     <p className="text-sm text-muted-foreground">Encontre o seu lugar ao sol</p>
@@ -208,8 +169,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             </div>
         </div>
         <ScrollArea className="flex-1">
-          <div className="p-4 space-y-4">
-            {tents.map((tent) => (
+          <div className="space-y-4 p-4">
+            {tents.length > 0 ? tents.map((tent) => (
               <Card
                 key={tent.id}
                 onClick={() => handleTentSelect(tent)}
@@ -219,8 +180,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
               >
                 <CardHeader>
                   <CardTitle className="text-base">{tent.name}</CardTitle>
-                   <CardDescription className="flex items-center text-xs pt-1">
-                    <Star className="w-3 h-3 mr-1 fill-accent stroke-accent" /> 
+                   <CardDescription className="flex items-center pt-1 text-xs">
+                    <Star className="mr-1 h-3 w-3 fill-accent stroke-accent" /> 
                     4.5 (25 avaliações)
                   </CardDescription>
                 </CardHeader>
@@ -230,7 +191,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                   </Button>
                 </CardContent>
               </Card>
-            ))}
+            )) : <p className="p-4 text-center text-sm text-muted-foreground">Nenhuma barraca encontrada.</p>}
           </div>
         </ScrollArea>
       </div>
@@ -244,10 +205,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           {selectedTent && (
             <>
               <SheetHeader>
-                <div className="relative h-48 -mx-6 -mt-6">
-                  <Image src={selectedTent.images[0].imageUrl} alt={selectedTent.name} fill className="object-cover" />
+                <div className="relative -mx-6 -mt-6 h-48">
+                  {selectedTent.images && selectedTent.images.length > 0 && (
+                     <Image src={selectedTent.images[0].imageUrl} alt={selectedTent.name} fill className="object-cover" />
+                  )}
                 </div>
-                <SheetTitle className="text-2xl pt-6">{selectedTent.name}</SheetTitle>
+                <SheetTitle className="pt-6 text-2xl">{selectedTent.name}</SheetTitle>
                 <SheetDescription>{selectedTent.description}</SheetDescription>
               </SheetHeader>
               <div className="py-8">
