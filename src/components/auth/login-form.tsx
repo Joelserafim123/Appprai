@@ -53,9 +53,20 @@ export function LoginForm() {
       router.push('/dashboard');
     } catch (error: any) {
       console.error(error);
-      let description = "Ocorreu um erro ao tentar fazer login. Tente novamente.";
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        description = "Credenciais inválidas. Verifique seu e-mail e senha e tente novamente.";
+      let description = "Ocorreu um erro inesperado ao tentar fazer login.";
+      // Handle specific Firebase authentication errors
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          description = "Credenciais inválidas. Verifique seu e-mail e senha.";
+          break;
+        case 'auth/too-many-requests':
+          description = "Acesso bloqueado temporariamente devido a muitas tentativas. Tente novamente mais tarde.";
+          break;
+        default:
+          description = "Não foi possível fazer login. Verifique sua conexão e tente novamente.";
+          break;
       }
       toast({
         variant: "destructive",
