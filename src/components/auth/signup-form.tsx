@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useForm } from "react-hook-form"
@@ -27,7 +28,7 @@ import { useState, useCallback } from "react"
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
-  cpf: z.string().min(14, { message: "O CPF deve ter 11 dígitos." }),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, { message: "Por favor, insira um endereço válido." }),
   password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
   role: z.enum(["customer", "owner"], { required_error: "Você precisa selecionar um papel." }),
@@ -76,7 +77,7 @@ export function SignUpForm() {
         uid: user.uid,
         email: values.email,
         displayName: values.fullName,
-        cpf: values.cpf,
+        cpf: values.cpf.replace(/\D/g, ""), // Store only digits
         address: values.address,
         role: values.role,
       };
@@ -96,9 +97,9 @@ export function SignUpForm() {
 
       toast({
         title: "Conta criada!",
-        description: "Bem-vindo ao BeachPal. Redirecionando para o login...",
+        description: "Bem-vindo ao BeachPal. Redirecionando...",
       })
-      router.push('/login');
+      router.push('/dashboard');
     } catch (error: any) {
       console.error("Error creating account:", error);
        let description = "Ocorreu um erro desconhecido.";

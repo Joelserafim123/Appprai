@@ -2,15 +2,15 @@
 "use client";
 
 import type { Tent } from "@/app/page";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LocateIcon, Star, AlertTriangle, Loader2 } from "lucide-react";
+import { Star, AlertTriangle, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { useFirebase } from "@/firebase/provider";
@@ -46,14 +46,11 @@ interface TentImage {
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(tents[0] || null);
-  const [isSheetOpen, setSheetOpen] = useState(false);
-  const [center, setCenter] = useState(defaultCenter);
+  const [center] = useState(defaultCenter);
   
   const { db } = useFirebase();
   const imagesQuery = selectedTent ? collection(db!, 'tents', selectedTent.id, 'images') : null;
-  const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
-
-
+  
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
@@ -61,11 +58,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
-  };
-
-  const handleMarkerClick = (tent: Tent) => {
-    setSelectedTent(tent);
-    setSheetOpen(true);
   };
   
   const renderMap = () => {
@@ -146,28 +138,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         {renderMap()}
       </div>
 
-      <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="w-[380px] sm:max-w-none">
-          {selectedTent && (
-            <>
-              <SheetHeader>
-                <div className="relative -mx-6 -mt-6 h-48 bg-muted">
-                  {loadingImages ? <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : tentImages && tentImages.length > 0 ? (
-                     <Image src={tentImages[0].imageUrl} alt={selectedTent.name} fill className="object-cover" />
-                  ): <div className="flex h-full w-full items-center justify-center text-muted-foreground">Nenhuma imagem</div>}
-                </div>
-                <SheetTitle className="pt-6 text-2xl">{selectedTent.name}</SheetTitle>
-                <SheetDescription>{selectedTent.description}</SheetDescription>
-              </SheetHeader>
-              <div className="py-8">
-                <Button asChild className="w-full" size="lg">
-                  <Link href={`/tents/${selectedTent.slug}`}>Ver Detalhes e Cardápio</Link>
-                </Button>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

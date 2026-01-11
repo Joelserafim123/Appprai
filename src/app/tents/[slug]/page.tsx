@@ -21,6 +21,8 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import type { Tent } from '@/app/page';
+import { cn } from '@/lib/utils';
+
 
 interface MenuItem {
   id: string;
@@ -70,17 +72,17 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const menuQuery = useMemo(() => {
     if (!tent) return null;
     return collection(db!, 'tents', tent.id, 'menuItems');
-  }, [db, tent]);
+  }, [tent]);
 
   const rentalsQuery = useMemo(() => {
     if (!tent) return null;
     return collection(db!, 'tents', tent.id, 'rentalItems');
-  }, [db, tent]);
+  }, [tent]);
   
   const imagesQuery = useMemo(() => {
     if (!tent) return null;
     return collection(db!, 'tents', tent.id, 'images');
-  }, [db, tent]);
+  }, [tent]);
 
   const { data: menuItems, loading: loadingMenu } = useCollection<MenuItem>(menuQuery);
   const { data: rentalItems, loading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
@@ -366,8 +368,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                             <p className="text-center text-muted-foreground">Seu carrinho está vazio.</p>
                         ) : (
                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                {Object.values(cart).map(({ item, quantity }) => (
-                                     <li key={item.id} className="flex justify-between">
+                                {Object.values(cart).map(({ item, quantity, type }) => (
+                                     <li key={`${item.id}-${type}`} className="flex justify-between">
                                         <span>{quantity}x {item.name}</span>
                                         <span>R$ {(item.price * quantity).toFixed(2)}</span>
                                     </li>

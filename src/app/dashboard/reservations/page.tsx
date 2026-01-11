@@ -137,8 +137,8 @@ export default function OwnerReservationsPage() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                    {reservation.items.map(item => (
-                        <li key={item.name} className="flex justify-between">
+                    {reservation.items.map((item, index) => (
+                        <li key={`${item.name}-${index}`} className="flex justify-between">
                             <span>{item.quantity}x {item.name}</span>
                             <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                         </li>

@@ -8,6 +8,7 @@ import { collection } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import { Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
+import { Logo } from '@/components/icons';
 
 export interface Tent {
   id: string;
@@ -31,8 +32,11 @@ export default function Home() {
   if (loading || !tents) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Carregando barracas...</p>
+        <Logo />
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando barracas...</p>
+        </div>
       </div>
     );
   }
