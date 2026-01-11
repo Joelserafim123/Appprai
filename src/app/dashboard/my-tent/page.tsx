@@ -180,7 +180,6 @@ export default function MyTentPage() {
         setTent(null);
         }
     } catch(e) {
-        console.error("Failed to fetch tent data", e);
         toast({ variant: 'destructive', title: 'Erro ao buscar barraca', description: 'Não foi possível carregar os dados da sua barraca.' });
     } finally {
         setLoadingTent(false);
