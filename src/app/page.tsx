@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -16,6 +17,8 @@ export interface Tent {
   name: string;
   description: string;
   beachName: string;
+  latitude?: number;
+  longitude?: number;
   minimumOrderForFeeWaiver?: number;
 }
 
@@ -50,3 +53,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
@@ -23,11 +24,13 @@ type RentalItem = {
   id: string;
   name: string;
   price: number;
+  quantity: number;
 };
 
 const rentalItemSchema = z.object({
   name: z.string().min(2, 'O nome é obrigatório.'),
   price: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().min(0, 'O preço deve ser positivo.')),
+  quantity: z.preprocess((a) => parseInt(z.string().parse(a), 10), z.number().min(0, 'A quantidade deve ser positiva.')),
 });
 
 type RentalItemFormData = z.infer<typeof rentalItemSchema>;
@@ -38,7 +41,7 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<RentalItemFormData>({
     resolver: zodResolver(rentalItemSchema),
-    defaultValues: item || { name: '', price: 0 },
+    defaultValues: item || { name: '', price: 0, quantity: 1 },
   });
 
   const onSubmit = async (data: RentalItemFormData) => {
@@ -78,9 +81,14 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
       </div>
       <div>
-        <Label htmlFor="price">Preço (R$)</Label>
+        <Label htmlFor="price">Preço Diário (R$)</Label>
         <Input id="price" type="number" step="0.01" {...register('price')} />
         {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
+      </div>
+       <div>
+        <Label htmlFor="quantity">Quantidade Disponível</Label>
+        <Input id="quantity" type="number" step="1" {...register('quantity')} />
+        {errors.quantity && <p className="text-sm text-destructive">{errors.quantity.message}</p>}
       </div>
       <DialogFooter>
         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
@@ -162,12 +170,14 @@ export default function RentalItemsPage() {
     return <p>Acesso negado.</p>;
   }
 
-  if (!tentId) {
+  if (!tentId && !rentalsLoading) {
       return (
-          <div className="text-center">
-              <p>Você ainda não cadastrou sua barraca.</p>
-              <Button asChild className="mt-4">
-                  <a href="/dashboard/my-tent">Cadastrar Barraca</a>
+          <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
+              <Armchair className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Você precisa de uma barraca para gerenciar seus itens de aluguel.</p>
+              <Button asChild className="mt-6">
+                  <a href="/dashboard/my-tent">Ir para Minha Barraca</a>
               </Button>
           </div>
       )
@@ -206,8 +216,11 @@ export default function RentalItemsPage() {
                             </Button>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <p className='font-bold text-lg'>R$ {item.price.toFixed(2)}</p>
+                    <CardContent className="flex justify-between items-end">
+                         <div>
+                            <p className='font-bold text-lg'>R$ {item.price.toFixed(2)} / dia</p>
+                            <p className="text-sm text-muted-foreground">Quantidade: {item.quantity}</p>
+                        </div>
                     </CardContent>
                 </Card>
             ))}
@@ -223,12 +236,16 @@ export default function RentalItemsPage() {
             </div>
         )}
         </div>
+        {tentId && 
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
             </DialogHeader>
             <RentalItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} />
         </DialogContent>
+        }
     </Dialog>
   );
 }
+
+    

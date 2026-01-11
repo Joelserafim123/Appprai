@@ -1,17 +1,18 @@
 
+
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, Image as ImageIcon, Trash, Plus } from 'lucide-react';
+import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -20,12 +21,37 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import type { Tent } from '@/app/page';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '300px',
+  borderRadius: '0.5rem',
+};
+
+const mapOptions = {
+  styles: [
+    { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
+    { "featureType": "road", "elementType": "labels", "stylers": [{ "visibility": "off" }] },
+    { "featureType": "transit", "stylers": [{ "visibility": "off" }] },
+  ],
+  disableDefaultUI: true,
+  zoomControl: true,
+  gestureHandling: 'greedy'
+};
+
+const defaultCenter = {
+  lat: -22.9845,
+  lng: -43.2040 // Default to Copacabana
+};
 
 const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
   description: z.string().min(10, 'A descrição é obrigatória.'),
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
+  latitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
+  longitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
 });
 
 type TentFormData = z.infer<typeof tentSchema>;
@@ -41,25 +67,60 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const { db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<TentFormData>({
+  
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script-my-tent',
+    googleMapsApiKey: googleMapsApiKey
+  });
+
+  const { register, handleSubmit, formState: { errors }, control, setValue, watch } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
       name: existingTent?.name || '',
       description: existingTent?.description || '',
       beachName: existingTent?.beachName || '',
-      minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || 0,
+      minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || null,
+      latitude: existingTent?.latitude || defaultCenter.lat,
+      longitude: existingTent?.longitude || defaultCenter.lng,
     },
   });
+
+  const watchLatitude = watch('latitude');
+  const watchLongitude = watch('longitude');
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
   };
 
+  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+        setValue('latitude', e.latLng.lat());
+        setValue('longitude', e.latLng.lng());
+    }
+  }, [setValue]);
+
+  const handleGetCurrentLocation = () => {
+    if(navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+            setValue('latitude', position.coords.latitude);
+            setValue('longitude', position.coords.longitude);
+            toast({ title: "Localização atual obtida!" });
+        }, (error) => {
+            toast({ variant: 'destructive', title: "Erro de localização", description: error.message });
+        });
+    } else {
+        toast({ variant: 'destructive', title: "Erro de localização", description: "Geolocalização não é suportada neste navegador." });
+    }
+  }
+
+
   const onSubmit = async (data: TentFormData) => {
     if (!db || !user) return;
     setIsSubmitting(true);
 
-    const tentId = user.uid; // Use user's UID as the document ID
+    const tentId = user.uid;
     
     const tentData = {
       ...data,
@@ -106,9 +167,45 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
        <div className="space-y-2">
           <Label htmlFor="minimumOrderForFeeWaiver">Valor Mínimo para Isenção de Aluguel (R$)</Label>
           <Input id="minimumOrderForFeeWaiver" type="number" step="0.01" {...register('minimumOrderForFeeWaiver')} disabled={isSubmitting} />
-          <p className="text-xs text-muted-foreground">Deixe 0 se não houver isenção.</p>
+          <p className="text-xs text-muted-foreground">Deixe em branco ou 0 se não houver isenção.</p>
            {errors.minimumOrderForFeeWaiver && <p className="text-sm text-destructive">{errors.minimumOrderForFeeWaiver.message}</p>}
         </div>
+      
+       <div className="space-y-4">
+            <header className="space-y-1">
+                 <Label>Localização da Barraca</Label>
+                <p className="text-sm text-muted-foreground">Clique no mapa para definir a posição exata ou use o botão para obter sua localização atual.</p>
+            </header>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                    <Label htmlFor="latitude">Latitude</Label>
+                    <Input id="latitude" type="number" step="any" {...register('latitude')} disabled={isSubmitting} />
+                    {errors.latitude && <p className="text-sm text-destructive">{errors.latitude.message}</p>}
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="longitude">Longitude</Label>
+                    <Input id="longitude" type="number" step="any" {...register('longitude')} disabled={isSubmitting} />
+                    {errors.longitude && <p className="text-sm text-destructive">{errors.longitude.message}</p>}
+                 </div>
+            </div>
+             <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full" disabled={isSubmitting}>
+                <MapPin className="mr-2"/> Obter Localização Atual
+            </Button>
+
+            {isLoaded ? (
+                <GoogleMap
+                    mapContainerStyle={mapContainerStyle}
+                    center={{ lat: watchLatitude, lng: watchLongitude }}
+                    zoom={15}
+                    options={mapOptions}
+                    onClick={handleMapClick}
+                >
+                    <Marker position={{ lat: watchLatitude, lng: watchLongitude }} />
+                </GoogleMap>
+            ) : loadError ? <div>Erro ao carregar o mapa.</div> : <Loader2 className="animate-spin" />}
+       </div>
+
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Informações'}
       </Button>
@@ -295,3 +392,5 @@ export default function MyTentPage() {
   );
 
 }
+
+    

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -36,6 +37,7 @@ interface RentalItem {
   id: string;
   name: string;
   price: number;
+  quantity: number;
 }
 
 interface TentImage {
@@ -128,14 +130,24 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  const handleQuantityChange = (item: MenuItem | RentalItem, type: 'menu' | 'rental', change: number) => {
+    const handleQuantityChange = (item: MenuItem | RentalItem, type: 'menu' | 'rental', change: number) => {
     setCart((prev) => {
       const existing = prev[item.id] || { item, quantity: 0, type };
-      const newQuantity = Math.max(0, existing.quantity + change);
+      let newQuantity = Math.max(0, existing.quantity + change);
+      
+      // For rental items, cap the quantity at the available stock
+      if (type === 'rental') {
+        const rentalItem = item as RentalItem;
+        if (rentalItem.quantity) {
+          newQuantity = Math.min(newQuantity, rentalItem.quantity);
+        }
+      }
+
       if (newQuantity === 0) {
         const { [item.id]: _, ...rest } = prev;
         return rest;
       }
+
       return {
         ...prev,
         [item.id]: { ...existing, quantity: newQuantity },
@@ -308,12 +320,13 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                                         {rental.name.includes('Kit') ? <><Umbrella className="h-5 w-5"/> + <Armchair className="h-5 w-5"/></> : rental.name.includes('Guarda-sol') ? <Umbrella className="h-5 w-5"/> : <Armchair className="h-5 w-5"/>}
                                                         {rental.name}
                                                     </h3>
+                                                    <p className="text-sm text-muted-foreground">Disponível: {rental.quantity - (cart[rental.id]?.quantity || 0)}</p>
                                                     <p className="text-2xl font-bold text-primary">R$ {rental.price.toFixed(2)}</p>
                                                 </div>
                                                 <div className="mt-4 flex items-center gap-2 sm:mt-0">
                                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
                                                     <Input type="number" readOnly value={cart[rental.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 'rental', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 'rental', 1)} disabled={isSubmitting || (cart[rental.id]?.quantity || 0) >= rental.quantity}><Plus className="h-4 w-4"/></Button>
                                                 </div>
                                             </div>
                                         ))
@@ -411,3 +424,5 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
+
+    

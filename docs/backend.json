@@ -1,4 +1,5 @@
 
+
 {
   "entities": {
     "User": {
@@ -25,9 +26,11 @@
         "slug": { "type": "string" },
         "description": { "type": "string" },
         "beachName": { "type": "string", "description": "The name of the beach where the tent is located." },
+        "latitude": { "type": "number", "description": "The latitude of the tent's location." },
+        "longitude": { "type": "number", "description": "The longitude of the tent's location." },
         "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "The minimum order total from the menu to waive rental fees." }
       },
-      "required": ["ownerId", "name", "slug", "description", "beachName"]
+      "required": ["ownerId", "name", "slug", "description", "beachName", "latitude", "longitude"]
     },
     "TentImage": {
         "title": "Tent Image",
@@ -58,9 +61,10 @@
         "type": "object",
         "properties": {
             "name": {"type": "string"},
-            "price": {"type": "number"}
+            "price": {"type": "number"},
+            "quantity": {"type": "number", "description": "The number of available items for rent."}
         },
-        "required": ["name", "price"]
+        "required": ["name", "price", "quantity"]
     },
     "Reservation": {
       "title": "Reservation",
@@ -120,3 +124,5 @@
     }
   }
 }
+
+    
