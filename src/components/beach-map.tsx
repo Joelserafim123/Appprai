@@ -11,6 +11,7 @@ import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 const containerStyle = {
   width: '100%',
@@ -59,6 +60,8 @@ const haversineDistance = (
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
+  const [isLocating, setIsLocating] = useState(false);
+  const { toast } = useToast();
   
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
@@ -85,6 +88,34 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     }
   };
 
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ variant: "destructive", title: "Geolocalização não suportada." });
+      return;
+    }
+    
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setMapCenter(userLocation);
+        map?.panTo(userLocation);
+        map?.setZoom(15);
+        toast({ title: "Localização encontrada!", description: "Exibindo barracas perto de você." });
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("Erro de Geolocalização: ", error.message);
+        toast({ variant: "destructive", title: "Não foi possível obter sua localização.", description: "Por favor, verifique as permissões de localização do seu navegador." });
+        setIsLocating(false);
+      }
+    );
+  };
+
+
   const sortedTents = useMemo(() => {
     return [...tents]
       .filter(tent => tent.latitude && tent.longitude)
@@ -97,6 +128,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
 
   useEffect(() => {
+    // Attempt to get location on initial load without forcing it
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((position) => {
         const userLocation = {
@@ -106,7 +138,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         setMapCenter(userLocation);
         map?.panTo(userLocation);
       }, (error) => {
-        console.warn("Aviso de Geolocalização: ", error.message);
+        // This can fail silently if permissions are not granted
+        console.warn("Aviso de Geolocalização na carga inicial: ", error.message);
       });
     }
   }, [map]);
@@ -248,10 +281,17 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
       <div className="relative h-full w-full bg-muted">
         {renderMap()}
+         <Button 
+            size="icon" 
+            className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg"
+            onClick={handleGetCurrentLocation}
+            disabled={isLocating}
+            aria-label="Usar minha localização atual"
+        >
+            {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
+        </Button>
       </div>
 
     </div>
   );
 }
-
-    
