@@ -23,7 +23,7 @@ const containerStyle = {
 
 const defaultCenter = {
   lat: -22.9845,
-  lng: -43.2040
+  lng: -43.2040 // Default to Copacabana
 };
 
 const mapOptions = {
@@ -77,8 +77,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           setLoadingLocation(false);
         },
         (error) => {
-          let errorMsg = "Não foi possível obter sua localização.";
-          if (error.code === error.PERMISSION_DENIED) {
+          let errorMsg = "Não foi possível obter sua localização. O mapa será centralizado em um local padrão.";
+           if (error.code === error.PERMISSION_DENIED) {
             errorMsg = "A permissão de localização foi negada. O mapa será centralizado em um local padrão.";
           }
           setLocationError(errorMsg);
@@ -100,9 +100,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
-    if (tent.location) {
-      setCenter(tent.location);
-    }
+    // Since we don't have lat/lng, we can't center the map on the tent.
+    // We could implement geocoding here in the future.
   };
 
   const handleMarkerClick = (tent: Tent) => {
@@ -129,10 +128,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       strokeWeight: 2,
     }
   }
-
-  const getTentLocation = (tent: Tent) => {
-    return tent.location;
-  }
   
   const handleUseMyLocatioClick = () => {
     if(userLocation) {
@@ -150,7 +145,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Erro ao carregar o mapa</AlertTitle>
             <AlertDescription>
-             Não foi possível carregar o Google Maps. Verifique se a chave da API é válida e tente novamente. O resto da aplicação continuará funcionando.
+              Não foi possível carregar o Google Maps. Verifique a chave da API e tente novamente. A aplicação continuará funcionando, mas o mapa não será exibido.
             </AlertDescription>
           </Alert>
         </div>
@@ -182,15 +177,16 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             options={mapOptions}
         >
             {userLocation && <Marker position={userLocation} title="Sua Localização" icon={getUserPinIcon()} />}
-            {tents.map((tent) => (
-            <Marker
+            {/* Markers are disabled as we don't have coordinates anymore */}
+            {/* {tents.map((tent) => (
+            tent.location && <Marker
                 key={`marker-${tent.id}`}
-                position={getTentLocation(tent)}
+                position={tent.location}
                 onClick={() => handleMarkerClick(tent)}
                 icon={getPinIcon(tent)}
                 title={tent.name}
             />
-            ))}
+            ))} */}
         </GoogleMap>
         </>
     );
@@ -224,8 +220,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 <CardHeader>
                   <CardTitle className="text-base">{tent.name}</CardTitle>
                    <CardDescription className="flex items-center pt-1 text-xs">
-                    <Star className="mr-1 h-3 w-3 fill-accent stroke-accent" /> 
-                    4.5 (25 avaliações)
+                    {tent.beachName}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -268,4 +263,3 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
-

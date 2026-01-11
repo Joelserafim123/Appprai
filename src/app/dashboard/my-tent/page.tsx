@@ -20,43 +20,28 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import type { Tent } from '@/app/page';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-type Location = {
-    lat: number;
-    lng: number;
-}
-
 const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
   description: z.string().min(10, 'A descrição é obrigatória.'),
-  location: z.object({
-    lat: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().min(-90).max(90)),
-    lng: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().min(-180).max(180)),
-  }),
+  beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
 });
 
 type TentFormData = z.infer<typeof tentSchema>;
 
-function TentForm({ user, existingTent, onFinished, currentLocation, locationError }: { user: any; existingTent?: Tent | null; onFinished: () => void, currentLocation: Location | null, locationError: string | null }) {
+function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm<TentFormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
       name: existingTent?.name || '',
       description: existingTent?.description || '',
-      location: existingTent?.location || currentLocation || { lat: 0, lng: 0 },
+      beachName: existingTent?.beachName || '',
       minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || 0,
     },
   });
-
-  useEffect(() => {
-    if (currentLocation && !existingTent?.location) { // Only set current location if there's no existing one
-      setValue('location.lat', currentLocation.lat);
-      setValue('location.lng', currentLocation.lng);
-    }
-  }, [currentLocation, setValue, existingTent]);
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
@@ -95,13 +80,6 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {locationError && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Erro de Localização</AlertTitle>
-          <AlertDescription>{locationError}</AlertDescription>
-        </Alert>
-      )}
       <div className="space-y-2">
         <Label htmlFor="name">Nome da Barraca</Label>
         <Input id="name" {...register('name')} disabled={isSubmitting} />
@@ -112,23 +90,10 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
         <Textarea id="description" {...register('description')} disabled={isSubmitting} />
         {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
       </div>
-      <div>
-        <div className="flex items-center justify-between mb-2">
-            <Label>Localização (preenchida automaticamente)</Label>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-            <Label htmlFor="lat">Latitude</Label>
-            <Input id="lat" type="number" step="any" {...register('location.lat')} disabled={isSubmitting} />
-            {errors.location?.lat && <p className="text-sm text-destructive">{errors.location.lat.message}</p>}
-            </div>
-            <div className="space-y-2">
-            <Label htmlFor="lng">Longitude</Label>
-            <Input id="lng" type="number" step="any" {...register('location.lng')} disabled={isSubmitting} />
-            {errors.location?.lng && <p className="text-sm text-destructive">{errors.location.lng.message}</p>}
-            </div>
-        </div>
-        {!currentLocation && !locationError && <p className="text-xs text-muted-foreground mt-2">Aguardando localização... Habilite o GPS no seu navegador.</p>}
+      <div className="space-y-2">
+        <Label htmlFor="beachName">Nome da Praia</Label>
+        <Input id="beachName" {...register('beachName')} placeholder="Ex: Praia de Copacabana" disabled={isSubmitting} />
+        {errors.beachName && <p className="text-sm text-destructive">{errors.beachName.message}</p>}
       </div>
        <div className="space-y-2">
           <Label htmlFor="minimumOrderForFeeWaiver">Valor Mínimo para Isenção de Aluguel (R$)</Label>
@@ -148,25 +113,20 @@ export default function MyTentPage() {
   const { db } = useFirebase();
   const [tent, setTent] = useState<Tent | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
-  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchTentData = async () => {
     if (!db || !user) return;
     setLoadingTent(true);
     const tentsRef = collection(db, 'tents');
-    const q = query(tentsRef, where('ownerId', '==', user.uid));
+    // The document ID for a tent is the owner's UID
+    const tentDocRef = doc(tentsRef, user.uid);
     try {
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            const doc = querySnapshot.docs[0];
+        const docSnap = await getDocs(query(tentsRef, where('ownerId', '==', user.uid)));
+        if (!docSnap.empty) {
+            const doc = docSnap.docs[0];
             const tentData = { id: doc.id, ...doc.data() } as Tent;
             setTent(tentData);
-            if (tentData.location) {
-                // If a location is already saved, use it as the current location.
-                setCurrentLocation(tentData.location);
-            }
         } else {
             setTent(null);
         }
@@ -185,37 +145,6 @@ export default function MyTentPage() {
     }
   }, [db, user, userLoading]);
 
-  useEffect(() => {
-    // This effect runs only once to get the user's location.
-    if (tent?.location) return; // Don't fetch if location is already set from DB
-
-    setLocationError(null);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setCurrentLocation(newLocation);
-          toast({ title: 'Localização obtida com sucesso!' });
-        },
-        (error) => {
-          let errorMsg = 'Não foi possível obter sua localização. Verifique as permissões do navegador e tente novamente.';
-          if (error.code === error.PERMISSION_DENIED) {
-            errorMsg = 'A permissão de localização foi negada. Você precisa habilitá-la nas configurações do seu navegador para cadastrar uma barraca.';
-          }
-          setLocationError(errorMsg);
-          toast({ variant: 'destructive', title: 'Erro de Localização', description: errorMsg, duration: 10000 });
-        },
-        { enableHighAccuracy: true }
-      );
-    } else {
-      const errorMsg = 'Geolocalização não é suportada por este navegador.';
-      setLocationError(errorMsg);
-      toast({ variant: 'destructive', title: 'Erro de Localização', description: errorMsg });
-    }
-  }, [tent]);
 
   if (userLoading || loadingTent) {
     return (
@@ -247,7 +176,7 @@ export default function MyTentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TentForm user={user} existingTent={tent} onFinished={fetchTentData} currentLocation={currentLocation} locationError={locationError} />
+          <TentForm user={user} existingTent={tent} onFinished={fetchTentData} />
         </CardContent>
       </Card>
     </div>

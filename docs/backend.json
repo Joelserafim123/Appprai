@@ -24,16 +24,10 @@
         "name": { "type": "string" },
         "slug": { "type": "string" },
         "description": { "type": "string" },
-        "location": {
-          "type": "object",
-          "properties": {
-            "lat": { "type": "number" },
-            "lng": { "type": "number" }
-          }
-        },
+        "beachName": { "type": "string", "description": "The name of the beach where the tent is located." },
         "minimumOrderForFeeWaiver": { "type": "number" }
       },
-      "required": ["ownerId", "name", "slug", "description", "location"]
+      "required": ["ownerId", "name", "slug", "description", "beachName"]
     },
     "TentImage": {
         "title": "Tent Image",
