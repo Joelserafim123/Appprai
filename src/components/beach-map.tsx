@@ -7,14 +7,10 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, AlertTriangle, Loader2 } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { useFirebase } from "@/firebase/provider";
-import { collection } from "firebase/firestore";
 
 const containerStyle = {
   width: '100%',
@@ -39,21 +35,16 @@ const mapOptions = {
   gestureHandling: 'greedy'
 };
 
-interface TentImage {
-  id: string;
-  imageUrl: string;
-}
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(tents[0] || null);
   const [center] = useState(defaultCenter);
   
-  const { db } = useFirebase();
-  const imagesQuery = selectedTent ? collection(db!, 'tents', selectedTent.id, 'images') : null;
-  
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+    googleMapsApiKey: googleMapsApiKey
   })
   
   const handleTentSelect = (tent: Tent) => {
@@ -61,6 +52,20 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   };
   
   const renderMap = () => {
+    if (!googleMapsApiKey) {
+        return (
+        <div className="flex h-full items-center justify-center bg-muted p-8">
+          <Alert variant="destructive" className="max-w-md">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
+            <AlertDescription>
+              A chave da API do Google Maps não foi configurada. Por favor, adicione sua chave ao arquivo `.env.local` como `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
+
     if (loadError) {
       return (
         <div className="flex h-full items-center justify-center bg-muted p-8">
@@ -68,7 +73,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Erro ao carregar o mapa</AlertTitle>
             <AlertDescription>
-              Não foi possível carregar o Google Maps. Verifique a chave da API e tente novamente. A aplicação continuará funcionando, mas o mapa não será exibido.
+              Não foi possível carregar o Google Maps. Verifique a chave da API e a conexão com a internet.
             </AlertDescription>
           </Alert>
         </div>
@@ -141,5 +146,3 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
-
-    
