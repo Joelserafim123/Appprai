@@ -139,51 +139,58 @@ export default function SettingsPage() {
 
     const finalPhotoURL = selfie || data.photoURL || '';
 
+    // We separate the Auth update from the Firestore update to handle errors individually
     try {
       if (currentUser) {
-        // Update Firebase Auth profile
         await updateProfile(currentUser, {
           displayName: data.displayName,
           photoURL: finalPhotoURL,
         });
       }
+    } catch(authError) {
+      console.error("Error updating Firebase Auth profile:", authError);
+       toast({
+        variant: 'destructive',
+        title: 'Erro de Autenticação',
+        description: 'Não foi possível atualizar seu perfil de autenticação. Tente novamente.',
+      });
+       setIsSubmitting(false);
+       return;
+    }
 
-      // Update Firestore document
-      const firestoreData = {
-        displayName: data.displayName,
-        address: data.address,
-        cpf: data.cpf.replace(/\D/g, ""),
-        photoURL: finalPhotoURL,
-      };
-      
-      await updateDoc(userDocRef, firestoreData).catch(err => {
+    const firestoreData = {
+      displayName: data.displayName,
+      address: data.address,
+      cpf: data.cpf.replace(/\D/g, ""),
+      photoURL: finalPhotoURL,
+    };
+    
+    updateDoc(userDocRef, firestoreData)
+      .then(() => {
+        toast({
+          title: 'Perfil Atualizado!',
+          description: 'Suas informações foram salvas com sucesso.',
+        });
+        if(refresh) refresh();
+      })
+      .catch(err => {
          const permissionError = new FirestorePermissionError({
             path: userDocRef.path,
             operation: 'update',
             requestResourceData: firestoreData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
+        // We no longer throw here as the emitter handles it.
+        // We show a generic toast instead.
+         toast({
+            variant: 'destructive',
+            title: 'Erro ao salvar no banco de dados',
+            description: 'Não foi possível salvar suas alterações. Verifique as permissões.',
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-
-      toast({
-        title: 'Perfil Atualizado!',
-        description: 'Suas informações foram salvas com sucesso.',
-      });
-      
-      // Refresh user data in the context
-      if(refresh) refresh();
-
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao atualizar perfil',
-        description: 'Não foi possível salvar suas alterações. Tente novamente.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
 
