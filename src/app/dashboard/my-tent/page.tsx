@@ -119,10 +119,9 @@ export default function MyTentPage() {
     if (!db || !user) return;
     setLoadingTent(true);
     const tentsRef = collection(db, 'tents');
-    // The document ID for a tent is the owner's UID
-    const tentDocRef = doc(tentsRef, user.uid);
     try {
-        const docSnap = await getDocs(query(tentsRef, where('ownerId', '==', user.uid)));
+        const q = query(tentsRef, where('ownerId', '==', user.uid));
+        const docSnap = await getDocs(q);
         if (!docSnap.empty) {
             const doc = docSnap.docs[0];
             const tentData = { id: doc.id, ...doc.data() } as Tent;
