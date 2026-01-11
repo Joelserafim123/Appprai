@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash, Plus, UserCircle, Image as ImageIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -11,23 +11,155 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, deleteDoc, query } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User as UserIcon } from 'lucide-react';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import Image from 'next/image';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, 'O endereço é obrigatório.'),
-  photoURL: z.string().url('Por favor, insira uma URL válida.').or(z.literal('')).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
+
+interface ProfileImage {
+  id: string;
+  imageUrl: string;
+  description?: string;
+}
+
+function ProfileImageManager({ user }: { user: any }) {
+    const { db } = useFirebase();
+    const { toast } = useToast();
+    const { refresh } = useUser();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const imagesQuery = useMemo(() => {
+        if (!db || !user) return null;
+        return query(collection(db, 'users', user.uid, 'images'));
+    }, [db, user]);
+
+    const { data: profileImages, loading: loadingImages } = useCollection<ProfileImage>(imagesQuery);
+
+    const handleAddImage = async () => {
+        if (!db || !user) return;
+        const imageUrl = prompt("Por favor, insira a URL da imagem:");
+        if (!imageUrl) return;
+
+        setIsSubmitting(true);
+        const imageData = { 
+            imageUrl,
+            description: "Profile image"
+        };
+        const collectionRef = collection(db, 'users', user.uid, 'images');
+
+        try {
+            await addDoc(collectionRef, imageData);
+            toast({ title: "Imagem adicionada com sucesso!" });
+        } catch(e) {
+            const permissionError = new FirestorePermissionError({
+                path: `users/${user.uid}/images`,
+                operation: 'create',
+                requestResourceData: imageData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao adicionar imagem.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteImage = async (imageId: string) => {
+        if (!db || !user || !confirm("Tem certeza que quer apagar esta imagem?")) return;
+        
+        setIsSubmitting(true);
+        const docRef = doc(db, 'users', user.uid, 'images', imageId);
+        try {
+            await deleteDoc(docRef);
+            toast({ title: "Imagem apagada com sucesso!" });
+        } catch (e) {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao apagar imagem.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSetProfilePicture = async (imageUrl: string) => {
+        if (!user || !db) return;
+        setIsSubmitting(true);
+
+        const auth = getAuth(useFirebase().app!);
+        const currentUser = auth.currentUser;
+        const userDocRef = doc(db, "users", user.uid);
+
+        try {
+            if (currentUser) {
+                await updateProfile(currentUser, { photoURL: imageUrl });
+            }
+            await updateDoc(userDocRef, { photoURL: imageUrl });
+
+            toast({ title: "Foto de perfil atualizada!" });
+            if (refresh) refresh();
+        } catch (error) {
+            console.error("Error setting profile picture:", error);
+            toast({ variant: 'destructive', title: 'Erro ao definir foto do perfil.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ImageIcon />
+                    Galeria de Fotos do Perfil
+                </CardTitle>
+                <CardDescription>
+                    Adicione imagens e escolha sua foto de perfil.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {loadingImages ? <Loader2 className="animate-spin mx-auto" /> : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {profileImages?.map(image => (
+                            <div key={image.id} className="relative group aspect-square">
+                                <Image src={image.imageUrl} alt={image.description || 'Profile image'} fill className="object-cover rounded-md" />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                     <Button variant="secondary" size="icon" onClick={() => handleSetProfilePicture(image.imageUrl)} disabled={isSubmitting} title="Definir como foto de perfil">
+                                        <UserCircle className="w-4 h-4" />
+                                    </Button>
+                                    <Button variant="destructive" size="icon" onClick={() => handleDeleteImage(image.id)} disabled={isSubmitting} title="Apagar imagem">
+                                        <Trash className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 {profileImages?.length === 0 && !loadingImages && (
+                    <p className="text-center text-muted-foreground py-4">Nenhuma imagem na galeria.</p>
+                 )}
+                <Button onClick={handleAddImage} className="w-full" disabled={isSubmitting}>
+                    <Plus className="mr-2"/> Adicionar Imagem (URL)
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function SettingsPage() {
   const { user, loading, refresh } = useUser();
@@ -45,7 +177,6 @@ export default function SettingsPage() {
         displayName: user.displayName || '',
         cpf: user.cpf || '',
         address: user.address || '',
-        photoURL: user.photoURL || '',
       });
     }
   }, [user, reset]);
@@ -77,12 +208,10 @@ export default function SettingsPage() {
     const currentUser = auth.currentUser;
     const userDocRef = doc(db, "users", user.uid);
 
-    // We separate the Auth update from the Firestore update to handle errors individually
     try {
       if (currentUser) {
         await updateProfile(currentUser, {
           displayName: data.displayName,
-          photoURL: data.photoURL,
         });
       }
     } catch(authError) {
@@ -90,7 +219,7 @@ export default function SettingsPage() {
        toast({
         variant: 'destructive',
         title: 'Erro de Autenticação',
-        description: 'Não foi possível atualizar seu perfil de autenticação. Tente novamente.',
+        description: 'Não foi possível atualizar seu perfil. Tente novamente.',
       });
        setIsSubmitting(false);
        return;
@@ -100,7 +229,6 @@ export default function SettingsPage() {
       displayName: data.displayName,
       address: data.address,
       cpf: data.cpf.replace(/\D/g, ""),
-      photoURL: data.photoURL,
     };
     
     updateDoc(userDocRef, firestoreData)
@@ -118,12 +246,10 @@ export default function SettingsPage() {
             requestResourceData: firestoreData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        // We no longer throw here as the emitter handles it.
-        // We show a generic toast instead.
          toast({
             variant: 'destructive',
             title: 'Erro ao salvar no banco de dados',
-            description: 'Não foi possível salvar suas alterações. Verifique as permissões.',
+            description: 'Não foi possível salvar suas alterações.',
         });
       })
       .finally(() => {
@@ -145,33 +271,29 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className="w-full max-w-2xl space-y-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Configurações da Conta</h1>
-        <p className="text-muted-foreground">Gerencie as informações da sua conta.</p>
+        <p className="text-muted-foreground">Gerencie as informações da sua conta e foto de perfil.</p>
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
-            <CardTitle>Meu Perfil</CardTitle>
-            <CardDescription>
-              Estas são as informações associadas à sua conta.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
              <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
                     <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
                     <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                 </Avatar>
-                <div className="space-y-2 w-full">
-                    <Label htmlFor="photoURL">URL da Foto de Perfil</Label>
-                    <Input id="photoURL" {...register('photoURL')} placeholder="https://exemplo.com/sua-foto.jpg" disabled={isSubmitting}/>
-                    {errors.photoURL && <p className="text-sm text-destructive">{errors.photoURL.message}</p>}
+                <div className="space-y-1">
+                    <CardTitle>Meu Perfil</CardTitle>
+                    <CardDescription>
+                      Estas são as informações associadas à sua conta.
+                    </CardDescription>
                 </div>
             </div>
-
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="displayName">Nome Completo</Label>
               <Input id="displayName" {...register('displayName')} disabled={isSubmitting}/>
@@ -210,6 +332,7 @@ export default function SettingsPage() {
           </CardFooter>
         </Card>
       </form>
+       {user && <ProfileImageManager user={user} />}
     </div>
   );
 }

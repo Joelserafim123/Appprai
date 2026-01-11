@@ -43,6 +43,16 @@
         },
         "required": ["imageUrl"]
     },
+     "ProfileImage": {
+        "title": "Profile Image",
+        "description": "A profile image for a user.",
+        "type": "object",
+        "properties": {
+            "imageUrl": { "type": "string" },
+            "description": { "type": "string" }
+        },
+        "required": ["imageUrl"]
+    },
     "MenuItem": {
       "title": "Menu Item",
       "description": "An item on a tent's menu.",
@@ -101,6 +111,10 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Stores public user profile information."
+    },
+     "/users/{userId}/images/{imageId}": {
+      "schema": { "$ref": "#/entities/ProfileImage" },
+      "description": "Images for a user's profile gallery."
     },
     "/tents/{tentId}": {
         "schema": { "$ref": "#/entities/Tent" },
