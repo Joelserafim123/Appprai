@@ -65,7 +65,7 @@ function TentForm({ user, existingTent, onFinished, currentLocation }: { user: a
     if (!db || !user) return;
     setIsSubmitting(true);
 
-    const tentId = existingTent ? existingTent.id : doc(collection(db, 'tents')).id;
+    const tentId = user.uid; // Use user's UID as the document ID
     
     const tentData = {
       ...data,
@@ -229,4 +229,5 @@ export default function MyTentPage() {
       </Card>
     </div>
   );
-}
+
+    
