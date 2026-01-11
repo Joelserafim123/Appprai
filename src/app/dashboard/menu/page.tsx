@@ -20,7 +20,6 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import Link from 'next/link';
 
 type MenuItem = {
   id: string;
@@ -128,27 +127,22 @@ export default function MenuPage() {
   const { db } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
-  const [loadingTent, setLoadingTent] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
 
   useEffect(() => {
     if (db && user) {
       const getTentId = async () => {
-        setLoadingTent(true);
         const tentsRef = collection(db, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           setTentId(querySnapshot.docs[0].id);
         }
-        setLoadingTent(false);
       };
       getTentId();
-    } else if (!userLoading) {
-        setLoadingTent(false);
     }
-  }, [db, user, userLoading]);
+  }, [db, user]);
 
   const menuQuery = useMemo(() => {
     if (!db || !tentId) return null;
@@ -186,7 +180,7 @@ export default function MenuPage() {
   }
 
 
-  if (userLoading || loadingTent) {
+  if (userLoading || (menuLoading && !menu)) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -196,27 +190,6 @@ export default function MenuPage() {
 
   if (!user || user.role !== 'owner') {
     return <p>Acesso negado.</p>;
-  }
-
-  if (!tentId) {
-      return (
-          <div className="text-center py-16 border-2 border-dashed rounded-lg">
-              <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Você precisa cadastrar sua barraca para poder gerenciar o cardápio.</p>
-              <Button asChild className="mt-6">
-                  <Link href="/dashboard/my-tent">Cadastrar Minha Barraca</Link>
-              </Button>
-          </div>
-      )
-  }
-  
-  if (menuLoading && !menu) {
-     return (
-      <div className="flex justify-center items-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
   }
 
   if (error) {
@@ -231,13 +204,21 @@ export default function MenuPage() {
             <h1 className="text-3xl font-bold tracking-tight">Meu Cardápio</h1>
             <p className="text-muted-foreground">Adicione, edite ou remova itens do seu cardápio.</p>
             </div>
-            <Button onClick={openNewForm}>
+            <Button onClick={openNewForm} disabled={!tentId}>
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar Item
             </Button>
         </header>
 
-        {menu && menu.length > 0 ? (
+        {!tentId && !menuLoading && (
+            <div className="text-center py-16 border-2 border-dashed rounded-lg">
+                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Você precisa de uma barraca para gerenciar um cardápio.</p>
+            </div>
+        )}
+
+        {tentId && menu && menu.length > 0 ? (
             <div className="space-y-4">
             {menu.map((item) => (
                 <Card key={item.id}>
@@ -266,7 +247,7 @@ export default function MenuPage() {
                 </Card>
             ))}
             </div>
-        ) : (
+        ) : tentId && !menuLoading && (
             <div className="text-center py-16 border-2 border-dashed rounded-lg">
                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-medium">Seu cardápio está vazio</h3>
@@ -277,12 +258,16 @@ export default function MenuPage() {
             </div>
         )}
         </div>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
-            </DialogHeader>
-            <MenuItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} />
-        </DialogContent>
+        {tentId && (
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
+                </DialogHeader>
+                <MenuItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} />
+            </DialogContent>
+        )}
     </Dialog>
   );
 }
+
+    
