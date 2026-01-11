@@ -13,11 +13,12 @@ import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User as UserIcon, Camera } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -33,8 +34,13 @@ export default function SettingsPage() {
   const { app, db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [selfie, setSelfie] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<ProfileFormData>();
+  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<ProfileFormData>();
 
   useEffect(() => {
     if (user) {
@@ -44,9 +50,49 @@ export default function SettingsPage() {
         address: user.address || '',
         photoURL: user.photoURL || '',
       });
+      if(user.photoURL) {
+        setSelfie(user.photoURL);
+      }
     }
   }, [user, reset]);
   
+   useEffect(() => {
+    const getCameraPermission = async () => {
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        setHasCameraPermission(false);
+        console.error("Media devices not supported");
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Acesso à Câmera Negado',
+          description: 'Por favor, habilite as permissões de câmera nas configurações do seu navegador.',
+        });
+      }
+    };
+
+    getCameraPermission();
+    
+    // Cleanup function
+    return () => {
+        if(videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+  }, []);
+
   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     value = value.replace(/\D/g, "");
@@ -65,6 +111,22 @@ export default function SettingsPage() {
     }
     return name.substring(0, 2).toUpperCase();
   }
+  
+  const takeSelfie = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if(context){
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setSelfie(dataUrl);
+        setValue('photoURL', dataUrl);
+      }
+    }
+  };
 
   const onSubmit = async (data: ProfileFormData) => {
     if (!user || !app || !db) return;
@@ -74,12 +136,14 @@ export default function SettingsPage() {
     const currentUser = auth.currentUser;
     const userDocRef = doc(db, "users", user.uid);
 
+    const finalPhotoURL = selfie || data.photoURL;
+
     try {
       if (currentUser) {
         // Update Firebase Auth profile
         await updateProfile(currentUser, {
           displayName: data.displayName,
-          photoURL: data.photoURL,
+          photoURL: finalPhotoURL,
         });
       }
 
@@ -88,7 +152,7 @@ export default function SettingsPage() {
         displayName: data.displayName,
         address: data.address,
         cpf: data.cpf.replace(/\D/g, ""),
-        photoURL: data.photoURL,
+        photoURL: finalPhotoURL,
       };
       
       updateDoc(userDocRef, firestoreData).catch(err => {
@@ -120,13 +184,6 @@ export default function SettingsPage() {
       setIsSubmitting(false);
     }
   };
-  
-  const handlePhotoURLChange = () => {
-    const newURL = prompt("Por favor, insira a nova URL da sua foto de perfil:", watch('photoURL') || '');
-    if (newURL !== null) {
-      reset({ ...watch(), photoURL: newURL });
-    }
-  }
 
 
   if (loading) {
@@ -157,27 +214,47 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-               <div className="relative group">
-                <Avatar className="h-20 w-20">
-                    <AvatarImage src={watch('photoURL') || user.photoURL || undefined} alt={user.displayName || "User"} />
-                    <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
-                </Avatar>
-                 <Button type="button" size="icon" onClick={handlePhotoURLChange} className="absolute bottom-0 right-0 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="h-4 w-4"/>
-                    <span className="sr-only">Change photo</span>
-                 </Button>
-               </div>
-               <div className="flex-1">
-                <Label htmlFor="photoURL">URL da Foto</Label>
-                 <Input 
-                  id="photoURL" 
-                  placeholder="https://exemplo.com/sua-foto.jpg"
-                  {...register('photoURL')}
-                  disabled={isSubmitting}
-                />
-                 {errors.photoURL && <p className="text-sm text-destructive mt-1">{errors.photoURL.message}</p>}
-               </div>
+             <div className="space-y-4">
+              <Label>Foto de Perfil</Label>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative w-40 h-40">
+                  {selfie ? (
+                     <Avatar className="h-40 w-40 border-4 border-primary">
+                        <AvatarImage src={selfie} alt="Sua selfie" />
+                        <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="w-40 h-40 bg-muted rounded-full flex items-center justify-center">
+                       <UserIcon className="w-20 h-20 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 w-full space-y-4">
+                   <div className="w-full aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center">
+                      <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                      <canvas ref={canvasRef} className="hidden" />
+                      {hasCameraPermission === false && (
+                          <div className='text-center p-4'>
+                            <Camera className="w-8 h-8 mx-auto text-muted-foreground"/>
+                            <p className="text-sm text-muted-foreground mt-2">A câmera não está disponível ou a permissão foi negada.</p>
+                          </div>
+                      )}
+                  </div>
+                   <Button type="button" onClick={takeSelfie} disabled={hasCameraPermission !== true || isSubmitting} className="w-full">
+                      <Camera className="mr-2 h-4 w-4"/>
+                      {selfie ? 'Tirar Outra Selfie' : 'Tirar Selfie'}
+                  </Button>
+                </div>
+              </div>
+                {hasCameraPermission === false && (
+                    <Alert variant="destructive" className="mt-4">
+                    <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                    <AlertDescription>
+                        Por favor, permita o acesso à câmera para tirar uma selfie. Você pode precisar recarregar a página após conceder a permissão.
+                    </AlertDescription>
+                    </Alert>
+                )}
             </div>
             
             <div className="space-y-2">
