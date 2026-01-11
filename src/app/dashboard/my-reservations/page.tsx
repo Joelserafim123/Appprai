@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
@@ -32,12 +33,17 @@ export default function MyReservationsPage() {
     if (!db || !user) return null;
     return query(
       collection(db, 'reservations'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
+      // orderBy('createdAt', 'desc') // This requires a composite index. We will sort on the client.
     );
   }, [db, user]);
 
   const { data: reservations, loading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+
+  const sortedReservations = useMemo(() => {
+    if (!reservations) return [];
+    return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [reservations]);
 
   if (userLoading || (reservationsLoading && !reservations)) {
     return (
@@ -62,9 +68,9 @@ export default function MyReservationsPage() {
         <p className="text-muted-foreground">Aqui está o histórico de todas as suas reservas.</p>
       </header>
 
-      {reservations && reservations.length > 0 ? (
+      {sortedReservations && sortedReservations.length > 0 ? (
         <div className="space-y-6">
-          {reservations.map((reservation) => (
+          {sortedReservations.map((reservation) => (
             <Card key={reservation.id}>
               <CardHeader className='flex-row justify-between items-start'>
                 <div>
@@ -80,7 +86,7 @@ export default function MyReservationsPage() {
                     })}
                   </CardDescription>
                 </div>
-                 <Badge variant={reservation.status === 'confirmed' ? 'default' : 'destructive'}>
+                 <Badge variant={reservation.status === 'confirmed' ? 'default' : reservation.status === 'completed' ? 'secondary' : 'destructive'}>
                     {reservation.status === 'confirmed' && 'Confirmada'}
                     {reservation.status === 'cancelled' && 'Cancelada'}
                     {reservation.status === 'completed' && 'Completa'}
@@ -111,7 +117,7 @@ export default function MyReservationsPage() {
             <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
             <p className="mt-2 text-sm text-muted-foreground">Você ainda não fez nenhuma reserva.</p>
             <Button asChild className="mt-6">
-                <Link href="/">Encontrar uma barraca</Link>
+                <a href="/">Encontrar uma barraca</a>
             </Button>
         </div>
       )}

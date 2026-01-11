@@ -55,12 +55,18 @@ export default function OwnerReservationsPage() {
     if (!db || !tentId) return null;
     return query(
       collection(db, 'reservations'),
-      where('tentId', '==', tentId),
-      orderBy('createdAt', 'desc')
+      where('tentId', '==', tentId)
+      // orderBy('createdAt', 'desc') // This requires a composite index. We will sort on the client.
     );
   }, [db, tentId]);
 
   const { data: reservations, loading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+
+  const sortedReservations = useMemo(() => {
+    if (!reservations) return [];
+    return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [reservations]);
+
 
   const handleUpdateStatus = (reservationId: string, status: 'confirmed' | 'cancelled' | 'completed') => {
     if (!db) return;
@@ -104,9 +110,9 @@ export default function OwnerReservationsPage() {
         <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
       </header>
 
-      {reservations && reservations.length > 0 ? (
+      {sortedReservations && sortedReservations.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {reservations.map((reservation) => (
+          {sortedReservations.map((reservation) => (
             <Card key={reservation.id}>
               <CardHeader>
                 <div className='flex justify-between items-start'>
@@ -164,4 +170,3 @@ export default function OwnerReservationsPage() {
     </div>
   );
 }
-
