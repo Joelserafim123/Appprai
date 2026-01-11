@@ -26,14 +26,14 @@ type MenuItem = {
   name: string;
   description: string;
   price: number;
-  category: 'Drinks' | 'Appetizers' | 'Main Courses';
+  category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
 };
 
 const menuItemSchema = z.object({
   name: z.string().min(2, 'O nome é obrigatório.'),
   description: z.string().optional(),
   price: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().min(0, 'O preço deve ser positivo.')),
-  category: z.enum(['Drinks', 'Appetizers', 'Main Courses'], { required_error: 'A categoria é obrigatória.' }),
+  category: z.enum(['Bebidas', 'Petiscos', 'Pratos Principais'], { required_error: 'A categoria é obrigatória.' }),
 });
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
@@ -44,7 +44,7 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, control, formState: { errors } } = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
-    defaultValues: item || { name: '', description: '', price: 0, category: 'Appetizers' },
+    defaultValues: item || { name: '', description: '', price: 0, category: 'Petiscos' },
   });
 
   const onSubmit = async (data: MenuItemFormData) => {
@@ -54,21 +54,34 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
     try {
       if (item) {
         const docRef = doc(db, 'tents', tentId, 'menuItems', item.id);
-        await updateDoc(docRef, data);
+        updateDoc(docRef, data).catch((e) => {
+          const permissionError = new FirestorePermissionError({
+              path: `tents/${tentId}/menuItems/${item.id}`,
+              operation: 'update',
+              requestResourceData: data,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
         toast({ title: "Item atualizado com sucesso!" });
       } else {
         const collectionRef = collection(db, 'tents', tentId, 'menuItems');
-        await addDoc(collectionRef, data);
+        addDoc(collectionRef, data).catch((e) => {
+           const permissionError = new FirestorePermissionError({
+              path: `tents/${tentId}/menuItems`,
+              operation: 'create',
+              requestResourceData: data,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
         toast({ title: "Item adicionado com sucesso!" });
       }
       onFinished();
     } catch (e: any) {
-        const permissionError = new FirestorePermissionError({
-            path: item ? `tents/${tentId}/menuItems/${item.id}` : `tents/${tentId}/menuItems`,
-            operation: item ? 'update' : 'create',
-            requestResourceData: data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao salvar o item.',
+          description: 'Por favor, tente novamente.'
+        })
     } finally {
         setIsSubmitting(false);
     }
@@ -101,9 +114,9 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
                 <SelectValue placeholder="Selecione a categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Drinks">Bebidas</SelectItem>
-                <SelectItem value="Appetizers">Petiscos</SelectItem>
-                <SelectItem value="Main Courses">Pratos Principais</SelectItem>
+                <SelectItem value="Bebidas">Bebidas</SelectItem>
+                <SelectItem value="Petiscos">Petiscos</SelectItem>
+                <SelectItem value="Pratos Principais">Pratos Principais</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -155,14 +168,15 @@ export default function MenuPage() {
     
     const docRef = doc(db, 'tents', tentId, 'menuItems', itemId);
     try {
-        await deleteDoc(docRef);
-        toast({ title: 'Item apagado com sucesso!' });
-    } catch(e) {
-        const permissionError = new FirestorePermissionError({
+        deleteDoc(docRef).catch((e) => {
+          const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'delete',
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
-        errorEmitter.emit('permission-error', permissionError);
+        toast({ title: 'Item apagado com sucesso!' });
+    } catch(e) {
         toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
     }
   }
@@ -243,7 +257,7 @@ export default function MenuPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="flex justify-between items-end">
-                        <p className="text-sm font-semibold text-primary/80">{item.category === 'Drinks' ? 'Bebidas' : item.category === 'Appetizers' ? 'Petiscos' : 'Pratos Principais'}</p>
+                        <p className="text-sm font-semibold text-primary/80">{item.category}</p>
                         <p className='font-bold text-lg'>R$ {item.price.toFixed(2)}</p>
                     </div>
                 </CardContent>

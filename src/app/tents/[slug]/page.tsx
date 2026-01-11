@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -30,7 +29,7 @@ interface MenuItem {
   name: string;
   description: string;
   price: number;
-  category: 'Drinks' | 'Appetizers' | 'Main Courses';
+  category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
 }
 
 interface RentalItem {
@@ -123,10 +122,11 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   }
 
   const menuByCategory = (menuItems || []).reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
+    const category = item.category || 'Outros';
+    if (!acc[category]) {
+      acc[category] = [];
     }
-    acc[item.category].push(item);
+    acc[category].push(item);
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
@@ -424,5 +424,3 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
-
-    

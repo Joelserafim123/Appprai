@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
@@ -24,7 +25,7 @@ const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, 'O endereço é obrigatório.'),
-  photoURL: z.string().url('Por favor, insira uma URL válida.').or(z.literal('')),
+  photoURL: z.string().url('Por favor, insira uma URL válida.').or(z.literal('')).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -91,7 +92,7 @@ export default function SettingsPage() {
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, []);
+  }, [toast]);
 
   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
@@ -136,7 +137,7 @@ export default function SettingsPage() {
     const currentUser = auth.currentUser;
     const userDocRef = doc(db, "users", user.uid);
 
-    const finalPhotoURL = selfie || data.photoURL;
+    const finalPhotoURL = selfie || data.photoURL || '';
 
     try {
       if (currentUser) {
@@ -155,7 +156,7 @@ export default function SettingsPage() {
         photoURL: finalPhotoURL,
       };
       
-      updateDoc(userDocRef, firestoreData).catch(err => {
+      await updateDoc(userDocRef, firestoreData).catch(err => {
          const permissionError = new FirestorePermissionError({
             path: userDocRef.path,
             operation: 'update',
@@ -244,7 +245,7 @@ export default function SettingsPage() {
                    <Button type="button" onClick={takeSelfie} disabled={hasCameraPermission !== true || isSubmitting} className="w-full">
                       <Camera className="mr-2 h-4 w-4"/>
                       {selfie ? 'Tirar Outra Selfie' : 'Tirar Selfie'}
-                  </Button>
+                   </Button>
                 </div>
               </div>
                 {hasCameraPermission === false && (

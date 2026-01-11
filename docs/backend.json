@@ -1,5 +1,4 @@
 
-
 {
   "entities": {
     "User": {
@@ -52,7 +51,7 @@
         "name": { "type": "string" },
         "description": { "type": "string" },
         "price": { "type": "number" },
-        "category": { "type": "string", "enum": ["Drinks", "Appetizers", "Main Courses"] }
+        "category": { "type": "string", "enum": ["Bebidas", "Petiscos", "Pratos Principais"] }
       },
       "required": ["name", "price", "category"]
     },
@@ -89,7 +88,7 @@
           }
         },
         "total": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "object" },
         "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed"] }
       },
       "required": ["userId", "tentId", "tentName", "items", "total", "createdAt", "status"]
@@ -125,4 +124,3 @@
     }
   }
 }
-

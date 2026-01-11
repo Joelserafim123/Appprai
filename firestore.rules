@@ -4,7 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // By default, deny all reads and writes.
+    // Default security rule: deny all reads and writes.
     match /{document=**} {
       allow read, write: if false;
     }
@@ -14,12 +14,10 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == userId;
     }
 
-    // Tents can be read by anyone on the public site, but only the owner can manage it.
-    // We need to allow general read for the public-facing pages.
-    // The write rule is specific to the owner, using the tentId which must match the user's UID.
+    // Tents can be read by anyone. Only the owner can write to their tent document.
     match /tents/{tentId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == tentId;
+      allow write: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
     }
 
     // Menu, rental, and image items can be read by anyone. Only the tent owner can manage them.
@@ -33,8 +31,7 @@ service cloud.firestore {
     // Tent owners can read all reservations for their tent.
     match /reservations/{reservationId} {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
-      allow update: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      allow read, update: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
     }
   }
 }
