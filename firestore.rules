@@ -33,7 +33,7 @@ service cloud.firestore {
     match /reservations/{reservationId} {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
-      allow update: if request.auth != null && get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid;
+      allow update: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
     }
   }
 }

@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -57,6 +57,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       ...data,
       ownerId: user.uid,
       slug: generateSlug(data.name),
+      // Ensure images array exists, even if empty
+      images: existingTent?.images || [],
     };
 
     try {
@@ -65,8 +67,9 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         await updateDoc(docRef, tentData);
         toast({ title: 'Barraca atualizada com sucesso!' });
       } else {
-        const collectionRef = collection(db, 'tents');
-        await addDoc(collectionRef, tentData);
+        // Use setDoc with a new doc reference for creation
+        const newTentRef = doc(collection(db, 'tents'));
+        await setDoc(newTentRef, tentData);
         toast({ title: 'Barraca cadastrada com sucesso!' });
       }
       onFinished();
@@ -181,4 +184,3 @@ export default function MyTentPage() {
     </div>
   );
 }
-
