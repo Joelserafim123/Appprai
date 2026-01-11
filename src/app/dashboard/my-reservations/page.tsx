@@ -4,12 +4,13 @@
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, Tent } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 type ReservationItem = {
   name: string;
@@ -35,7 +36,6 @@ export default function MyReservationsPage() {
     return query(
       collection(db, 'reservations'),
       where('userId', '==', user.uid)
-      // orderBy('createdAt', 'desc') // This requires a composite index. We will sort on the client.
     );
   }, [db, user]);
 
@@ -118,10 +118,12 @@ export default function MyReservationsPage() {
             <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
             <p className="mt-2 text-sm text-muted-foreground">Você ainda não fez nenhuma reserva.</p>
             <Button asChild className="mt-6">
-                <a href="/">Encontrar uma barraca</a>
+                <Link href="/">Encontrar uma barraca</Link>
             </Button>
         </div>
       )}
     </div>
   );
 }
+
+    

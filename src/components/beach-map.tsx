@@ -48,10 +48,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(tents[0] || null);
   const [isSheetOpen, setSheetOpen] = useState(false);
   const [center, setCenter] = useState(defaultCenter);
-  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
-  const [loadingLocation, setLoadingLocation] = useState(true);
-  const [locationError, setLocationError] = useState<string | null>(null);
-
+  
   const { db } = useFirebase();
   const imagesQuery = selectedTent ? collection(db!, 'tents', selectedTent.id, 'images') : null;
   const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
@@ -61,47 +58,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
   })
-
-  const requestLocation = () => {
-    setLoadingLocation(true);
-    setLocationError(null);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userCoords = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserLocation(userCoords);
-          setCenter(userCoords);
-          setLoadingLocation(false);
-        },
-        (error) => {
-          let errorMsg = "Não foi possível obter sua localização. O mapa será centralizado em um local padrão.";
-           if (error.code === error.PERMISSION_DENIED) {
-            errorMsg = "A permissão de localização foi negada. O mapa será centralizado em um local padrão.";
-          }
-          setLocationError(errorMsg);
-          setLoadingLocation(false);
-          setCenter(defaultCenter);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      setLocationError("Geolocalização não é suportada por este navegador.");
-      setLoadingLocation(false);
-      setCenter(defaultCenter);
-    }
-  }
-
-  useEffect(() => {
-    requestLocation();
-  }, []);
-
+  
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
-    // Since we don't have lat/lng, we can't center the map on the tent.
-    // We could implement geocoding here in the future.
   };
 
   const handleMarkerClick = (tent: Tent) => {
@@ -109,34 +68,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     setSheetOpen(true);
   };
   
-  const getPinIcon = (tent: Tent) => {
-    const isSelected = selectedTent?.id === tent.id;
-    return {
-      url: '/beach-umbrella.svg',
-      scaledSize: isSelected ? new google.maps.Size(48, 48) : new google.maps.Size(32, 32),
-      anchor: new google.maps.Point(16, 32),
-    };
-  };
-
-  const getUserPinIcon = () => {
-    return {
-      path: google.maps.SymbolPath.CIRCLE,
-      scale: 7,
-      fillColor: '#4285F4',
-      fillOpacity: 1,
-      strokeColor: 'white',
-      strokeWeight: 2,
-    }
-  }
-  
-  const handleUseMyLocatioClick = () => {
-    if(userLocation) {
-        setCenter(userLocation)
-    } else {
-        requestLocation();
-    }
-  }
-
   const renderMap = () => {
     if (loadError) {
       return (
@@ -152,7 +83,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       );
     }
 
-    if (!isLoaded || loadingLocation) {
+    if (!isLoaded) {
         return (
             <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted">
                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -162,33 +93,14 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     }
 
     return (
-        <>
-        {locationError && (
-             <Alert variant="destructive" className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-auto max-w-sm">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Erro de Localização</AlertTitle>
-                <AlertDescription>{locationError}</AlertDescription>
-            </Alert>
-        )}
         <GoogleMap
             mapContainerStyle={containerStyle}
             center={center}
             zoom={15}
             options={mapOptions}
         >
-            {userLocation && <Marker position={userLocation} title="Sua Localização" icon={getUserPinIcon()} />}
-            {/* Markers are disabled as we don't have coordinates anymore */}
-            {/* {tents.map((tent) => (
-            tent.location && <Marker
-                key={`marker-${tent.id}`}
-                position={tent.location}
-                onClick={() => handleMarkerClick(tent)}
-                icon={getPinIcon(tent)}
-                title={tent.name}
-            />
-            ))} */}
+            {/* Markers are disabled as we don't have coordinates. In a future implementation, we could geocode the beachName. */}
         </GoogleMap>
-        </>
     );
   }
 
@@ -198,13 +110,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         <div className="border-b p-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-bold">Barracas Próximas</h2>
+                    <h2 className="text-lg font-bold">Barracas na Praia</h2>
                     <p className="text-sm text-muted-foreground">Encontre o seu lugar ao sol</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={handleUseMyLocatioClick}>
-                    <LocateIcon className="h-5 w-5"/>
-                    <span className="sr-only">Usar minha localização</span>
-                </Button>
             </div>
         </div>
         <ScrollArea className="flex-1">
@@ -263,3 +171,5 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
+
+    

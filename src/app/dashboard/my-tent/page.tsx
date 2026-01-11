@@ -6,7 +6,7 @@ import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, Image as ImageIcon, Trash, Plus } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,15 +41,27 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const { db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<TentFormData>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
-      name: existingTent?.name || '',
-      description: existingTent?.description || '',
-      beachName: existingTent?.beachName || '',
-      minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || 0,
+      name: '',
+      description: '',
+      beachName: '',
+      minimumOrderForFeeWaiver: 0,
     },
   });
+
+  useEffect(() => {
+    if (existingTent) {
+      reset({
+        name: existingTent.name || '',
+        description: existingTent.description || '',
+        beachName: existingTent.beachName || '',
+        minimumOrderForFeeWaiver: existingTent.minimumOrderForFeeWaiver || 0,
+      });
+    }
+  }, [existingTent, reset]);
+
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
@@ -116,20 +128,20 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   );
 }
 
-function ImageManager({ tentId }: { tentId: string }) {
+function ImageManager({ tentId }: { tentId: string | null }) {
     const { db } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const imagesQuery = useMemo(() => {
-        if (!db) return null;
+        if (!db || !tentId) return null;
         return query(collection(db, 'tents', tentId, 'images'));
     }, [db, tentId]);
 
     const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
 
     const handleAddImage = async () => {
-        if (!db) return;
+        if (!db || !tentId) return;
         const imageUrl = prompt("Por favor, insira a URL da imagem:");
         if (!imageUrl) return;
 
@@ -158,7 +170,7 @@ function ImageManager({ tentId }: { tentId: string }) {
     };
 
     const handleDeleteImage = async (imageId: string) => {
-        if (!db || !confirm("Tem certeza que quer apagar esta imagem?")) return;
+        if (!db || !tentId || !confirm("Tem certeza que quer apagar esta imagem?")) return;
         
         setIsSubmitting(true);
         const docRef = doc(db, 'tents', tentId, 'images', imageId);
@@ -221,11 +233,11 @@ export default function MyTentPage() {
   const [loadingTent, setLoadingTent] = useState(true);
   const { toast } = useToast();
 
-  const fetchTentData = async () => {
+  const fetchTentData = useCallback(async () => {
     if (!db || !user) return;
     setLoadingTent(true);
-    const tentsRef = collection(db, 'tents');
     try {
+        const tentsRef = collection(db, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const docSnap = await getDocs(q);
         if (!docSnap.empty) {
@@ -236,11 +248,12 @@ export default function MyTentPage() {
             setTent(null);
         }
     } catch(e) {
+        console.error(e);
         toast({ variant: 'destructive', title: 'Erro ao buscar barraca', description: 'Não foi possível carregar os dados da sua barraca.' });
     } finally {
         setLoadingTent(false);
     }
-  };
+  }, [db, user, toast]);
 
   useEffect(() => {
     if(db && user) {
@@ -248,7 +261,7 @@ export default function MyTentPage() {
     } else if (!userLoading) {
         setLoadingTent(false);
     }
-  }, [db, user, userLoading]);
+  }, [db, user, userLoading, fetchTentData]);
 
 
   if (userLoading || loadingTent) {
