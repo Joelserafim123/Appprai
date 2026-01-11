@@ -48,7 +48,7 @@
         "description": "A profile image for a user.",
         "type": "object",
         "properties": {
-            "imageUrl": { "type": "string" },
+            "imageUrl": { "type": "string", "description": "URL of the user's profile media (photo or video)." },
             "description": { "type": "string" }
         },
         "required": ["imageUrl"]
