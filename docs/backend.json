@@ -25,7 +25,7 @@
         "slug": { "type": "string" },
         "description": { "type": "string" },
         "beachName": { "type": "string", "description": "The name of the beach where the tent is located." },
-        "minimumOrderForFeeWaiver": { "type": "number" }
+        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "The minimum order total from the menu to waive rental fees." }
       },
       "required": ["ownerId", "name", "slug", "description", "beachName"]
     },
