@@ -65,6 +65,7 @@ const mapOptions = {
   ],
   disableDefaultUI: true,
   zoomControl: true,
+  gestureHandling: 'cooperative'
 };
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
