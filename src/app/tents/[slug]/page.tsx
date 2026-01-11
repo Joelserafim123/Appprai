@@ -43,6 +43,12 @@ interface TentImage {
   description?: string;
 }
 
+type CartItem = { 
+    item: MenuItem | RentalItem; 
+    quantity: number,
+    type: 'menu' | 'rental' 
+};
+
 
 export default function TentPage({ params }: { params: { slug: string } }) {
   const { db } = useFirebase();
@@ -53,7 +59,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [tent, setTent] = useState<Tent | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
 
-  const [reservation, setReservation] = useState<Record<string, { item: RentalItem; quantity: number }>>({});
+  const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tentQuery = useMemo(() => {
@@ -120,9 +126,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  const handleQuantityChange = (item: RentalItem, change: number) => {
-    setReservation((prev) => {
-      const existing = prev[item.id] || { item, quantity: 0 };
+  const handleQuantityChange = (item: MenuItem | RentalItem, type: 'menu' | 'rental', change: number) => {
+    setCart((prev) => {
+      const existing = prev[item.id] || { item, quantity: 0, type };
       const newQuantity = Math.max(0, existing.quantity + change);
       if (newQuantity === 0) {
         const { [item.id]: _, ...rest } = prev;
@@ -135,17 +141,23 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     });
   };
 
-  const total = Object.values(reservation).reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
+  const rentalTotal = Object.values(cart).filter(i => i.type === 'rental').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
+  const menuTotal = Object.values(cart).filter(i => i.type === 'menu').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
+
+  const feeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
+  const isFeeWaived = feeWaiverAmount > 0 && menuTotal >= feeWaiverAmount;
   
-  const isReservationEmpty = Object.keys(reservation).length === 0;
+  const finalTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
+
+  const isCartEmpty = Object.keys(cart).length === 0;
 
   const handleCreateReservation = async () => {
-    if (!user || !db || isReservationEmpty) {
+    if (!user || !db || isCartEmpty) {
       if(!user) {
         toast({
           variant: "destructive",
           title: "Login Necessário",
-          description: "Você precisa estar logado para fazer uma reserva.",
+          description: "Você precisa estar logado para fazer um pedido.",
         });
         router.push(`/login?redirect=/tents/${tent.slug}`);
       }
@@ -158,13 +170,13 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       userId: user.uid,
       tentId: tent.id,
       tentName: tent.name,
-      items: Object.values(reservation).map(({ item, quantity }) => ({
+      items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
         name: item.name,
         price: item.price,
         quantity: quantity,
       })),
-      total,
+      total: finalTotal,
       createdAt: serverTimestamp(),
       status: 'confirmed',
     };
@@ -183,16 +195,16 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         });
 
       toast({
-        title: "Reserva Confirmada!",
-        description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
+        title: "Pedido Confirmado!",
+        description: `Seu pedido na ${tent.name} foi criado com sucesso.`,
       });
       router.push('/dashboard/my-reservations');
 
     } catch (error) {
        toast({
           variant: "destructive",
-          title: "Erro ao criar reserva",
-          description: "Não foi possível completar sua reserva. Tente novamente.",
+          title: "Erro ao criar pedido",
+          description: "Não foi possível completar seu pedido. Tente novamente.",
         });
     } finally {
         setIsSubmitting(false);
@@ -225,130 +237,173 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         </div>
 
         <div className="container mx-auto max-w-7xl px-4 py-8">
-          <Tabs defaultValue="menu" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
-              <TabsTrigger value="menu">Cardápio</TabsTrigger>
-              <TabsTrigger value="reserve">Reservar</TabsTrigger>
-              <TabsTrigger value="gallery">Galeria</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="menu" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Nosso Cardápio</CardTitle>
-                  <CardDescription>Peça online e aproveite a praia sem preocupações.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                 {loadingMenu ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : (
-                  <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
-                    {Object.entries(menuByCategory).map(([category, items]) => (
-                      <AccordionItem key={category} value={category}>
-                        <AccordionTrigger className="text-lg font-semibold">{category}</AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-4 pt-2">
-                            {items.map((item) => (
-                              <div key={item.id} className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium">{item.name}</p>
-                                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                                  <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
-                                </div>
-                                <Button size="sm" variant="outline" disabled>
-                                  <ShoppingCart className="mr-2 h-4 w-4" />
-                                  Pedir
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                 )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="reserve" className="mt-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Reservar Mesas e Cadeiras</CardTitle>
-                        <CardDescription>Garanta seu lugar ao sol antes de chegar. { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para reservar</Link>}</CardDescription>
-                         {tent.minimumOrderForFeeWaiver && tent.minimumOrderForFeeWaiver > 0 && (
-                            <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
-                                <Info className="h-5 w-5 text-primary"/>
-                                <div>
-                                <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {tent.minimumOrderForFeeWaiver.toFixed(2)}</span> e ganhe a isenção da taxa de aluguel.
-                                </div>
-                            </div>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                       {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
-                            rentalItems.map((rental) => (
-                                <div key={rental.id} className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
+            <div className="lg:col-span-2">
+                 <Tabs defaultValue="menu" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
+                        <TabsTrigger value="menu">Cardápio</TabsTrigger>
+                        <TabsTrigger value="reserve">Aluguel</TabsTrigger>
+                        <TabsTrigger value="gallery">Galeria</TabsTrigger>
+                    </TabsList>
+                     <TabsContent value="menu" className="mt-6">
+                        <Card>
+                            <CardHeader>
+                            <CardTitle>Nosso Cardápio</CardTitle>
+                            <CardDescription>Escolha seus pratos e bebidas favoritos.</CardDescription>
+                             {tent.minimumOrderForFeeWaiver && tent.minimumOrderForFeeWaiver > 0 && (
+                                <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
+                                    <Info className="h-5 w-5 text-primary"/>
                                     <div>
-                                        <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                            {rental.name.includes('Kit') ? <><Umbrella className="h-5 w-5"/> + <Armchair className="h-5 w-5"/></> : rental.name.includes('Guarda-sol') ? <Umbrella className="h-5 w-5"/> : <Armchair className="h-5 w-5"/>}
-                                            {rental.name}
-                                        </h3>
-                                        <p className="text-2xl font-bold text-primary">R$ {rental.price.toFixed(2)}</p>
-                                    </div>
-                                    <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                        <Input type="number" readOnly value={reservation[rental.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
-                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
+                                    <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {tent.minimumOrderForFeeWaiver.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
                                     </div>
                                 </div>
-                            ))
+                            )}
+                            </CardHeader>
+                            <CardContent>
+                            {loadingMenu ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : (
+                            <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
+                                {Object.entries(menuByCategory).map(([category, items]) => (
+                                <AccordionItem key={category} value={category}>
+                                    <AccordionTrigger className="text-lg font-semibold">{category}</AccordionTrigger>
+                                    <AccordionContent>
+                                    <div className="space-y-4 pt-2">
+                                        {items.map((item) => (
+                                        <div key={item.id} className="flex items-center justify-between">
+                                            <div>
+                                            <p className="font-medium">{item.name}</p>
+                                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                                            <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
+                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
+                                            </div>
+                                        </div>
+                                        ))}
+                                    </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                                ))}
+                            </Accordion>
+                            )}
+                            </CardContent>
+                        </Card>
+                        </TabsContent>
+
+                        <TabsContent value="reserve" className="mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Alugar Mesas e Cadeiras</CardTitle>
+                                    <CardDescription>Garanta seu lugar ao sol antes de chegar. { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
+                                        rentalItems.map((rental) => (
+                                            <div key={rental.id} className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                        {rental.name.includes('Kit') ? <><Umbrella className="h-5 w-5"/> + <Armchair className="h-5 w-5"/></> : rental.name.includes('Guarda-sol') ? <Umbrella className="h-5 w-5"/> : <Armchair className="h-5 w-5"/>}
+                                                        {rental.name}
+                                                    </h3>
+                                                    <p className="text-2xl font-bold text-primary">R$ {rental.price.toFixed(2)}</p>
+                                                </div>
+                                                <div className="mt-4 flex items-center gap-2 sm:mt-0">
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                    <Input type="number" readOnly value={cart[rental.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 'rental', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="gallery" className="mt-6">
+                        <Card>
+                                <CardHeader>
+                                    <CardTitle>Galeria de Fotos</CardTitle>
+                                    <CardDescription>Um pouco do nosso paraíso.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                {loadingImages ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : tentImages && tentImages.length > 0 ? (
+                                    <Carousel className="w-full">
+                                        <CarouselContent>
+                                            {tentImages.map((img, index) => (
+                                            <CarouselItem key={index}>
+                                                <div className="p-1">
+                                                <Card>
+                                                    <CardContent className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg p-0">
+                                                        <Image src={img.imageUrl} alt={img.description || tent.name} fill data-ai-hint={img.imageHint} className="object-cover"/>
+                                                    </CardContent>
+                                                </Card>
+                                                </div>
+                                            </CarouselItem>
+                                            ))}
+                                        </CarouselContent>
+                                        <CarouselPrevious />
+                                        <CarouselNext />
+                                    </Carousel>
+                                ) : (
+                                    <p className="text-muted-foreground text-center py-8">Nenhuma imagem na galeria.</p>
+                                )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+            </div>
+            <div className="lg:col-span-1">
+                <Card className="sticky top-24">
+                    <CardHeader>
+                        <CardTitle>Seu Pedido</CardTitle>
+                        <CardDescription>Revise seus itens antes de finalizar.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {isCartEmpty ? (
+                            <p className="text-center text-muted-foreground">Seu carrinho está vazio.</p>
                         ) : (
-                            <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
+                           <ul className="space-y-2 text-sm text-muted-foreground">
+                                {Object.values(cart).map(({ item, quantity }) => (
+                                     <li key={item.id} className="flex justify-between">
+                                        <span>{quantity}x {item.name}</span>
+                                        <span>R$ {(item.price * quantity).toFixed(2)}</span>
+                                    </li>
+                                ))}
+                           </ul>
                         )}
-                    </CardContent>
-                    <CardFooter className="flex-col items-stretch gap-4 sm:flex-row sm:items-center">
-                         <div className="flex-1">
-                            <p className="text-sm text-muted-foreground">Total</p>
-                            <p className="text-3xl font-bold">R$ {total.toFixed(2)}</p>
+                        <div className="border-t pt-4 space-y-2">
+                           <div className="flex justify-between text-sm">
+                               <span>Consumo</span>
+                               <span>R$ {menuTotal.toFixed(2)}</span>
+                           </div>
+                           <div className="flex justify-between text-sm">
+                               <span>Aluguel</span>
+                               <span className={cn(isFeeWaived && "line-through")}>R$ {rentalTotal.toFixed(2)}</span>
+                           </div>
+                            {isFeeWaived && (
+                                <div className="flex justify-between text-sm font-semibold text-primary">
+                                    <span>Isenção de Aluguel</span>
+                                    <span>- R$ {rentalTotal.toFixed(2)}</span>
+                                </div>
+                           )}
                         </div>
-                        <Button size="lg" className="w-full sm:w-auto" onClick={handleCreateReservation} disabled={isReservationEmpty || isSubmitting}>
-                           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Finalizar Reserva'}
+
+                    </CardContent>
+                     <CardFooter className="flex-col items-stretch gap-4">
+                         <div className="flex justify-between items-baseline">
+                            <p className="text-sm text-muted-foreground">Total</p>
+                            <p className="text-2xl font-bold">R$ {finalTotal.toFixed(2)}</p>
+                        </div>
+                        <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={isCartEmpty || isSubmitting}>
+                           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Finalizar Pedido'}
                         </Button>
                     </CardFooter>
                 </Card>
-            </TabsContent>
-
-            <TabsContent value="gallery" className="mt-6">
-               <Card>
-                    <CardHeader>
-                        <CardTitle>Galeria de Fotos</CardTitle>
-                        <CardDescription>Um pouco do nosso paraíso.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {loadingImages ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : tentImages && tentImages.length > 0 ? (
-                        <Carousel className="w-full">
-                            <CarouselContent>
-                                {tentImages.map((img, index) => (
-                                <CarouselItem key={index}>
-                                    <div className="p-1">
-                                    <Card>
-                                        <CardContent className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg p-0">
-                                             <Image src={img.imageUrl} alt={img.description || tent.name} fill data-ai-hint={img.imageHint} className="object-cover"/>
-                                        </CardContent>
-                                    </Card>
-                                    </div>
-                                </CarouselItem>
-                                ))}
-                            </CarouselContent>
-                            <CarouselPrevious />
-                            <CarouselNext />
-                        </Carousel>
-                      ) : (
-                        <p className="text-muted-foreground text-center py-8">Nenhuma imagem na galeria.</p>
-                      )}
-                    </CardContent>
-                </Card>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </div>
       </main>
     </div>

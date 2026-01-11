@@ -22,12 +22,12 @@ import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
-  cpf: z.string().length(11, { message: "O CPF deve ter 11 dígitos." }),
+  cpf: z.string().min(14, { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, { message: "Por favor, insira um endereço válido." }),
   password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
   role: z.enum(["customer", "owner"], { required_error: "Você precisa selecionar um papel." }),
@@ -50,6 +50,16 @@ export function SignUpForm() {
       role: "customer"
     },
   })
+
+  const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    value = value.replace(/\D/g, "");
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    e.target.value = value;
+    return e;
+  }, []);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!app) return;
@@ -178,7 +188,13 @@ export function SignUpForm() {
             <FormItem>
               <FormLabel>CPF</FormLabel>
               <FormControl>
-                <Input placeholder="00000000000" {...field} disabled={isSubmitting} />
+                <Input 
+                  placeholder="000.000.000-00" 
+                  {...field} 
+                  onChange={(e) => field.onChange(handleCpfChange(e))}
+                  maxLength={14}
+                  disabled={isSubmitting} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

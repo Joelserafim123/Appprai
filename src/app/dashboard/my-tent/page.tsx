@@ -3,9 +3,9 @@
 
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, AlertTriangle } from 'lucide-react';
+import { Loader2, Building, Image as ImageIcon, Trash, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,8 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import type { Tent } from '@/app/page';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import Image from 'next/image';
 
 const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
@@ -28,6 +29,13 @@ const tentSchema = z.object({
 });
 
 type TentFormData = z.infer<typeof tentSchema>;
+
+interface TentImage {
+  id: string;
+  imageUrl: string;
+  imageHint?: string;
+  description?: string;
+}
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { db } = useFirebase();
@@ -108,6 +116,99 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   );
 }
 
+function ImageManager({ tentId }: { tentId: string }) {
+    const { db } = useFirebase();
+    const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const imagesQuery = query(collection(db!, 'tents', tentId, 'images'));
+    const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
+
+    const handleAddImage = async () => {
+        if (!db) return;
+        const imageUrl = prompt("Por favor, insira a URL da imagem:");
+        if (!imageUrl) return;
+
+        setIsSubmitting(true);
+        const imageData = { 
+            imageUrl,
+            imageHint: "beach tent", // Default hint
+            description: "A beautiful view from the tent"
+        };
+        const collectionRef = collection(db, 'tents', tentId, 'images');
+
+        try {
+            await addDoc(collectionRef, imageData);
+            toast({ title: "Imagem adicionada com sucesso!" });
+        } catch(e) {
+            const permissionError = new FirestorePermissionError({
+                path: `tents/${tentId}/images`,
+                operation: 'create',
+                requestResourceData: imageData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao adicionar imagem.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteImage = async (imageId: string) => {
+        if (!db || !confirm("Tem certeza que quer apagar esta imagem?")) return;
+        
+        setIsSubmitting(true);
+        const docRef = doc(db, 'tents', tentId, 'images', imageId);
+        try {
+            await deleteDoc(docRef);
+            toast({ title: "Imagem apagada com sucesso!" });
+        } catch (e) {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao apagar imagem.' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ImageIcon />
+                    Gerenciar Galeria de Fotos
+                </CardTitle>
+                <CardDescription>
+                    Adicione ou remova fotos que serão exibidas na página da sua barraca.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {loadingImages ? <Loader2 className="animate-spin mx-auto" /> : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {tentImages?.map(image => (
+                            <div key={image.id} className="relative group aspect-square">
+                                <Image src={image.imageUrl} alt={image.description || 'Tent image'} fill className="object-cover rounded-md" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Button variant="destructive" size="icon" onClick={() => handleDeleteImage(image.id)} disabled={isSubmitting}>
+                                        <Trash className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 {tentImages?.length === 0 && !loadingImages && (
+                    <p className="text-center text-muted-foreground py-4">Nenhuma imagem na galeria.</p>
+                 )}
+                <Button onClick={handleAddImage} className="w-full" disabled={isSubmitting}>
+                    <Plus className="mr-2"/> Adicionar Imagem
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function MyTentPage() {
   const { user, loading: userLoading } = useUser();
   const { db } = useFirebase();
@@ -158,10 +259,10 @@ export default function MyTentPage() {
   }
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className="w-full max-w-2xl space-y-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Minha Barraca</h1>
-        <p className="text-muted-foreground">Gerencie as informações da sua barraca de praia.</p>
+        <p className="text-muted-foreground">Gerencie as informações e a galeria da sua barraca de praia.</p>
       </header>
 
       <Card>
@@ -178,6 +279,8 @@ export default function MyTentPage() {
           <TentForm user={user} existingTent={tent} onFinished={fetchTentData} />
         </CardContent>
       </Card>
+
+      {tent && <ImageManager tentId={tent.id} />}
     </div>
   );
 
