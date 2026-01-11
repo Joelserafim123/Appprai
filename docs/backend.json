@@ -112,10 +112,6 @@
       "schema": { "$ref": "#/entities/User" },
       "description": "Stores public user profile information."
     },
-     "/users/{userId}/images/{imageId}": {
-      "schema": { "$ref": "#/entities/ProfileImage" },
-      "description": "Images for a user's profile gallery."
-    },
     "/tents/{tentId}": {
         "schema": { "$ref": "#/entities/Tent" },
         "description": "Stores information about each beach tent."

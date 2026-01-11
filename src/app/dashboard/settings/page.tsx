@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Trash, Plus, UserCircle, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Camera, UserCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -11,15 +11,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
-import { doc, updateDoc, collection, addDoc, deleteDoc, query } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import Image from 'next/image';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -29,152 +28,77 @@ const profileSchema = z.object({
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
-interface ProfileImage {
-  id: string;
-  imageUrl: string;
-  description?: string;
-}
-
-function ProfileImageManager({ user }: { user: any }) {
-    const { db } = useFirebase();
-    const { toast } = useToast();
-    const { refresh } = useUser();
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    const imagesQuery = useMemo(() => {
-        if (!db || !user) return null;
-        return query(collection(db, 'users', user.uid, 'images'));
-    }, [db, user]);
-
-    const { data: profileImages, loading: loadingImages, error } = useCollection<ProfileImage>(imagesQuery);
-
-    const handleAddImage = async () => {
-        if (!db || !user) return;
-        const imageUrl = prompt("Por favor, insira a URL da imagem:");
-        if (!imageUrl) return;
-
-        setIsSubmitting(true);
-        const imageData = { 
-            imageUrl,
-            description: "Profile image"
-        };
-        const collectionRef = collection(db, 'users', user.uid, 'images');
-
-        try {
-            await addDoc(collectionRef, imageData);
-            toast({ title: "Imagem adicionada com sucesso!" });
-        } catch(e) {
-            const permissionError = new FirestorePermissionError({
-                path: `users/${user.uid}/images`,
-                operation: 'create',
-                requestResourceData: imageData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            toast({ variant: 'destructive', title: 'Erro ao adicionar imagem.' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleDeleteImage = async (imageId: string) => {
-        if (!db || !user || !confirm("Tem certeza que quer apagar esta imagem?")) return;
-        
-        setIsSubmitting(true);
-        const docRef = doc(db, 'users', user.uid, 'images', imageId);
-        try {
-            await deleteDoc(docRef);
-            toast({ title: "Imagem apagada com sucesso!" });
-        } catch (e) {
-            const permissionError = new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'delete',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            toast({ variant: 'destructive', title: 'Erro ao apagar imagem.' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleSetProfilePicture = async (imageUrl: string) => {
-        if (!user || !db) return;
-        setIsSubmitting(true);
-
-        const auth = getAuth(useFirebase().app!);
-        const currentUser = auth.currentUser;
-        const userDocRef = doc(db, "users", user.uid);
-
-        try {
-            if (currentUser) {
-                await updateProfile(currentUser, { photoURL: imageUrl });
-            }
-            await updateDoc(userDocRef, { photoURL: imageUrl });
-
-            toast({ title: "Foto de perfil atualizada!" });
-            if (refresh) refresh();
-        } catch (error) {
-            const permissionError = new FirestorePermissionError({
-                path: userDocRef.path,
-                operation: 'update',
-                requestResourceData: { photoURL: imageUrl },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            toast({ variant: 'destructive', title: 'Erro ao definir foto do perfil.' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    if (error) {
-        return <p className='text-destructive'>Erro ao carregar galeria: {error.message}</p>
-    }
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <ImageIcon />
-                    Galeria de Fotos do Perfil
-                </CardTitle>
-                <CardDescription>
-                    Adicione imagens e escolha sua foto de perfil.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {loadingImages ? <Loader2 className="animate-spin mx-auto" /> : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {profileImages?.map(image => (
-                            <div key={image.id} className="relative group aspect-square">
-                                <Image src={image.imageUrl} alt={image.description || 'Profile image'} fill className="object-cover rounded-md" />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                     <Button variant="secondary" size="icon" onClick={() => handleSetProfilePicture(image.imageUrl)} disabled={isSubmitting} title="Definir como foto de perfil">
-                                        <UserCircle className="w-4 h-4" />
-                                    </Button>
-                                    <Button variant="destructive" size="icon" onClick={() => handleDeleteImage(image.id)} disabled={isSubmitting} title="Apagar imagem">
-                                        <Trash className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                 {profileImages?.length === 0 && !loadingImages && (
-                    <p className="text-center text-muted-foreground py-4">Nenhuma imagem na galeria.</p>
-                 )}
-                <Button onClick={handleAddImage} className="w-full" disabled={isSubmitting || loadingImages}>
-                    {isSubmitting || loadingImages ? <Loader2 className="animate-spin" /> : <><Plus className="mr-2"/> Adicionar Imagem (URL)</>}
-                </Button>
-            </CardContent>
-        </Card>
-    );
-}
-
 
 export default function SettingsPage() {
   const { user, loading, refresh } = useUser();
   const { app, db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [selfie, setSelfie] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup: Stop video stream when component unmounts
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+  
+  const getCameraPermission = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast({
+          variant: 'destructive',
+          title: 'Câmera não suportada',
+          description: 'Seu navegador não suporta acesso à câmera.',
+        });
+        setHasCameraPermission(false);
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Acesso à câmera negado',
+          description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+        });
+      }
+    };
+
+
+  const takeSelfie = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if(context) {
+          context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+          const dataUrl = canvas.toDataURL('image/png');
+          setSelfie(dataUrl);
+
+          // Stop the camera stream
+          const stream = video.srcObject as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+          video.srcObject = null;
+          setHasCameraPermission(null);
+      }
+    }
+  };
+
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
@@ -192,6 +116,9 @@ export default function SettingsPage() {
         cpf: user.cpf || '',
         address: user.address || '',
       });
+      if (user.photoURL) {
+        setSelfie(user.photoURL);
+      }
     }
   }, [user, reset]);
 
@@ -221,34 +148,46 @@ export default function SettingsPage() {
     const auth = getAuth(app);
     const currentUser = auth.currentUser;
     
-
     try {
-      if (currentUser && currentUser.displayName !== data.displayName) {
-        await updateProfile(currentUser, {
-          displayName: data.displayName,
-        });
-      }
+        const firestoreData: {[key: string]: any} = {
+            displayName: data.displayName,
+            address: data.address,
+            cpf: data.cpf.replace(/\D/g, ""),
+        };
+        
+        if (selfie && selfie !== user.photoURL) {
+            firestoreData.photoURL = selfie;
+        }
+
+        if (currentUser) {
+            await updateProfile(currentUser, {
+                displayName: data.displayName,
+                ...(selfie && { photoURL: selfie }),
+            });
+        }
       
       const userDocRef = doc(db, "users", user.uid);
-      const firestoreData = {
-        displayName: data.displayName,
-        address: data.address,
-        cpf: data.cpf.replace(/\D/g, ""),
-      };
-
-      await updateDoc(userDocRef, firestoreData);
+      
+      updateDoc(userDocRef, firestoreData).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: userDocRef.path,
+          operation: 'update',
+          requestResourceData: firestoreData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+      });
       
       toast({
         title: 'Perfil Atualizado!',
         description: 'Suas informações foram salvas com sucesso.',
       });
+
       if(refresh) refresh();
 
     } catch(error: any) {
       console.error("Error updating profile:", error);
-      if (error instanceof FirestorePermissionError) {
-          errorEmitter.emit('permission-error', error);
-      } else {
+      if (!(error instanceof FirestorePermissionError)) {
          toast({
             variant: 'destructive',
             title: 'Erro ao atualizar perfil',
@@ -285,7 +224,7 @@ export default function SettingsPage() {
           <CardHeader>
              <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20">
-                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
+                    <AvatarImage src={selfie ?? user.photoURL ?? ''} alt={user.displayName ?? ''} />
                     <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-1">
@@ -297,6 +236,27 @@ export default function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+             <div className="space-y-2">
+                <Label>Foto de Perfil</Label>
+                <div className='flex flex-col gap-4 items-center'>
+                  <canvas ref={canvasRef} className="hidden"></canvas>
+                  {hasCameraPermission === true && <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted />}
+                  {hasCameraPermission === false && (
+                     <Alert variant="destructive">
+                      <AlertTitle>Câmera necessária</AlertTitle>
+                      <AlertDescription>
+                        Por favor, permita o acesso à câmera para tirar uma selfie.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {hasCameraPermission === true ? (
+                     <Button type="button" onClick={takeSelfie}><Camera className="mr-2"/>Tirar Selfie</Button>
+                  ) : (
+                     <Button type="button" onClick={getCameraPermission}><UserCircle className="mr-2"/>Atualizar Foto de Perfil</Button>
+                  )}
+                </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="displayName">Nome Completo</Label>
               <Input id="displayName" {...register('displayName')} disabled={isSubmitting}/>
@@ -335,9 +295,6 @@ export default function SettingsPage() {
           </CardFooter>
         </Card>
       </form>
-       {user && <ProfileImageManager user={user} />}
     </div>
   );
 }
-
-    
