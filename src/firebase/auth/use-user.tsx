@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useContext, createContext } from 'react';
+import { useEffect, useState, useContext, createContext, useCallback } from 'react';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, Firestore } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
@@ -19,6 +19,7 @@ interface UserData {
 interface UserContextType {
   user: UserData | null;
   loading: boolean;
+  refresh?: () => void; // Add refresh function
 }
 
 const UserContext = createContext<UserContextType>({ user: null, loading: true });
@@ -28,62 +29,58 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!app || !db) {
-      if (!loading) setLoading(true); // Ensure loading is true until firebase is ready
-      return;
-    }
+  const fetchUserData = useCallback(async (firebaseUser: User | null) => {
+    if (firebaseUser && db) {
+      try {
+        const userDocRef = doc(db as Firestore, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
 
-    const auth = getAuth(app);
+        let userData: UserData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+        };
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-      setLoading(true);
-      if (firebaseUser) {
-        try {
-          // User is signed in. Fetch custom user data from Firestore.
-          const userDocRef = doc(db as Firestore, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          if (userDoc.exists()) {
-            setUser({
-              // Firebase Auth data
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              // Firestore data
-              ...userDoc.data(),
-            });
-          } else {
-            // This might happen if the user record in Firestore is not created yet
-            // or was deleted. We'll set the basic auth info.
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-            });
-          }
-        } catch (error) {
-            console.error("Error fetching user data from Firestore:", error);
-            // If Firestore fetch fails, set user to null to prevent partial login state
-            setUser(null);
-        } finally {
-            setLoading(false);
+        if (userDoc.exists()) {
+          userData = { ...userData, ...userDoc.data() };
         }
-      } else {
-        // User is signed out.
+        setUser(userData);
+      } catch (error) {
+        console.error("Error fetching user data from Firestore:", error);
         setUser(null);
+      } finally {
         setLoading(false);
       }
+    } else {
+      setUser(null);
+      setLoading(false);
+    }
+  }, [db]);
+
+
+  useEffect(() => {
+    if (!app) {
+      if (!loading) setLoading(true);
+      return;
+    }
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+      setLoading(true);
+      fetchUserData(firebaseUser);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [app, db]);
+  }, [app, fetchUserData]);
+
+  const refresh = useCallback(() => {
+    const auth = getAuth(app!);
+    fetchUserData(auth.currentUser);
+  }, [app, fetchUserData]);
+
 
   return (
-    <UserContext.Provider value={{ user, loading }}>
+    <UserContext.Provider value={{ user, loading, refresh }}>
       {children}
     </UserContext.Provider>
   );
