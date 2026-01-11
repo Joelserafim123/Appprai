@@ -119,12 +119,12 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
         <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
             <Label htmlFor="lat">Latitude</Label>
-            <Input id="lat" type="number" step="any" {...register('location.lat')} readOnly disabled={isSubmitting} />
+            <Input id="lat" type="number" step="any" {...register('location.lat')} disabled={isSubmitting} />
             {errors.location?.lat && <p className="text-sm text-destructive">{errors.location.lat.message}</p>}
             </div>
             <div className="space-y-2">
             <Label htmlFor="lng">Longitude</Label>
-            <Input id="lng" type="number" step="any" {...register('location.lng')} readOnly disabled={isSubmitting} />
+            <Input id="lng" type="number" step="any" {...register('location.lng')} disabled={isSubmitting} />
             {errors.location?.lng && <p className="text-sm text-destructive">{errors.location.lng.message}</p>}
             </div>
         </div>
@@ -136,7 +136,7 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
           <p className="text-xs text-muted-foreground">Deixe 0 se não houver isenção.</p>
            {errors.minimumOrderForFeeWaiver && <p className="text-sm text-destructive">{errors.minimumOrderForFeeWaiver.message}</p>}
         </div>
-      <Button type="submit" className="w-full" disabled={isSubmitting || !currentLocation}>
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Informações'}
       </Button>
     </form>
