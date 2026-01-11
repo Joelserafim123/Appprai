@@ -24,17 +24,6 @@
         "name": { "type": "string" },
         "slug": { "type": "string" },
         "description": { "type": "string" },
-        "images": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "imageUrl": { "type": "string" },
-              "imageHint": { "type": "string" },
-              "description": { "type": "string" }
-            }
-          }
-        },
         "location": {
           "type": "object",
           "properties": {
@@ -45,6 +34,17 @@
         "minimumOrderForFeeWaiver": { "type": "number" }
       },
       "required": ["ownerId", "name", "slug", "description", "location"]
+    },
+    "TentImage": {
+        "title": "Tent Image",
+        "description": "An image of a tent.",
+        "type": "object",
+        "properties": {
+            "imageUrl": { "type": "string" },
+            "imageHint": { "type": "string" },
+            "description": { "type": "string" }
+        },
+        "required": ["imageUrl"]
     },
     "MenuItem": {
       "title": "Menu Item",
@@ -107,6 +107,10 @@
     "/tents/{tentId}": {
         "schema": { "$ref": "#/entities/Tent" },
         "description": "Stores information about each beach tent."
+    },
+    "/tents/{tentId}/images/{imageId}": {
+        "schema": { "$ref": "#/entities/TentImage" },
+        "description": "Images for a specific tent."
     },
     "/tents/{tentId}/menuItems/{menuItemId}": {
         "schema": { "$ref": "#/entities/MenuItem" },

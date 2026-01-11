@@ -11,7 +11,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
 import { addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -34,6 +34,13 @@ interface RentalItem {
   id: string;
   name: string;
   price: number;
+}
+
+interface TentImage {
+  id: string;
+  imageUrl: string;
+  imageHint?: string;
+  description?: string;
 }
 
 
@@ -63,9 +70,16 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     if (!tent) return null;
     return collection(db!, 'tents', tent.id, 'rentalItems');
   }, [db, tent]);
+  
+  const imagesQuery = useMemo(() => {
+    if (!tent) return null;
+    return collection(db!, 'tents', tent.id, 'images');
+  }, [db, tent]);
 
   const { data: menuItems, loading: loadingMenu } = useCollection<MenuItem>(menuQuery);
   const { data: rentalItems, loading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
+  const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
+
 
   useEffect(() => {
     const fetchTent = async () => {
@@ -191,11 +205,11 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <Header />
       <main>
         <div className="relative h-64 w-full md:h-96">
-         {tent.images && tent.images.length > 0 && (
+         {tentImages && tentImages.length > 0 && (
             <Image
-                src={tent.images[0].imageUrl}
+                src={tentImages[0].imageUrl}
                 alt={tent.name}
-                data-ai-hint={tent.images[0].imageHint}
+                data-ai-hint={tentImages[0].imageHint}
                 className="object-cover"
                 fill
                 priority
@@ -308,10 +322,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                         <CardDescription>Um pouco do nosso paraíso.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {tent.images && tent.images.length > 0 ? (
+                      {loadingImages ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : tentImages && tentImages.length > 0 ? (
                         <Carousel className="w-full">
                             <CarouselContent>
-                                {tent.images.map((img, index) => (
+                                {tentImages.map((img, index) => (
                                 <CarouselItem key={index}>
                                     <div className="p-1">
                                     <Card>

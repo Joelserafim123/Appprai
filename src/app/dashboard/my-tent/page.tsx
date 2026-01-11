@@ -3,15 +3,15 @@
 
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, LocateFixed } from 'lucide-react';
+import { Loader2, Building } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, type UseFormSetValue } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -71,7 +71,6 @@ function TentForm({ user, existingTent, onFinished, currentLocation }: { user: a
       ...data,
       ownerId: user.uid,
       slug: generateSlug(data.name),
-      images: existingTent?.images || [],
     };
 
     try {

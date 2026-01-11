@@ -14,7 +14,6 @@ export interface Tent {
   slug: string;
   name: string;
   description: string;
-  images: any[];
   location: { lat: number; lng: number };
   minimumOrderForFeeWaiver?: number;
 }

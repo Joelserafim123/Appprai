@@ -12,6 +12,9 @@ import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { useFirebase } from "@/firebase/provider";
+import { collection } from "firebase/firestore";
 
 const containerStyle = {
   width: '100%',
@@ -36,6 +39,11 @@ const mapOptions = {
   gestureHandling: 'greedy'
 };
 
+interface TentImage {
+  id: string;
+  imageUrl: string;
+}
+
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(tents[0] || null);
   const [isSheetOpen, setSheetOpen] = useState(false);
@@ -43,6 +51,11 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  const { db } = useFirebase();
+  const imagesQuery = selectedTent ? collection(db!, 'tents', selectedTent.id, 'images') : null;
+  const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
+
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -243,8 +256,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             <>
               <SheetHeader>
                 <div className="relative -mx-6 -mt-6 h-48">
-                  {selectedTent.images && selectedTent.images.length > 0 && (
-                     <Image src={selectedTent.images[0].imageUrl} alt={selectedTent.name} fill className="object-cover" />
+                  {loadingImages ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : tentImages && tentImages.length > 0 && (
+                     <Image src={tentImages[0].imageUrl} alt={selectedTent.name} fill className="object-cover" />
                   )}
                 </div>
                 <SheetTitle className="pt-6 text-2xl">{selectedTent.name}</SheetTitle>
