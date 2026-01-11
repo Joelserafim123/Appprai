@@ -41,7 +41,7 @@
             "imageHint": { "type": "string" },
             "description": { "type": "string" }
         },
-        "required": ["imageUrl"]
+        "required": ["imageUrl", "description", "imageHint"]
     },
     "MenuItem": {
       "title": "Menu Item",
@@ -124,3 +124,5 @@
     }
   }
 }
+
+    

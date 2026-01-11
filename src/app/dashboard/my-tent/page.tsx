@@ -5,9 +5,10 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin } from 'lucide-react';
+import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, Upload } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,8 +59,8 @@ type TentFormData = z.infer<typeof tentSchema>;
 interface TentImage {
   id: string;
   imageUrl: string;
-  imageHint?: string;
-  description?: string;
+  imageHint: string;
+  description: string;
 }
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
@@ -212,10 +213,96 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   );
 }
 
+const imageSchema = z.object({
+    description: z.string().min(5, 'A descrição é obrigatória.'),
+    image: z.any().refine(fileList => fileList.length === 1, 'É necessário selecionar um arquivo de imagem.')
+});
+type ImageFormData = z.infer<typeof imageSchema>;
+
+function ImageUploadForm({ tentId, onFinished }: { tentId: string, onFinished: () => void }) {
+    const { db } = useFirebase();
+    const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { register, handleSubmit, formState: { errors }, watch } = useForm<ImageFormData>({
+        resolver: zodResolver(imageSchema),
+    });
+
+    const file = watch("image")?.[0];
+    const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file]);
+
+    const onSubmit = async (data: ImageFormData) => {
+        if (!db || !data.image[0]) return;
+        setIsSubmitting(true);
+
+        const file = data.image[0];
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+
+        reader.onloadend = async () => {
+            const imageUrl = reader.result as string;
+            const imageData = {
+                imageUrl,
+                description: data.description,
+                imageHint: "beach tent", // Default hint
+            };
+
+            const collectionRef = collection(db, 'tents', tentId, 'images');
+
+            try {
+                await addDoc(collectionRef, imageData);
+                toast({ title: "Imagem adicionada com sucesso!" });
+                onFinished();
+            } catch(e) {
+                const permissionError = new FirestorePermissionError({
+                    path: `tents/${tentId}/images`,
+                    operation: 'create',
+                    requestResourceData: imageData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                toast({ variant: 'destructive', title: 'Erro ao adicionar imagem.' });
+            } finally {
+                setIsSubmitting(false);
+            }
+        };
+        
+        reader.onerror = () => {
+            toast({ variant: 'destructive', title: 'Erro ao ler o arquivo de imagem.' });
+            setIsSubmitting(false);
+        };
+    };
+
+    return (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="image">Arquivo da Imagem</Label>
+                <Input id="image" type="file" accept="image/png, image/jpeg, image/gif" {...register('image')} />
+                 {previewUrl && (
+                    <div className="mt-2 relative aspect-video w-full overflow-hidden rounded-md">
+                        <Image src={previewUrl} alt="Pré-visualização da imagem" fill className="object-cover" />
+                    </div>
+                )}
+                {errors.image && <p className="text-sm text-destructive">{typeof errors.image.message === 'string' && errors.image.message}</p>}
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="description">Descrição da Imagem</Label>
+                <Textarea id="description" {...register('description')} placeholder="Ex: Vista da nossa barraca ao entardecer"/>
+                {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Imagem'}
+                </Button>
+            </DialogFooter>
+        </form>
+    );
+}
+
 function ImageManager({ tentId }: { tentId: string | null }) {
     const { db } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
     
     const imagesQuery = useMemo(() => {
         if (!db || !tentId) return null;
@@ -223,35 +310,6 @@ function ImageManager({ tentId }: { tentId: string | null }) {
     }, [db, tentId]);
 
     const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
-
-    const handleAddImage = async () => {
-        if (!db || !tentId) return;
-        const imageUrl = prompt("Por favor, insira a URL da imagem:");
-        if (!imageUrl) return;
-
-        setIsSubmitting(true);
-        const imageData = { 
-            imageUrl,
-            imageHint: "beach tent", // Default hint
-            description: "A beautiful view from the tent"
-        };
-        const collectionRef = collection(db, 'tents', tentId, 'images');
-
-        try {
-            await addDoc(collectionRef, imageData);
-            toast({ title: "Imagem adicionada com sucesso!" });
-        } catch(e) {
-            const permissionError = new FirestorePermissionError({
-                path: `tents/${tentId}/images`,
-                operation: 'create',
-                requestResourceData: imageData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            toast({ variant: 'destructive', title: 'Erro ao adicionar imagem.' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const handleDeleteImage = async (imageId: string) => {
         if (!db || !tentId || !confirm("Tem certeza que quer apagar esta imagem?")) return;
@@ -278,22 +336,32 @@ function ImageManager({ tentId }: { tentId: string | null }) {
     }
 
     return (
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <ImageIcon />
-                    Gerenciar Galeria de Fotos
-                </CardTitle>
-                <CardDescription>
-                    Adicione ou remova fotos que serão exibidas na página da sua barraca.
-                </CardDescription>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <ImageIcon />
+                            Gerenciar Galeria de Fotos
+                        </CardTitle>
+                        <CardDescription>
+                            Adicione ou remova fotos que serão exibidas na página da sua barraca.
+                        </CardDescription>
+                    </div>
+                     <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                             <Plus className="mr-2 h-4 w-4"/> Adicionar
+                        </Button>
+                    </DialogTrigger>
+                </div>
             </CardHeader>
             <CardContent className="space-y-4">
                 {loadingImages ? <Loader2 className="animate-spin mx-auto" /> : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {tentImages?.map(image => (
                             <div key={image.id} className="relative group aspect-square">
-                                <Image src={image.imageUrl} alt={image.description || 'Tent image'} fill className="object-cover rounded-md" />
+                                <Image src={image.imageUrl} alt={image.description} fill className="object-cover rounded-md" />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                     <Button variant="destructive" size="icon" onClick={() => handleDeleteImage(image.id)} disabled={isSubmitting}>
                                         <Trash className="w-4 h-4" />
@@ -306,11 +374,15 @@ function ImageManager({ tentId }: { tentId: string | null }) {
                  {tentImages?.length === 0 && !loadingImages && (
                     <p className="text-center text-muted-foreground py-4">Nenhuma imagem na galeria.</p>
                  )}
-                <Button onClick={handleAddImage} className="w-full" disabled={isSubmitting}>
-                    <Plus className="mr-2"/> Adicionar Imagem
-                </Button>
             </CardContent>
         </Card>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Adicionar Nova Imagem</DialogTitle>
+            </DialogHeader>
+            <ImageUploadForm tentId={tentId} onFinished={() => setIsFormOpen(false)} />
+        </DialogContent>
+        </Dialog>
     );
 }
 
@@ -392,4 +464,6 @@ export default function MyTentPage() {
 
 }
     
+    
+
     
