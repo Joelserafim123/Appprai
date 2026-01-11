@@ -14,8 +14,9 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == userId;
     }
 
-    // Tents can be read by anyone. Only the owner can create, update, or delete their tent,
-    // and the tent ID must match the owner's UID.
+    // Tents can be read by anyone on the public site, but only the owner can manage it.
+    // We need to allow general read for the public-facing pages.
+    // The write rule is specific to the owner, using the tentId which must match the user's UID.
     match /tents/{tentId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == tentId;
@@ -37,5 +38,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
