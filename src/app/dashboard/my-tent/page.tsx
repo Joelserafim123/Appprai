@@ -52,7 +52,7 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
   });
 
   useEffect(() => {
-    if (currentLocation && !existingTent?.location) { // Prioritize existing location over current user location
+    if (currentLocation && !existingTent?.location) { // Only set current location if there's no existing one
       setValue('location.lat', currentLocation.lat);
       setValue('location.lng', currentLocation.lng);
     }
@@ -104,12 +104,12 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
       )}
       <div className="space-y-2">
         <Label htmlFor="name">Nome da Barraca</Label>
-        <Input id="name" {...register('name')} />
+        <Input id="name" {...register('name')} disabled={isSubmitting} />
         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Descrição</Label>
-        <Textarea id="description" {...register('description')} />
+        <Textarea id="description" {...register('description')} disabled={isSubmitting} />
         {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
       </div>
       <div>
@@ -119,12 +119,12 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
         <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
             <Label htmlFor="lat">Latitude</Label>
-            <Input id="lat" type="number" step="any" {...register('location.lat')} readOnly />
+            <Input id="lat" type="number" step="any" {...register('location.lat')} readOnly disabled={isSubmitting} />
             {errors.location?.lat && <p className="text-sm text-destructive">{errors.location.lat.message}</p>}
             </div>
             <div className="space-y-2">
             <Label htmlFor="lng">Longitude</Label>
-            <Input id="lng" type="number" step="any" {...register('location.lng')} readOnly />
+            <Input id="lng" type="number" step="any" {...register('location.lng')} readOnly disabled={isSubmitting} />
             {errors.location?.lng && <p className="text-sm text-destructive">{errors.location.lng.message}</p>}
             </div>
         </div>
@@ -132,7 +132,7 @@ function TentForm({ user, existingTent, onFinished, currentLocation, locationErr
       </div>
        <div className="space-y-2">
           <Label htmlFor="minimumOrderForFeeWaiver">Valor Mínimo para Isenção de Aluguel (R$)</Label>
-          <Input id="minimumOrderForFeeWaiver" type="number" step="0.01" {...register('minimumOrderForFeeWaiver')} />
+          <Input id="minimumOrderForFeeWaiver" type="number" step="0.01" {...register('minimumOrderForFeeWaiver')} disabled={isSubmitting} />
           <p className="text-xs text-muted-foreground">Deixe 0 se não houver isenção.</p>
            {errors.minimumOrderForFeeWaiver && <p className="text-sm text-destructive">{errors.minimumOrderForFeeWaiver.message}</p>}
         </div>
@@ -160,10 +160,15 @@ export default function MyTentPage() {
     try {
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
-        const doc = querySnapshot.docs[0];
-        setTent({ id: doc.id, ...doc.data() } as Tent);
+            const doc = querySnapshot.docs[0];
+            const tentData = { id: doc.id, ...doc.data() } as Tent;
+            setTent(tentData);
+            if (tentData.location) {
+                // If a location is already saved, use it as the current location.
+                setCurrentLocation(tentData.location);
+            }
         } else {
-        setTent(null);
+            setTent(null);
         }
     } catch(e) {
         toast({ variant: 'destructive', title: 'Erro ao buscar barraca', description: 'Não foi possível carregar os dados da sua barraca.' });
@@ -181,6 +186,9 @@ export default function MyTentPage() {
   }, [db, user, userLoading]);
 
   useEffect(() => {
+    // This effect runs only once to get the user's location.
+    if (tent?.location) return; // Don't fetch if location is already set from DB
+
     setLocationError(null);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -190,9 +198,7 @@ export default function MyTentPage() {
             lng: position.coords.longitude,
           };
           setCurrentLocation(newLocation);
-          if(!tent && !loadingTent) { // Only toast on initial load for a new tent
-             toast({ title: 'Localização obtida com sucesso!' });
-          }
+          toast({ title: 'Localização obtida com sucesso!' });
         },
         (error) => {
           let errorMsg = 'Não foi possível obter sua localização. Verifique as permissões do navegador e tente novamente.';
@@ -209,7 +215,7 @@ export default function MyTentPage() {
       setLocationError(errorMsg);
       toast({ variant: 'destructive', title: 'Erro de Localização', description: errorMsg });
     }
-  }, [loadingTent]); // Re-fetch location when tent loading is complete
+  }, [tent]);
 
   if (userLoading || loadingTent) {
     return (
@@ -247,4 +253,4 @@ export default function MyTentPage() {
     </div>
   );
 
-    
+}
