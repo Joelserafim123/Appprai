@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Loader2, Star, Settings, Briefcase, Building, Utensils, BarChart } from 'lucide-react';
+import { Loader2, Star, Settings, Briefcase, Building, Utensils, BarChart, Armchair } from 'lucide-react';
 
 function CustomerDashboard() {
   return (
@@ -48,6 +49,11 @@ function OwnerDashboard() {
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/menu">
             <Utensils className="mr-2" /> Atualizar Cardápio
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full justify-start text-left">
+          <Link href="/dashboard/rental-items">
+            <Armchair className="mr-2" /> Gerenciar Itens de Aluguel
           </Link>
         </Button>
          <Button asChild variant="outline" className="w-full justify-start text-left">

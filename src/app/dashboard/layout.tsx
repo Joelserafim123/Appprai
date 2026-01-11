@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -14,7 +15,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut } from 'lucide-react';
+import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardLayout({
@@ -76,6 +77,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/menu">
             <Utensils />
             <span>Cardápio</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+       <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Aluguéis', side: 'right' }}>
+          <Link href="/dashboard/rental-items">
+            <Armchair />
+            <span>Aluguéis</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
