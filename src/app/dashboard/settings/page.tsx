@@ -126,6 +126,12 @@ export default function SettingsPage() {
         setSelfie(dataUrl);
         setValue('photoURL', dataUrl);
       }
+      
+      // Stop the camera stream
+      if (video.srcObject) {
+        const stream = video.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
     }
   };
 
@@ -260,47 +266,4 @@ export default function SettingsPage() {
                     <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
                     <AlertDescription>
                         Por favor, permita o acesso à câmera para tirar uma selfie. Você pode precisar recarregar a página após conceder a permissão.
-                    </AlertDescription>
-                    </Alert>
-                )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Nome Completo</Label>
-              <Input id="displayName" {...register('displayName')} disabled={isSubmitting} />
-              {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={user.email || ''} readOnly disabled />
-              <p className="text-xs text-muted-foreground">O email não pode ser alterado.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cpf">CPF</Label>
-              <Input id="cpf" {...register('cpf', { onChange: handleCpfChange })} disabled={isSubmitting} maxLength={14} />
-              {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Endereço</Label>
-              <Input id="address" {...register('address')} disabled={isSubmitting} />
-              {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Tipo de Conta</Label>
-              <Input id="role" value={user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'} readOnly disabled />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
-            </Button>
-          </CardFooter>
-        </Card>
-      </form>
-    </div>
-  );
-}
+                    </Aler
