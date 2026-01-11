@@ -266,4 +266,51 @@ export default function SettingsPage() {
                     <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
                     <AlertDescription>
                         Por favor, permita o acesso à câmera para tirar uma selfie. Você pode precisar recarregar a página após conceder a permissão.
-                    </Aler
+                    </AlertDescription>
+                    </Alert>
+                )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Nome Completo</Label>
+              <Input id="displayName" {...register('displayName')} disabled={isSubmitting}/>
+              {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={user.email || ''} disabled readOnly />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                {...register('cpf', {
+                  onChange: handleCpfChange
+                })}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                disabled={isSubmitting}
+              />
+              {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">Endereço</Label>
+              <Input id="address" {...register('address')} disabled={isSubmitting} />
+              {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
+            </div>
+
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+    </div>
+  );
+}
+
+    
