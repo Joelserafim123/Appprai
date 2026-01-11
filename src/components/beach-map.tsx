@@ -62,7 +62,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
   })
 
-  useEffect(() => {
+  const requestLocation = () => {
     setLoadingLocation(true);
     setLocationError(null);
     if (navigator.geolocation) {
@@ -77,8 +77,11 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           setLoadingLocation(false);
         },
         (error) => {
-          setLocationError("Não foi possível obter sua localização. O mapa será centralizado em um local padrão.");
-          console.error("Geolocation error:", error);
+          let errorMsg = "Não foi possível obter sua localização.";
+          if (error.code === error.PERMISSION_DENIED) {
+            errorMsg = "A permissão de localização foi negada. O mapa será centralizado em um local padrão.";
+          }
+          setLocationError(errorMsg);
           setLoadingLocation(false);
           setCenter(defaultCenter);
         },
@@ -89,6 +92,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       setLoadingLocation(false);
       setCenter(defaultCenter);
     }
+  }
+
+  useEffect(() => {
+    requestLocation();
   }, []);
 
   const handleTentSelect = (tent: Tent) => {
@@ -131,23 +138,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     if(userLocation) {
         setCenter(userLocation)
     } else {
-        // Re-trigger location request
-        setLoadingLocation(true);
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const userCoords = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-              };
-              setUserLocation(userCoords);
-              setCenter(userCoords);
-              setLoadingLocation(false);
-            },
-            (error) => {
-              setLocationError("Não foi possível obter sua localização. Verifique as permissões do seu navegador.");
-              setLoadingLocation(false);
-            }
-        );
+        requestLocation();
     }
   }
 
@@ -178,7 +169,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     return (
         <>
         {locationError && (
-             <Alert variant="destructive" className="absolute top-4 left-4 z-10 w-auto max-w-sm">
+             <Alert variant="destructive" className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-auto max-w-sm">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Erro de Localização</AlertTitle>
                 <AlertDescription>{locationError}</AlertDescription>
@@ -277,3 +268,4 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
+

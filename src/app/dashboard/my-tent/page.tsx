@@ -5,7 +5,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building } from 'lucide-react';
+import { Loader2, Building, AlertTriangle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import type { Tent } from '@/app/page';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Location = {
     lat: number;
@@ -36,7 +37,7 @@ const tentSchema = z.object({
 
 type TentFormData = z.infer<typeof tentSchema>;
 
-function TentForm({ user, existingTent, onFinished, currentLocation }: { user: any; existingTent?: Tent | null; onFinished: () => void, currentLocation: Location | null }) {
+function TentForm({ user, existingTent, onFinished, currentLocation, locationError }: { user: any; existingTent?: Tent | null; onFinished: () => void, currentLocation: Location | null, locationError: string | null }) {
   const { db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,11 +52,11 @@ function TentForm({ user, existingTent, onFinished, currentLocation }: { user: a
   });
 
   useEffect(() => {
-    if (currentLocation) {
+    if (currentLocation && !existingTent?.location) { // Prioritize existing location over current user location
       setValue('location.lat', currentLocation.lat);
       setValue('location.lng', currentLocation.lng);
     }
-  }, [currentLocation, setValue]);
+  }, [currentLocation, setValue, existingTent]);
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
@@ -94,6 +95,13 @@ function TentForm({ user, existingTent, onFinished, currentLocation }: { user: a
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {locationError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Erro de Localização</AlertTitle>
+          <AlertDescription>{locationError}</AlertDescription>
+        </Alert>
+      )}
       <div className="space-y-2">
         <Label htmlFor="name">Nome da Barraca</Label>
         <Input id="name" {...register('name')} />
@@ -120,7 +128,7 @@ function TentForm({ user, existingTent, onFinished, currentLocation }: { user: a
             {errors.location?.lng && <p className="text-sm text-destructive">{errors.location.lng.message}</p>}
             </div>
         </div>
-        {!currentLocation && <p className="text-xs text-muted-foreground mt-2">Aguardando localização... Habilite o GPS no seu navegador.</p>}
+        {!currentLocation && !locationError && <p className="text-xs text-muted-foreground mt-2">Aguardando localização... Habilite o GPS no seu navegador.</p>}
       </div>
        <div className="space-y-2">
           <Label htmlFor="minimumOrderForFeeWaiver">Valor Mínimo para Isenção de Aluguel (R$)</Label>
@@ -141,30 +149,8 @@ export default function MyTentPage() {
   const [tent, setTent] = useState<Tent | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setCurrentLocation(newLocation);
-          if(!tent) { // Only toast on initial load, not on re-fetch for existing tent
-             toast({ title: 'Localização obtida com sucesso!' });
-          }
-        },
-        () => {
-          toast({ variant: 'destructive', title: 'Erro de Localização', description: 'Não foi possível obter sua localização. Verifique as permissões do navegador e tente novamente.' });
-        },
-        { enableHighAccuracy: true }
-      );
-    } else {
-      toast({ variant: 'destructive', title: 'Erro de Localização', description: 'Geolocalização não é suportada por este navegador.' });
-    }
-  }, []); // Runs once on component mount
 
   const fetchTentData = async () => {
     if (!db || !user) return;
@@ -193,6 +179,37 @@ export default function MyTentPage() {
         setLoadingTent(false);
     }
   }, [db, user, userLoading]);
+
+  useEffect(() => {
+    setLocationError(null);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setCurrentLocation(newLocation);
+          if(!tent && !loadingTent) { // Only toast on initial load for a new tent
+             toast({ title: 'Localização obtida com sucesso!' });
+          }
+        },
+        (error) => {
+          let errorMsg = 'Não foi possível obter sua localização. Verifique as permissões do navegador e tente novamente.';
+          if (error.code === error.PERMISSION_DENIED) {
+            errorMsg = 'A permissão de localização foi negada. Você precisa habilitá-la nas configurações do seu navegador para cadastrar uma barraca.';
+          }
+          setLocationError(errorMsg);
+          toast({ variant: 'destructive', title: 'Erro de Localização', description: errorMsg, duration: 10000 });
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      const errorMsg = 'Geolocalização não é suportada por este navegador.';
+      setLocationError(errorMsg);
+      toast({ variant: 'destructive', title: 'Erro de Localização', description: errorMsg });
+    }
+  }, [loadingTent]); // Re-fetch location when tent loading is complete
 
   if (userLoading || loadingTent) {
     return (
@@ -224,7 +241,7 @@ export default function MyTentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TentForm user={user} existingTent={tent} onFinished={fetchTentData} currentLocation={currentLocation} />
+          <TentForm user={user} existingTent={tent} onFinished={fetchTentData} currentLocation={currentLocation} locationError={locationError} />
         </CardContent>
       </Card>
     </div>
