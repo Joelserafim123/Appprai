@@ -20,6 +20,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Link from 'next/link';
 
 type MenuItem = {
   id: string;
@@ -127,22 +128,27 @@ export default function MenuPage() {
   const { db } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
+  const [loadingTent, setLoadingTent] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
 
   useEffect(() => {
     if (db && user) {
       const getTentId = async () => {
+        setLoadingTent(true);
         const tentsRef = collection(db, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           setTentId(querySnapshot.docs[0].id);
         }
+        setLoadingTent(false);
       };
       getTentId();
+    } else if (!userLoading) {
+        setLoadingTent(false);
     }
-  }, [db, user]);
+  }, [db, user, userLoading]);
 
   const menuQuery = useMemo(() => {
     if (!db || !tentId) return null;
@@ -180,7 +186,7 @@ export default function MenuPage() {
   }
 
 
-  if (userLoading || (menuLoading && !menu)) {
+  if (userLoading || loadingTent) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -194,15 +200,25 @@ export default function MenuPage() {
 
   if (!tentId) {
       return (
-          <div className="text-center">
-              <p>Você ainda não cadastrou sua barraca.</p>
-              <Button asChild className="mt-4">
-                  <a href="/dashboard/my-tent">Cadastrar Barraca</a>
+          <div className="text-center py-16 border-2 border-dashed rounded-lg">
+              <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Você precisa cadastrar sua barraca para poder gerenciar o cardápio.</p>
+              <Button asChild className="mt-6">
+                  <Link href="/dashboard/my-tent">Cadastrar Minha Barraca</Link>
               </Button>
           </div>
       )
   }
   
+  if (menuLoading && !menu) {
+     return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (error) {
       return <p className='text-destructive'>Erro ao carregar cardápio: {error.message}</p>
   }
@@ -243,7 +259,7 @@ export default function MenuPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="flex justify-between items-end">
-                        <p className="text-sm font-semibold text-primary/80">{item.category}</p>
+                        <p className="text-sm font-semibold text-primary/80">{item.category === 'Drinks' ? 'Bebidas' : item.category === 'Appetizers' ? 'Petiscos' : 'Pratos Principais'}</p>
                         <p className='font-bold text-lg'>R$ {item.price.toFixed(2)}</p>
                     </div>
                 </CardContent>
