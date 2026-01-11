@@ -80,7 +80,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [app, db, loading]); // Added loading to dependency array
+  }, [app, db]);
 
   return (
     <UserContext.Provider value={{ user, loading }}>
