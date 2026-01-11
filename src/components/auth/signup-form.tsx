@@ -80,6 +80,7 @@ export function SignUpForm() {
         cpf: values.cpf.replace(/\D/g, ""), // Store only digits
         address: values.address,
         role: values.role,
+        photoURL: '',
       };
 
       const userDocRef = doc(db, "users", user.uid);
@@ -188,15 +189,19 @@ export function SignUpForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>CPF</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="000.000.000-00" 
-                  {...field} 
-                  onChange={(e) => field.onChange(handleCpfChange(e))}
-                  maxLength={14}
-                  disabled={isSubmitting} 
-                />
-              </FormControl>
+               <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <FormControl>
+                    <Input 
+                    placeholder="000.000.000-00" 
+                    {...field} 
+                    onChange={(e) => field.onChange(handleCpfChange(e))}
+                    maxLength={14}
+                    disabled={isSubmitting} 
+                    className="pl-10"
+                    />
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
