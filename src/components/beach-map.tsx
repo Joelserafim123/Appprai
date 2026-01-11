@@ -112,6 +112,17 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     };
   };
 
+  const getUserPinIcon = () => {
+    return {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 7,
+      fillColor: '#4285F4',
+      fillOpacity: 1,
+      strokeColor: 'white',
+      strokeWeight: 2,
+    }
+  }
+
   const getTentLocation = (tent: Tent) => {
     return tent.location;
   }
@@ -148,7 +159,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Erro ao carregar o mapa</AlertTitle>
             <AlertDescription>
-              Não foi possível carregar o Google Maps. Isso pode ter acontecido por uma chave de API inválida ou problemas de conexão.
+             Não foi possível carregar o Google Maps. Verifique se a chave da API é válida e tente novamente. O resto da aplicação continuará funcionando.
             </AlertDescription>
           </Alert>
         </div>
@@ -179,7 +190,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             zoom={15}
             options={mapOptions}
         >
-            {userLocation && <Marker position={userLocation} title="Sua Localização" />}
+            {userLocation && <Marker position={userLocation} title="Sua Localização" icon={getUserPinIcon()} />}
             {tents.map((tent) => (
             <Marker
                 key={`marker-${tent.id}`}
