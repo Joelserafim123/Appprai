@@ -55,8 +55,8 @@ export function LoginForm() {
     } catch (error: any) {
       console.error(error);
       let description = "Ocorreu um erro desconhecido.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = "Email ou senha inválidos. Por favor, tente novamente.";
+      if (error.code === 'auth/invalid-credential') {
+        description = "Credenciais inválidas. Verifique seu e-mail e senha e tente novamente.";
       }
       toast({
         variant: "destructive",
