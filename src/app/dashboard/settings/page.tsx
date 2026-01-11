@@ -46,7 +46,7 @@ function ProfileImageManager({ user }: { user: any }) {
         return query(collection(db, 'users', user.uid, 'images'));
     }, [db, user]);
 
-    const { data: profileImages, loading: loadingImages } = useCollection<ProfileImage>(imagesQuery);
+    const { data: profileImages, loading: loadingImages, error } = useCollection<ProfileImage>(imagesQuery);
 
     const handleAddImage = async () => {
         if (!db || !user) return;
@@ -113,12 +113,21 @@ function ProfileImageManager({ user }: { user: any }) {
             toast({ title: "Foto de perfil atualizada!" });
             if (refresh) refresh();
         } catch (error) {
-            console.error("Error setting profile picture:", error);
+            const permissionError = new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'update',
+                requestResourceData: { photoURL: imageUrl },
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: 'Erro ao definir foto do perfil.' });
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    if (error) {
+        return <p className='text-destructive'>Erro ao carregar galeria: {error.message}</p>
+    }
 
     return (
         <Card>
@@ -152,8 +161,8 @@ function ProfileImageManager({ user }: { user: any }) {
                  {profileImages?.length === 0 && !loadingImages && (
                     <p className="text-center text-muted-foreground py-4">Nenhuma imagem na galeria.</p>
                  )}
-                <Button onClick={handleAddImage} className="w-full" disabled={isSubmitting}>
-                    <Plus className="mr-2"/> Adicionar Imagem (URL)
+                <Button onClick={handleAddImage} className="w-full" disabled={isSubmitting || loadingImages}>
+                    {isSubmitting || loadingImages ? <Loader2 className="animate-spin" /> : <><Plus className="mr-2"/> Adicionar Imagem (URL)</>}
                 </Button>
             </CardContent>
         </Card>
@@ -169,6 +178,11 @@ export default function SettingsPage() {
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
+      defaultValues: {
+          displayName: user?.displayName || '',
+          cpf: user?.cpf || '',
+          address: user?.address || ''
+      }
   });
 
   useEffect(() => {
@@ -206,55 +220,44 @@ export default function SettingsPage() {
 
     const auth = getAuth(app);
     const currentUser = auth.currentUser;
-    const userDocRef = doc(db, "users", user.uid);
+    
 
     try {
-      if (currentUser) {
+      if (currentUser && currentUser.displayName !== data.displayName) {
         await updateProfile(currentUser, {
           displayName: data.displayName,
         });
       }
-    } catch(authError) {
-      console.error("Error updating Firebase Auth profile:", authError);
-       toast({
-        variant: 'destructive',
-        title: 'Erro de Autenticação',
-        description: 'Não foi possível atualizar seu perfil. Tente novamente.',
-      });
-       setIsSubmitting(false);
-       return;
-    }
+      
+      const userDocRef = doc(db, "users", user.uid);
+      const firestoreData = {
+        displayName: data.displayName,
+        address: data.address,
+        cpf: data.cpf.replace(/\D/g, ""),
+      };
 
-    const firestoreData = {
-      displayName: data.displayName,
-      address: data.address,
-      cpf: data.cpf.replace(/\D/g, ""),
-    };
-    
-    updateDoc(userDocRef, firestoreData)
-      .then(() => {
-        toast({
-          title: 'Perfil Atualizado!',
-          description: 'Suas informações foram salvas com sucesso.',
-        });
-        if(refresh) refresh();
-      })
-      .catch(err => {
-         const permissionError = new FirestorePermissionError({
-            path: userDocRef.path,
-            operation: 'update',
-            requestResourceData: firestoreData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+      await updateDoc(userDocRef, firestoreData);
+      
+      toast({
+        title: 'Perfil Atualizado!',
+        description: 'Suas informações foram salvas com sucesso.',
+      });
+      if(refresh) refresh();
+
+    } catch(error: any) {
+      console.error("Error updating profile:", error);
+      if (error instanceof FirestorePermissionError) {
+          errorEmitter.emit('permission-error', error);
+      } else {
          toast({
             variant: 'destructive',
-            title: 'Erro ao salvar no banco de dados',
-            description: 'Não foi possível salvar suas alterações.',
+            title: 'Erro ao atualizar perfil',
+            description: error.message || 'Não foi possível salvar suas alterações.',
         });
-      })
-      .finally(() => {
+      }
+    } finally {
         setIsSubmitting(false);
-      });
+    }
   };
 
 
@@ -336,3 +339,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
