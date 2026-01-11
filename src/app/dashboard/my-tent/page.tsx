@@ -6,7 +6,7 @@ import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, Image as ImageIcon, Trash, Plus } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -120,7 +120,12 @@ function ImageManager({ tentId }: { tentId: string }) {
     const { db } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const imagesQuery = query(collection(db!, 'tents', tentId, 'images'));
+    
+    const imagesQuery = useMemo(() => {
+        if (!db) return null;
+        return query(collection(db, 'tents', tentId, 'images'));
+    }, [db, tentId]);
+
     const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
 
     const handleAddImage = async () => {
@@ -285,3 +290,5 @@ export default function MyTentPage() {
   );
 
 }
+
+    
