@@ -41,7 +41,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const { db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<TentFormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
       name: existingTent?.name || '',
@@ -50,18 +50,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || 0,
     },
   });
-
-  useEffect(() => {
-    if (existingTent) {
-      reset({
-        name: existingTent.name || '',
-        description: existingTent.description || '',
-        beachName: existingTent.beachName || '',
-        minimumOrderForFeeWaiver: existingTent.minimumOrderForFeeWaiver || 0,
-      });
-    }
-  }, [existingTent, reset]);
-
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
@@ -307,5 +295,3 @@ export default function MyTentPage() {
   );
 
 }
-
-    
