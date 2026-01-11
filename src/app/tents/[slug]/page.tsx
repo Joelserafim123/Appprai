@@ -205,7 +205,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <Header />
       <main>
         <div className="relative h-64 w-full md:h-96">
-         {tentImages && tentImages.length > 0 && (
+         {loadingImages ? <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : tentImages && tentImages.length > 0 ? (
             <Image
                 src={tentImages[0].imageUrl}
                 alt={tent.name}
@@ -214,6 +214,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                 fill
                 priority
             />
+         ) : (
+            <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Nenhuma imagem</div>
          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 text-white">
@@ -251,7 +253,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                   <p className="text-sm text-muted-foreground">{item.description}</p>
                                   <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
                                 </div>
-                                <Button size="sm" variant="outline">
+                                <Button size="sm" variant="outline" disabled>
                                   <ShoppingCart className="mr-2 h-4 w-4" />
                                   Pedir
                                 </Button>
@@ -272,7 +274,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                     <CardHeader>
                         <CardTitle>Reservar Mesas e Cadeiras</CardTitle>
                         <CardDescription>Garanta seu lugar ao sol antes de chegar. { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para reservar</Link>}</CardDescription>
-                         {tent.minimumOrderForFeeWaiver && (
+                         {tent.minimumOrderForFeeWaiver && tent.minimumOrderForFeeWaiver > 0 && (
                             <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
                                 <Info className="h-5 w-5 text-primary"/>
                                 <div>

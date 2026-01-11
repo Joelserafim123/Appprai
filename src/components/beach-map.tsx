@@ -93,6 +93,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
+    if (tent.location) {
+      setCenter(tent.location);
+    }
   };
 
   const handleMarkerClick = (tent: Tent) => {
@@ -140,35 +143,23 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const renderMap = () => {
     if (loadError) {
       return (
-        <div className="flex h-full items-center justify-center p-4 sm:p-8">
-            <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Erro: A Chave da API do Google Maps é inválida ou expirou</AlertTitle>
-                <AlertDescription>
-                    <p className="mb-2 font-semibold">
-                        O mapa não pode ser carregado. Isso geralmente acontece porque a chave da API é inválida, expirou ou o faturamento não está ativado para sua conta.
-                    </p>
-                    <p className="mt-3 text-sm">
-                        **Como corrigir:**
-                    </p>
-                    <ol className="mt-1 list-inside list-decimal space-y-1 text-sm">
-                        <li>Gere uma nova chave de API no <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="font-medium underline">Console do Google Cloud</a>.</li>
-                        <li>Certifique-se de que a **Maps JavaScript API** está ativada para seu projeto.</li>
-                        <li>Verifique se o faturamento está ativado para seu projeto do Google Cloud.</li>
-                        <li>Se usar restrições, certifique-se de que o domínio da aplicação está permitido.</li>
-                        <li>Forneça a **nova chave de API** para atualizar o aplicativo.</li>
-                    </ol>
-                </AlertDescription>
-            </Alert>
+        <div className="flex h-full items-center justify-center bg-muted p-8">
+          <Alert variant="destructive" className="max-w-md">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Erro ao carregar o mapa</AlertTitle>
+            <AlertDescription>
+              Não foi possível carregar o Google Maps. Isso pode ter acontecido por uma chave de API inválida ou problemas de conexão.
+            </AlertDescription>
+          </Alert>
         </div>
       );
     }
 
     if (!isLoaded || loadingLocation) {
         return (
-            <div className="flex h-full flex-col items-center justify-center gap-4">
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted">
                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">Carregando mapa e sua localização...</p>
+                <p className="text-muted-foreground">Carregando mapa...</p>
             </div>
         );
     }
@@ -255,10 +246,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           {selectedTent && (
             <>
               <SheetHeader>
-                <div className="relative -mx-6 -mt-6 h-48">
-                  {loadingImages ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : tentImages && tentImages.length > 0 && (
+                <div className="relative -mx-6 -mt-6 h-48 bg-muted">
+                  {loadingImages ? <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : tentImages && tentImages.length > 0 ? (
                      <Image src={tentImages[0].imageUrl} alt={selectedTent.name} fill className="object-cover" />
-                  )}
+                  ): <div className="flex h-full w-full items-center justify-center text-muted-foreground">Nenhuma imagem</div>}
                 </div>
                 <SheetTitle className="pt-6 text-2xl">{selectedTent.name}</SheetTitle>
                 <SheetDescription>{selectedTent.description}</SheetDescription>
