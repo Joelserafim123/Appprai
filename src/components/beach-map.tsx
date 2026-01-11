@@ -2,7 +2,7 @@
 "use client";
 
 import type { Tent } from "@/app/page";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,14 +38,28 @@ const mapOptions = {
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(tents[0] || null);
-  const [center] = useState(defaultCenter);
+  const [center, setCenter] = useState(defaultCenter);
   
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: googleMapsApiKey
-  })
+  });
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        setCenter({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+      }, (error) => {
+        console.warn("Aviso de Geolocalização: ", error.message);
+        // O usuário negou a permissão ou ocorreu um erro, o mapa permanecerá no `defaultCenter`.
+      });
+    }
+  }, []);
   
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
