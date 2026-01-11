@@ -43,16 +43,6 @@
         },
         "required": ["imageUrl"]
     },
-     "ProfileImage": {
-        "title": "Profile Image",
-        "description": "A profile image for a user.",
-        "type": "object",
-        "properties": {
-            "imageUrl": { "type": "string", "description": "URL of the user's profile media (photo or video)." },
-            "description": { "type": "string" }
-        },
-        "required": ["imageUrl"]
-    },
     "MenuItem": {
       "title": "Menu Item",
       "description": "An item on a tent's menu.",
