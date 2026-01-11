@@ -56,7 +56,6 @@ export default function OwnerReservationsPage() {
     return query(
       collection(db, 'reservations'),
       where('tentId', '==', tentId)
-      // orderBy('createdAt', 'desc') // This requires a composite index. We will sort on the client.
     );
   }, [db, tentId]);
 
