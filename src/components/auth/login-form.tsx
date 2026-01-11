@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { KeyRound, Mail, Loader2 } from "lucide-react"
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 const formSchema = z.object({
@@ -29,8 +29,6 @@ export function LoginForm() {
   const { toast } = useToast()
   const { app } = useFirebase();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/dashboard';
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -51,7 +49,7 @@ export function LoginForm() {
         title: "Login bem-sucedido",
         description: "Redirecionando...",
       })
-      router.push(redirectUrl);
+      router.push('/dashboard');
     } catch (error: any) {
       console.error(error);
       let description = "Ocorreu um erro desconhecido.";
