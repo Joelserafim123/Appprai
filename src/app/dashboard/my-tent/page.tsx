@@ -36,7 +36,7 @@ const tentSchema = z.object({
 
 type TentFormData = z.infer<typeof tentSchema>;
 
-function TentForm({ user, existingTent, onFinished, currentLocation, onUpdateLocationClick }: { user: any; existingTent?: Tent | null; onFinished: () => void, currentLocation: Location | null, onUpdateLocationClick: () => void }) {
+function TentForm({ user, existingTent, onFinished, currentLocation }: { user: any; existingTent?: Tent | null; onFinished: () => void, currentLocation: Location | null }) {
   const { db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,11 +51,11 @@ function TentForm({ user, existingTent, onFinished, currentLocation, onUpdateLoc
   });
 
   useEffect(() => {
-    if (currentLocation && !existingTent?.location) {
+    if (currentLocation) {
       setValue('location.lat', currentLocation.lat);
       setValue('location.lng', currentLocation.lng);
     }
-  }, [currentLocation, existingTent, setValue]);
+  }, [currentLocation, setValue]);
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
@@ -65,28 +65,24 @@ function TentForm({ user, existingTent, onFinished, currentLocation, onUpdateLoc
     if (!db || !user) return;
     setIsSubmitting(true);
 
+    const tentId = existingTent ? existingTent.id : doc(collection(db, 'tents')).id;
+    
     const tentData = {
       ...data,
       ownerId: user.uid,
       slug: generateSlug(data.name),
-      // Ensure images array exists, even if empty
       images: existingTent?.images || [],
     };
 
     try {
-      if (existingTent) {
-        const docRef = doc(db, 'tents', existingTent.id);
-        await updateDoc(docRef, tentData);
-        toast({ title: 'Barraca atualizada com sucesso!' });
-      } else {
-        const newTentRef = doc(collection(db, 'tents'));
-        await setDoc(newTentRef, tentData);
-        toast({ title: 'Barraca cadastrada com sucesso!' });
-      }
+      const docRef = doc(db, 'tents', tentId);
+      await setDoc(docRef, tentData, { merge: true });
+      
+      toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
       onFinished();
     } catch (e: any) {
       const permissionError = new FirestorePermissionError({
-        path: existingTent ? `tents/${existingTent.id}` : 'tents',
+        path: `tents/${tentId}`,
         operation: existingTent ? 'update' : 'create',
         requestResourceData: tentData,
       });
@@ -111,23 +107,21 @@ function TentForm({ user, existingTent, onFinished, currentLocation, onUpdateLoc
       </div>
       <div>
         <div className="flex items-center justify-between mb-2">
-            <Label>Localização</Label>
-            <Button type="button" variant="ghost" size="sm" onClick={onUpdateLocationClick}>
-                <LocateFixed className="mr-2 h-4 w-4"/> Usar Localização Atual
-            </Button>
+            <Label>Localização (preenchida automaticamente)</Label>
         </div>
         <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
             <Label htmlFor="lat">Latitude</Label>
-            <Input id="lat" type="number" step="any" {...register('location.lat')} />
+            <Input id="lat" type="number" step="any" {...register('location.lat')} readOnly />
             {errors.location?.lat && <p className="text-sm text-destructive">{errors.location.lat.message}</p>}
             </div>
             <div className="space-y-2">
             <Label htmlFor="lng">Longitude</Label>
-            <Input id="lng" type="number" step="any" {...register('location.lng')} />
+            <Input id="lng" type="number" step="any" {...register('location.lng')} readOnly />
             {errors.location?.lng && <p className="text-sm text-destructive">{errors.location.lng.message}</p>}
             </div>
         </div>
+        {!currentLocation && <p className="text-xs text-muted-foreground mt-2">Aguardando localização... Habilite o GPS no seu navegador.</p>}
       </div>
        <div className="space-y-2">
           <Label htmlFor="minimumOrderForFeeWaiver">Valor Mínimo para Isenção de Aluguel (R$)</Label>
@@ -135,7 +129,7 @@ function TentForm({ user, existingTent, onFinished, currentLocation, onUpdateLoc
           <p className="text-xs text-muted-foreground">Deixe 0 se não houver isenção.</p>
            {errors.minimumOrderForFeeWaiver && <p className="text-sm text-destructive">{errors.minimumOrderForFeeWaiver.message}</p>}
         </div>
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full" disabled={isSubmitting || !currentLocation}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Informações'}
       </Button>
     </form>
@@ -150,7 +144,7 @@ export default function MyTentPage() {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
 
-  const getCurrentLocation = () => {
+  useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -159,41 +153,48 @@ export default function MyTentPage() {
             lng: position.coords.longitude,
           };
           setCurrentLocation(newLocation);
-          toast({ title: 'Localização atualizada com sucesso!' });
+          if(!tent) { // Only toast on initial load, not on re-fetch for existing tent
+             toast({ title: 'Localização obtida com sucesso!' });
+          }
         },
         () => {
-          toast({ variant: 'destructive', title: 'Erro de Localização', description: 'Não foi possível obter sua localização. Verifique as permissões do navegador.' });
-        }
+          toast({ variant: 'destructive', title: 'Erro de Localização', description: 'Não foi possível obter sua localização. Verifique as permissões do navegador e tente novamente.' });
+        },
+        { enableHighAccuracy: true }
       );
     } else {
       toast({ variant: 'destructive', title: 'Erro de Localização', description: 'Geolocalização não é suportada por este navegador.' });
     }
-  };
-  
-  useEffect(() => {
-    getCurrentLocation();
-  }, [])
+  }, []); // Runs once on component mount
 
   const fetchTentData = async () => {
     if (!db || !user) return;
     setLoadingTent(true);
     const tentsRef = collection(db, 'tents');
     const q = query(tentsRef, where('ownerId', '==', user.uid));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      setTent({ id: doc.id, ...doc.data() } as Tent);
-    } else {
-      setTent(null);
+    try {
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        setTent({ id: doc.id, ...doc.data() } as Tent);
+        } else {
+        setTent(null);
+        }
+    } catch(e) {
+        console.error("Failed to fetch tent data", e);
+        toast({ variant: 'destructive', title: 'Erro ao buscar barraca', description: 'Não foi possível carregar os dados da sua barraca.' });
+    } finally {
+        setLoadingTent(false);
     }
-    setLoadingTent(false);
   };
 
   useEffect(() => {
     if(db && user) {
         fetchTentData();
+    } else if (!userLoading) {
+        setLoadingTent(false);
     }
-  }, [db, user]);
+  }, [db, user, userLoading]);
 
   if (userLoading || loadingTent) {
     return (
@@ -225,7 +226,7 @@ export default function MyTentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TentForm user={user} existingTent={tent} onFinished={fetchTentData} currentLocation={currentLocation} onUpdateLocationClick={getCurrentLocation} />
+          <TentForm user={user} existingTent={tent} onFinished={fetchTentData} currentLocation={currentLocation} />
         </CardContent>
       </Card>
     </div>

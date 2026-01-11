@@ -42,6 +42,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const [center, setCenter] = useState(defaultCenter);
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -49,6 +50,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   })
 
   useEffect(() => {
+    setLoadingLocation(true);
+    setLocationError(null);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -60,12 +63,18 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           setCenter(userCoords);
           setLoadingLocation(false);
         },
-        () => {
+        (error) => {
+          setLocationError("Não foi possível obter sua localização. O mapa será centralizado em um local padrão.");
+          console.error("Geolocation error:", error);
           setLoadingLocation(false);
-        }
+          setCenter(defaultCenter);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
+      setLocationError("Geolocalização não é suportada por este navegador.");
       setLoadingLocation(false);
+      setCenter(defaultCenter);
     }
   }, []);
 
@@ -94,6 +103,24 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const handleUseMyLocatioClick = () => {
     if(userLocation) {
         setCenter(userLocation)
+    } else {
+        // Re-trigger location request
+        setLoadingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const userCoords = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+              };
+              setUserLocation(userCoords);
+              setCenter(userCoords);
+              setLoadingLocation(false);
+            },
+            (error) => {
+              setLocationError("Não foi possível obter sua localização. Verifique as permissões do seu navegador.");
+              setLoadingLocation(false);
+            }
+        );
     }
   }
 
@@ -103,10 +130,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         <div className="flex h-full items-center justify-center p-4 sm:p-8">
             <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Ação Necessária: Erro na API do Google Maps</AlertTitle>
+                <AlertTitle>Erro: A Chave da API do Google Maps é inválida ou expirou</AlertTitle>
                 <AlertDescription>
                     <p className="mb-2 font-semibold">
-                        O mapa não pode ser carregado. Isso pode acontecer porque a chave da API do Google Maps expirou, é inválida, ou está sendo bloqueada.
+                        O mapa não pode ser carregado. Isso geralmente acontece porque a chave da API é inválida, expirou ou o faturamento não está ativado para sua conta.
                     </p>
                     <p className="mt-3 text-sm">
                         **Como corrigir:**
@@ -114,7 +141,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     <ol className="mt-1 list-inside list-decimal space-y-1 text-sm">
                         <li>Gere uma nova chave de API no <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="font-medium underline">Console do Google Cloud</a>.</li>
                         <li>Certifique-se de que a **Maps JavaScript API** está ativada para seu projeto.</li>
-                        <li>Se usar restrições de site, certifique-se de que o domínio da aplicação está permitido, ou selecione "Nenhuma" para desenvolvimento.</li>
+                        <li>Verifique se o faturamento está ativado para seu projeto do Google Cloud.</li>
+                        <li>Se usar restrições, certifique-se de que o domínio da aplicação está permitido.</li>
                         <li>Forneça a **nova chave de API** para atualizar o aplicativo.</li>
                     </ol>
                 </AlertDescription>
@@ -133,6 +161,14 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     }
 
     return (
+        <>
+        {locationError && (
+             <Alert variant="destructive" className="absolute top-4 left-4 z-10 w-auto max-w-sm">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Erro de Localização</AlertTitle>
+                <AlertDescription>{locationError}</AlertDescription>
+            </Alert>
+        )}
         <GoogleMap
             mapContainerStyle={containerStyle}
             center={center}
@@ -150,6 +186,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             />
             ))}
         </GoogleMap>
+        </>
     );
   }
 
@@ -162,7 +199,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     <h2 className="text-lg font-bold">Barracas Próximas</h2>
                     <p className="text-sm text-muted-foreground">Encontre o seu lugar ao sol</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={handleUseMyLocatioClick} disabled={!userLocation}>
+                <Button variant="ghost" size="icon" onClick={handleUseMyLocatioClick}>
                     <LocateIcon className="h-5 w-5"/>
                     <span className="sr-only">Usar minha localização</span>
                 </Button>
