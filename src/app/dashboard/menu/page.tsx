@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
+import { useMemoFirebase } from '@/firebase/provider';
 
 type MenuItem = {
   id: string;
@@ -40,7 +41,7 @@ const menuItemSchema = z.object({
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
 function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: MenuItem, onFinished: () => void }) {
-  const { db } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, control, formState: { errors } } = useForm<MenuItemFormData>({
@@ -49,12 +50,12 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
   });
 
   const onSubmit = async (data: MenuItemFormData) => {
-    if (!db) return;
+    if (!firestore) return;
     setIsSubmitting(true);
     
     try {
       if (item) {
-        const docRef = doc(db, 'tents', tentId, 'menuItems', item.id);
+        const docRef = doc(firestore, 'tents', tentId, 'menuItems', item.id);
         updateDoc(docRef, data).catch((e) => {
           const permissionError = new FirestorePermissionError({
               path: `tents/${tentId}/menuItems/${item.id}`,
@@ -65,7 +66,7 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
         });
         toast({ title: "Item atualizado com sucesso!" });
       } else {
-        const collectionRef = collection(db, 'tents', tentId, 'menuItems');
+        const collectionRef = collection(firestore, 'tents', tentId, 'menuItems');
         addDoc(collectionRef, data).catch((e) => {
            const permissionError = new FirestorePermissionError({
               path: `tents/${tentId}/menuItems`,
@@ -135,8 +136,8 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
 }
 
 export default function MenuPage() {
-  const { user, loading: userLoading } = useUser();
-  const { db } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
@@ -144,10 +145,10 @@ export default function MenuPage() {
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
 
   useEffect(() => {
-    if (db && user) {
+    if (firestore && user) {
         setLoadingTent(true);
       const getTentId = async () => {
-        const tentsRef = collection(db, 'tents');
+        const tentsRef = collection(firestore, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -156,23 +157,23 @@ export default function MenuPage() {
         setLoadingTent(false);
       };
       getTentId();
-    } else if (!userLoading) {
+    } else if (!isUserLoading) {
         setLoadingTent(false);
     }
-  }, [db, user, userLoading]);
+  }, [firestore, user, isUserLoading]);
 
-  const menuQuery = useMemo(() => {
-    if (!db || !tentId) return null;
-    return collection(db, 'tents', tentId, 'menuItems');
-  }, [db, tentId]);
+  const menuQuery = useMemoFirebase(() => {
+    if (!firestore || !tentId) return null;
+    return collection(firestore, 'tents', tentId, 'menuItems');
+  }, [firestore, tentId]);
 
-  const { data: menu, loading: menuLoading, error } = useCollection<MenuItem>(menuQuery);
+  const { data: menu, isLoading: menuLoading, error } = useCollection<MenuItem>(menuQuery);
   
   const deleteItem = async (itemId: string) => {
-    if (!db || !tentId) return;
+    if (!firestore || !tentId) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
-    const docRef = doc(db, 'tents', tentId, 'menuItems', itemId);
+    const docRef = doc(firestore, 'tents', tentId, 'menuItems', itemId);
     try {
         deleteDoc(docRef).catch((e) => {
           const permissionError = new FirestorePermissionError({
@@ -198,7 +199,7 @@ export default function MenuPage() {
   }
 
 
-  if (userLoading || loadingTent) {
+  if (isUserLoading || loadingTent) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

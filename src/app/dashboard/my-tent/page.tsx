@@ -18,7 +18,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import type { Tent } from '@/app/page';
+import type { Tent } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
