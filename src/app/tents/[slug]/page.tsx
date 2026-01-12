@@ -72,19 +72,19 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
 
   const menuQuery = useMemoFirebase(() => {
-    if (!tent) return null;
-    return collection(firestore!, 'tents', tent.id, 'menuItems');
-  }, [tent]);
+    if (!tent || !firestore) return null;
+    return collection(firestore, 'tents', tent.id, 'menuItems');
+  }, [tent, firestore]);
 
   const rentalsQuery = useMemoFirebase(() => {
-    if (!tent) return null;
-    return collection(firestore!, 'tents', tent.id, 'rentalItems');
-  }, [tent]);
+    if (!tent || !firestore) return null;
+    return collection(firestore, 'tents', tent.id, 'rentalItems');
+  }, [tent, firestore]);
   
   const mediaQuery = useMemoFirebase(() => {
-    if (!tent) return null;
-    return collection(firestore!, 'tents', tent.id, 'media');
-  }, [tent]);
+    if (!tent || !firestore) return null;
+    return collection(firestore, 'tents', tent.id, 'media');
+  }, [tent, firestore]);
 
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuQuery);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
@@ -107,6 +107,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             userName: user.displayName,
             userPhotoURL: user.photoURL,
             tentId: tent.id,
+            tentOwnerId: tent.ownerId,
             tentName: tent.name,
             tentLogoUrl: tentMedia?.[0]?.mediaUrl || '', // Use the first media item as logo
             lastMessage: 'Conversa iniciada!',

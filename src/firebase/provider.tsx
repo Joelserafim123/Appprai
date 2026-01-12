@@ -4,6 +4,7 @@ import React, { DependencyList, createContext, useContext, ReactNode, useMemo, u
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface UserData extends User {
@@ -14,6 +15,7 @@ interface FirebaseProviderProps {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
   auth: Auth;
+  storage: FirebaseStorage;
 }
 
 interface UserAuthState {
@@ -27,6 +29,7 @@ export interface FirebaseContextState {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
   auth: Auth;
+  storage: FirebaseStorage;
 }
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
@@ -49,6 +52,12 @@ export const useFirestore = (): Firestore => {
   const { firestore } = useFirebase();
   if (!firestore) throw new Error("Firestore service not available.");
   return firestore;
+};
+
+export const useStorage = (): FirebaseStorage => {
+  const { storage } = useFirebase();
+  if (!storage) throw new Error("Storage service not available.");
+  return storage;
 };
 
 export const useFirebaseApp = (): FirebaseApp => {
@@ -140,12 +149,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   firebaseApp,
   firestore,
   auth,
+  storage,
 }) => {
   const contextValue = useMemo((): FirebaseContextState => ({
     firebaseApp,
     firestore,
     auth,
-  }), [firebaseApp, firestore, auth]);
+    storage,
+  }), [firebaseApp, firestore, auth, storage]);
 
   return (
     <FirebaseContext.Provider value={contextValue}>

@@ -28,6 +28,7 @@ export interface UserProfile {
 export interface TentMedia {
   id: string;
   mediaUrl: string;
+  storagePath: string;
   mediaHint?: string;
   description?: string;
   type: 'image' | 'video';
