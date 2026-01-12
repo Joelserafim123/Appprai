@@ -237,12 +237,12 @@ export default function RentalItemsPage() {
         )}
         </div>
         {tentId && 
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
-            </DialogHeader>
-            <RentalItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} />
-        </DialogContent>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
+              </DialogHeader>
+              <RentalItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} />
+          </DialogContent>
         }
     </Dialog>
   );
