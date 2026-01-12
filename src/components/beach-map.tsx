@@ -67,7 +67,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: googleMapsApiKey
+    googleMapsApiKey: googleMapsApiKey,
+    libraries: ['marker']
   });
   
   const [map, setMap] = useState<google.maps.Map | null>(null);

@@ -6,8 +6,8 @@ import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin } from 'lucide-react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -22,31 +22,10 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import type { Tent, TentMedia } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useMemoFirebase } from '@/firebase/provider';
 import { v4 as uuidv4 } from 'uuid';
+import { cn } from '@/lib/utils';
 
-const mapContainerStyle = {
-  width: '100%',
-  height: '300px',
-  borderRadius: '0.5rem',
-};
-
-const mapOptions = {
-  styles: [
-    { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
-    { "featureType": "road", "elementType": "labels", "stylers": [{ "visibility": "off" }] },
-    { "featureType": "transit", "stylers": [{ "visibility": "off" }] },
-  ],
-  disableDefaultUI: true,
-  zoomControl: true,
-  gestureHandling: 'greedy'
-};
-
-const defaultCenter = {
-  lat: -22.9845,
-  lng: -43.2040 // Default to Copacabana
-};
 
 const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
@@ -54,8 +33,8 @@ const tentSchema = z.object({
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
   location: z.object({
-    latitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
-    longitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
+    latitude: z.number({ required_error: "A latitude é obrigatória. Use o botão de GPS." }),
+    longitude: z.number({ required_error: "A longitude é obrigatória. Use o botão de GPS." }),
   })
 });
 
@@ -65,13 +44,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: googleMapsApiKey
-  });
+  const [isLocating, setIsLocating] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
@@ -81,33 +54,30 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       beachName: existingTent?.beachName || '',
       minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || null,
       location: {
-        latitude: existingTent?.location?.latitude || defaultCenter.lat,
-        longitude: existingTent?.location?.longitude || defaultCenter.lng,
+        latitude: existingTent?.location?.latitude,
+        longitude: existingTent?.location?.longitude,
       }
     },
   });
 
   const watchedLocation = watch('location');
+  const hasLocation = watchedLocation?.latitude && watchedLocation?.longitude;
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
   };
 
-  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-    if (e.latLng) {
-        setValue('location.latitude', e.latLng.lat());
-        setValue('location.longitude', e.latLng.lng());
-    }
-  }, [setValue]);
-
   const handleGetCurrentLocation = () => {
     if(navigator.geolocation) {
+        setIsLocating(true);
         navigator.geolocation.getCurrentPosition((position) => {
-            setValue('location.latitude', position.coords.latitude);
-            setValue('location.longitude', position.coords.longitude);
-            toast({ title: "Localização atual obtida!" });
+            setValue('location.latitude', position.coords.latitude, { shouldValidate: true });
+            setValue('location.longitude', position.coords.longitude, { shouldValidate: true });
+            toast({ title: "Localização GPS obtida com sucesso!" });
+            setIsLocating(false);
         }, (error) => {
-            toast({ variant: 'destructive', title: "Erro de localização", description: error.message });
+            toast({ variant: 'destructive', title: "Erro ao obter localização", description: "Por favor, habilite a permissão de localização no seu navegador." });
+            setIsLocating(false);
         });
     } else {
         toast({ variant: 'destructive', title: "Erro de localização", description: "Geolocalização não é suportada neste navegador." });
@@ -118,6 +88,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
     
+    // Tent ID is now the user's UID to enforce one tent per owner
     const docRef = doc(firestore, 'tents', user.uid);
     
     const tentData = {
@@ -165,39 +136,28 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
            {errors.minimumOrderForFeeWaiver && <p className="text-sm text-destructive">{errors.minimumOrderForFeeWaiver.message}</p>}
         </div>
       
-       <div className="space-y-4">
+       <div className="space-y-4 rounded-lg border p-4">
             <header className="space-y-1">
                  <Label>Localização da Barraca</Label>
-                <p className="text-sm text-muted-foreground">Clique no mapa para definir a posição exata ou use o botão para obter sua localização atual.</p>
+                <p className="text-sm text-muted-foreground">Use o botão abaixo para definir a posição da sua barraca usando o GPS do seu dispositivo.</p>
             </header>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                    <Label htmlFor="latitude">Latitude</Label>
-                    <Input id="latitude" type="number" step="any" {...register('location.latitude')} disabled={isSubmitting} />
-                    {errors.location?.latitude && <p className="text-sm text-destructive">{errors.location.latitude.message}</p>}
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="longitude">Longitude</Label>
-                    <Input id="longitude" type="number" step="any" {...register('location.longitude')} disabled={isSubmitting} />
-                    {errors.location?.longitude && <p className="text-sm text-destructive">{errors.location.longitude.message}</p>}
-                 </div>
-            </div>
-             <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full" disabled={isSubmitting}>
-                <MapPin className="mr-2"/> Obter Localização Atual
+            <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full" disabled={isSubmitting || isLocating}>
+               {isLocating ? (
+                   <Loader2 className="mr-2 animate-spin" />
+               ) : (
+                   <MapPin className="mr-2"/>
+               )}
+                Usar minha Localização GPS
             </Button>
-
-            {isLoaded ? (
-                <GoogleMap
-                    mapContainerStyle={mapContainerStyle}
-                    center={{ lat: watchedLocation.latitude, lng: watchedLocation.longitude }}
-                    zoom={15}
-                    options={mapOptions}
-                    onClick={handleMapClick}
-                >
-                    <Marker position={{ lat: watchedLocation.latitude, lng: watchedLocation.longitude }} />
-                </GoogleMap>
-            ) : loadError ? <div>Erro ao carregar o mapa.</div> : <Loader2 className="animate-spin" />}
+            {hasLocation && !isLocating && (
+                <div className="flex items-center justify-center gap-2 text-sm text-green-600 p-2 bg-green-50 rounded-md">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <p>Localização definida com sucesso!</p>
+                </div>
+            )}
+            {errors.location?.latitude && <p className="text-sm text-destructive">{errors.location.latitude.message}</p>}
+            {errors.location?.longitude && <p className="text-sm text-destructive">{errors.location.longitude.message}</p>}
        </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
