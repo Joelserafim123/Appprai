@@ -20,6 +20,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Link from 'next/link';
 
 type MenuItem = {
   id: string;
@@ -138,11 +139,13 @@ export default function MenuPage() {
   const { db } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
+  const [loadingTent, setLoadingTent] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
 
   useEffect(() => {
     if (db && user) {
+        setLoadingTent(true);
       const getTentId = async () => {
         const tentsRef = collection(db, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
@@ -150,10 +153,13 @@ export default function MenuPage() {
         if (!querySnapshot.empty) {
           setTentId(querySnapshot.docs[0].id);
         }
+        setLoadingTent(false);
       };
       getTentId();
+    } else if (!userLoading) {
+        setLoadingTent(false);
     }
-  }, [db, user]);
+  }, [db, user, userLoading]);
 
   const menuQuery = useMemo(() => {
     if (!db || !tentId) return null;
@@ -192,7 +198,7 @@ export default function MenuPage() {
   }
 
 
-  if (userLoading || menuLoading) {
+  if (userLoading || loadingTent) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -203,23 +209,31 @@ export default function MenuPage() {
   if (!user || user.role !== 'owner') {
     return <p>Acesso negado.</p>;
   }
-
-  if (error) {
-      return <p className='text-destructive'>Erro ao carregar cardápio: {error.message}</p>
-  }
   
-    if (!tentId && !menuLoading) {
+    if (!tentId && !loadingTent) {
         return (
             <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Você precisa de uma barraca para gerenciar um cardápio.</p>
                  <Button asChild className="mt-6">
-                    <a href="/dashboard/my-tent">Ir para Minha Barraca</a>
+                    <Link href="/dashboard/my-tent">Ir para Minha Barraca</Link>
                 </Button>
             </div>
         );
     }
+    
+    if (menuLoading) {
+         return (
+            <div className="flex justify-center items-center h-full">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+  if (error) {
+      return <p className='text-destructive'>Erro ao carregar cardápio: {error.message}</p>
+  }
 
   return (
     <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

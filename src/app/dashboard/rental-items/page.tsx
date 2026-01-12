@@ -19,6 +19,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Link from 'next/link';
 
 type RentalItem = {
   id: string;
@@ -105,11 +106,13 @@ export default function RentalItemsPage() {
   const { db } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
+  const [loadingTent, setLoadingTent] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
 
   useEffect(() => {
     if (db && user) {
+      setLoadingTent(true);
       const getTentId = async () => {
         const tentsRef = collection(db, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
@@ -117,10 +120,13 @@ export default function RentalItemsPage() {
         if (!querySnapshot.empty) {
           setTentId(querySnapshot.docs[0].id);
         }
+        setLoadingTent(false);
       };
       getTentId();
+    } else if (!userLoading) {
+        setLoadingTent(false);
     }
-  }, [db, user]);
+  }, [db, user, userLoading]);
 
   const rentalsQuery = useMemo(() => {
     if (!db || !tentId) return null;
@@ -158,7 +164,7 @@ export default function RentalItemsPage() {
   }
 
 
-  if (userLoading || (rentalsLoading && !rentalItems)) {
+  if (userLoading || loadingTent) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -170,17 +176,25 @@ export default function RentalItemsPage() {
     return <p>Acesso negado.</p>;
   }
 
-  if (!tentId && !rentalsLoading) {
+  if (!tentId && !loadingTent) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
               <Armchair className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
               <p className="mt-2 text-sm text-muted-foreground">Você precisa de uma barraca para gerenciar seus itens de aluguel.</p>
               <Button asChild className="mt-6">
-                  <a href="/dashboard/my-tent">Ir para Minha Barraca</a>
+                  <Link href="/dashboard/my-tent">Ir para Minha Barraca</Link>
               </Button>
           </div>
       )
+  }
+  
+  if (rentalsLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
   }
   
   if (error) {
@@ -247,5 +261,3 @@ export default function RentalItemsPage() {
     </Dialog>
   );
 }
-
-    
