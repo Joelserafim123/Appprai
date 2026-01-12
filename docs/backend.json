@@ -38,16 +38,17 @@
       },
       "required": ["ownerId", "name", "slug", "description", "beachName", "location"]
     },
-    "TentImage": {
-        "title": "Tent Image",
-        "description": "An image of a tent.",
+    "TentMedia": {
+        "title": "Tent Media",
+        "description": "A media item (image or video) for a tent.",
         "type": "object",
         "properties": {
-            "imageUrl": { "type": "string" },
-            "imageHint": { "type": "string" },
-            "description": { "type": "string" }
+            "mediaUrl": { "type": "string", "description": "URL of the media file (image or video)." },
+            "mediaHint": { "type": "string", "description": "A hint for AI processing, e.g., 'beach sunset'." },
+            "description": { "type": "string", "description": "A description of the media." },
+            "type": { "type": "string", "enum": ["image", "video"], "description": "The type of the media." }
         },
-        "required": ["imageUrl", "description", "imageHint"]
+        "required": ["mediaUrl", "description", "mediaHint", "type"]
     },
     "MenuItem": {
       "title": "Menu Item",
@@ -112,9 +113,9 @@
         "schema": { "$ref": "#/entities/Tent" },
         "description": "Stores information about each beach tent."
     },
-    "/tents/{tentId}/images/{imageId}": {
-        "schema": { "$ref": "#/entities/TentImage" },
-        "description": "Images for a specific tent."
+    "/tents/{tentId}/media/{mediaId}": {
+        "schema": { "$ref": "#/entities/TentMedia" },
+        "description": "Media items for a specific tent."
     },
     "/tents/{tentId}/menuItems/{menuItemId}": {
         "schema": { "$ref": "#/entities/MenuItem" },

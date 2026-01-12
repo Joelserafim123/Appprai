@@ -40,11 +40,12 @@ interface RentalItem {
   quantity: number;
 }
 
-interface TentImage {
+interface TentMedia {
   id: string;
-  imageUrl: string;
-  imageHint?: string;
+  mediaUrl: string;
+  mediaHint?: string;
   description?: string;
+  type: 'image' | 'video';
 }
 
 type CartItem = { 
@@ -81,14 +82,14 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     return collection(db!, 'tents', tent.id, 'rentalItems');
   }, [tent]);
   
-  const imagesQuery = useMemo(() => {
+  const mediaQuery = useMemo(() => {
     if (!tent) return null;
-    return collection(db!, 'tents', tent.id, 'images');
+    return collection(db!, 'tents', tent.id, 'media');
   }, [tent]);
 
   const { data: menuItems, loading: loadingMenu } = useCollection<MenuItem>(menuQuery);
   const { data: rentalItems, loading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
-  const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
+  const { data: tentMedia, loading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
 
 
   useEffect(() => {
@@ -232,15 +233,26 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <Header />
       <main>
         <div className="relative h-64 w-full md:h-96">
-         {loadingImages ? <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : tentImages && tentImages.length > 0 ? (
-            <Image
-                src={tentImages[0].imageUrl}
-                alt={tent.name}
-                data-ai-hint={tentImages[0].imageHint}
-                className="object-cover"
-                fill
-                priority
-            />
+         {loadingMedia ? <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : tentMedia && tentMedia.length > 0 ? (
+            tentMedia[0].type === 'video' ? (
+                <video
+                    src={tentMedia[0].mediaUrl}
+                    className="object-cover h-full w-full"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                />
+            ) : (
+                 <Image
+                    src={tentMedia[0].mediaUrl}
+                    alt={tent.name}
+                    data-ai-hint={tentMedia[0].mediaHint}
+                    className="object-cover"
+                    fill
+                    priority
+                />
+            )
          ) : (
             <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Nenhuma imagem</div>
          )}
@@ -345,15 +357,19 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                     <CardDescription>Um pouco do nosso paraíso.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                {loadingImages ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : tentImages && tentImages.length > 0 ? (
+                                {loadingMedia ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : tentMedia && tentMedia.length > 0 ? (
                                     <Carousel className="w-full">
                                         <CarouselContent>
-                                            {tentImages.map((img, index) => (
+                                            {tentMedia.map((media, index) => (
                                             <CarouselItem key={index}>
                                                 <div className="p-1">
                                                 <Card>
                                                     <CardContent className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg p-0">
-                                                        <Image src={img.imageUrl} alt={img.description || tent.name} fill data-ai-hint={img.imageHint} className="object-cover"/>
+                                                        {media.type === 'video' ? (
+                                                            <video src={media.mediaUrl} controls className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <Image src={media.mediaUrl} alt={media.description || tent.name} fill data-ai-hint={media.mediaHint} className="object-cover"/>
+                                                        )}
                                                     </CardContent>
                                                 </Card>
                                                 </div>
@@ -364,7 +380,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                         <CarouselNext />
                                     </Carousel>
                                 ) : (
-                                    <p className="text-muted-foreground text-center py-8">Nenhuma imagem na galeria.</p>
+                                    <p className="text-muted-foreground text-center py-8">Nenhum item na galeria.</p>
                                 )}
                                 </CardContent>
                             </Card>

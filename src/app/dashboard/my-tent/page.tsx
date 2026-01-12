@@ -5,7 +5,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, Upload } from 'lucide-react';
+import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, Upload, Video } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -58,11 +58,12 @@ const tentSchema = z.object({
 
 type TentFormData = z.infer<typeof tentSchema>;
 
-interface TentImage {
+interface TentMedia {
   id: string;
-  imageUrl: string;
-  imageHint: string;
+  mediaUrl: string;
+  mediaHint: string;
   description: string;
+  type: 'image' | 'video';
 }
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
@@ -134,17 +135,19 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     try {
       const docRef = doc(db, 'tents', tentId);
       // Use setDoc without merge to ensure the nested location object is overwritten.
-      await setDoc(docRef, tentData);
+      setDoc(docRef, tentData).catch((e) => {
+          const permissionError = new FirestorePermissionError({
+            path: `tents/${tentId}`,
+            operation: existingTent ? 'update' : 'create',
+            requestResourceData: tentData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          throw e;
+      });
       
       toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
       onFinished();
     } catch (e: any) {
-      const permissionError = new FirestorePermissionError({
-        path: `tents/${tentId}`,
-        operation: existingTent ? 'update' : 'create',
-        requestResourceData: tentData,
-      });
-      errorEmitter.emit('permission-error', permissionError);
       toast({ variant: 'destructive', title: 'Erro ao salvar informações.' });
     } finally {
       setIsSubmitting(false);
@@ -217,62 +220,66 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   );
 }
 
-const imageSchema = z.object({
+const mediaSchema = z.object({
     description: z.string().min(5, 'A descrição é obrigatória.'),
-    image: z.any().refine(fileList => fileList.length === 1, 'É necessário selecionar um arquivo de imagem.')
+    media: z.any().refine(fileList => fileList.length === 1, 'É necessário selecionar um arquivo.')
 });
-type ImageFormData = z.infer<typeof imageSchema>;
+type MediaFormData = z.infer<typeof mediaSchema>;
 
-function ImageUploadForm({ tentId, onFinished }: { tentId: string, onFinished: () => void }) {
+function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: () => void }) {
     const { db } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { register, handleSubmit, formState: { errors }, watch } = useForm<ImageFormData>({
-        resolver: zodResolver(imageSchema),
+    const { register, handleSubmit, formState: { errors }, watch } = useForm<MediaFormData>({
+        resolver: zodResolver(mediaSchema),
     });
 
-    const file = watch("image")?.[0];
+    const file = watch("media")?.[0];
     const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file]);
+    const isVideo = file?.type.startsWith('video/');
 
-    const onSubmit = (data: ImageFormData) => {
-        if (!db || !data.image[0]) return;
+    const onSubmit = (data: MediaFormData) => {
+        if (!db || !data.media[0]) return;
         setIsSubmitting(true);
 
-        const file = data.image[0];
+        const file = data.media[0];
         const reader = new FileReader();
         reader.readAsDataURL(file);
 
         reader.onloadend = async () => {
-            const imageUrl = reader.result as string;
-            const imageData = {
-                imageUrl,
+            const mediaUrl = reader.result as string;
+            const mediaType = file.type.startsWith('video') ? 'video' : 'image';
+            
+            const mediaData = {
+                mediaUrl,
                 description: data.description,
-                imageHint: "beach tent", // Default hint
+                mediaHint: "beach tent", // Default hint
+                type: mediaType,
             };
 
-            const collectionRef = collection(db, 'tents', tentId, 'images');
+            const collectionRef = collection(db, 'tents', tentId, 'media');
 
             try {
-                addDoc(collectionRef, imageData).catch((e) => {
+                addDoc(collectionRef, mediaData).catch((e) => {
                    const permissionError = new FirestorePermissionError({
-                      path: `tents/${tentId}/images`,
+                      path: `tents/${tentId}/media`,
                       operation: 'create',
-                      requestResourceData: imageData,
+                      requestResourceData: mediaData,
                   });
                   errorEmitter.emit('permission-error', permissionError);
                   throw e;
                 });
-                toast({ title: "Imagem adicionada com sucesso!" });
+                toast({ title: "Mídia adicionada com sucesso!" });
                 onFinished();
             } catch(e) {
-                toast({ variant: 'destructive', title: 'Erro ao adicionar imagem.' });
+                toast({ variant: 'destructive', title: 'Erro ao adicionar mídia.' });
             } finally {
                 setIsSubmitting(false);
             }
         };
         
         reader.onerror = () => {
-            toast({ variant: 'destructive', title: 'Erro ao ler o arquivo de imagem.' });
+            toast({ variant: 'destructive', title: 'Erro ao ler o arquivo.' });
             setIsSubmitting(false);
         };
     };
@@ -280,58 +287,62 @@ function ImageUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="image">Arquivo da Imagem</Label>
-                <Input id="image" type="file" accept="image/png, image/jpeg, image/gif" {...register('image')} />
+                <Label htmlFor="media">Arquivo de Mídia</Label>
+                <Input id="media" type="file" accept="image/png, image/jpeg, image/gif, video/mp4, video/quicktime" {...register('media')} />
                  {previewUrl && (
                     <div className="mt-2 relative aspect-video w-full overflow-hidden rounded-md">
-                        <Image src={previewUrl} alt="Pré-visualização da imagem" fill className="object-cover" />
+                        {isVideo ? (
+                           <video src={previewUrl} controls className="h-full w-full object-cover" />
+                        ) : (
+                           <Image src={previewUrl} alt="Pré-visualização" fill className="object-cover" />
+                        )}
                     </div>
                 )}
-                {errors.image && <p className="text-sm text-destructive">{typeof errors.image.message === 'string' && errors.image.message}</p>}
+                {errors.media && <p className="text-sm text-destructive">{typeof errors.media.message === 'string' && errors.media.message}</p>}
             </div>
              <div className="space-y-2">
-                <Label htmlFor="description">Descrição da Imagem</Label>
+                <Label htmlFor="description">Descrição da Mídia</Label>
                 <Textarea id="description" {...register('description')} placeholder="Ex: Vista da nossa barraca ao entardecer"/>
                 {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
                 <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Imagem'}
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Mídia'}
                 </Button>
             </DialogFooter>
         </form>
     );
 }
 
-function ImageManager({ tentId }: { tentId: string | null }) {
+function MediaManager({ tentId }: { tentId: string | null }) {
     const { db } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
     
-    const imagesQuery = useMemo(() => {
+    const mediaQuery = useMemo(() => {
         if (!db || !tentId) return null;
-        return query(collection(db, 'tents', tentId, 'images'));
+        return query(collection(db, 'tents', tentId, 'media'));
     }, [db, tentId]);
 
-    const { data: tentImages, loading: loadingImages } = useCollection<TentImage>(imagesQuery);
+    const { data: tentMedia, loading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
 
-    const handleDeleteImage = async (imageId: string) => {
-        if (!db || !tentId || !confirm("Tem certeza que quer apagar esta imagem?")) return;
+    const handleDeleteMedia = async (mediaId: string) => {
+        if (!db || !tentId || !confirm("Tem certeza que quer apagar este item da galeria?")) return;
         
         setIsSubmitting(true);
-        const docRef = doc(db, 'tents', tentId, 'images', imageId);
+        const docRef = doc(db, 'tents', tentId, 'media', mediaId);
         try {
             await deleteDoc(docRef);
-            toast({ title: "Imagem apagada com sucesso!" });
+            toast({ title: "Mídia apagada com sucesso!" });
         } catch (e) {
             const permissionError = new FirestorePermissionError({
                 path: docRef.path,
                 operation: 'delete',
             });
             errorEmitter.emit('permission-error', permissionError);
-            toast({ variant: 'destructive', title: 'Erro ao apagar imagem.' });
+            toast({ variant: 'destructive', title: 'Erro ao apagar mídia.' });
         } finally {
             setIsSubmitting(false);
         }
@@ -349,10 +360,10 @@ function ImageManager({ tentId }: { tentId: string | null }) {
                     <div>
                         <CardTitle className="flex items-center gap-2">
                             <ImageIcon />
-                            Gerenciar Galeria de Fotos
+                            Gerenciar Galeria
                         </CardTitle>
                         <CardDescription>
-                            Adicione ou remova fotos que serão exibidas na página da sua barraca.
+                            Adicione ou remova fotos e vídeos que serão exibidos na página da sua barraca.
                         </CardDescription>
                     </div>
                      <DialogTrigger asChild>
@@ -363,30 +374,37 @@ function ImageManager({ tentId }: { tentId: string | null }) {
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {loadingImages ? <Loader2 className="animate-spin mx-auto" /> : (
+                {loadingMedia ? <Loader2 className="animate-spin mx-auto" /> : (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {tentImages?.map(image => (
-                            <div key={image.id} className="relative group aspect-square">
-                                <Image src={image.imageUrl} alt={image.description} fill className="object-cover rounded-md" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Button variant="destructive" size="icon" onClick={() => handleDeleteImage(image.id)} disabled={isSubmitting}>
+                        {tentMedia?.map(media => (
+                            <div key={media.id} className="relative group aspect-square">
+                                 {media.type === 'video' ? (
+                                    <video src={media.mediaUrl} className="object-cover rounded-md h-full w-full bg-black" />
+                                 ) : (
+                                    <Image src={media.mediaUrl} alt={media.description} fill className="object-cover rounded-md" />
+                                 )}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
+                                    <Button variant="destructive" size="icon" onClick={() => handleDeleteMedia(media.id)} disabled={isSubmitting}>
                                         <Trash className="w-4 h-4" />
                                     </Button>
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity rounded-b-md">
+                                    <p className="truncate">{media.description}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-                 {tentImages?.length === 0 && !loadingImages && (
-                    <p className="text-center text-muted-foreground py-4">Nenhuma imagem na galeria.</p>
+                 {tentMedia?.length === 0 && !loadingMedia && (
+                    <p className="text-center text-muted-foreground py-4">Nenhum item na galeria.</p>
                  )}
             </CardContent>
         </Card>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Adicionar Nova Imagem</DialogTitle>
+                <DialogTitle>Adicionar Nova Mídia</DialogTitle>
             </DialogHeader>
-            <ImageUploadForm tentId={tentId} onFinished={() => setIsFormOpen(false)} />
+            <MediaUploadForm tentId={tentId} onFinished={() => setIsFormOpen(false)} />
         </DialogContent>
         </Dialog>
     );
@@ -464,12 +482,8 @@ export default function MyTentPage() {
         </CardContent>
       </Card>
 
-      <ImageManager tentId={tent?.id || null} />
+      <MediaManager tentId={tent?.id || null} />
     </div>
   );
 
 }
-    
-    
-
-    
