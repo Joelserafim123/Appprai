@@ -65,6 +65,7 @@ export interface Reservation {
   userId: string;
   tentId: string;
   tentName: string;
+  tableNumber?: number;
   items: ReservationItem[];
   total: number;
   createdAt: Timestamp;

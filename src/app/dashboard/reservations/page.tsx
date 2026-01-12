@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,7 @@ import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
   'confirmed': { text: 'Confirmada', variant: 'default' },
@@ -26,6 +27,70 @@ const statusConfig: Record<ReservationStatus, { text: string; variant: "default"
   'completed': { text: 'Completa', variant: 'secondary' },
   'cancelled': { text: 'Cancelada', variant: 'destructive' }
 };
+
+function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
+    const { firestore } = useFirebase();
+    const { toast } = useToast();
+    const [tableNumber, setTableNumber] = useState<string>('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleConfirmCheckIn = () => {
+        if (!firestore || !tableNumber) {
+            toast({ variant: 'destructive', title: 'Por favor, insira o número da mesa.' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        const docRef = doc(firestore, 'reservations', reservation.id);
+        const updates = {
+            status: 'checked-in' as ReservationStatus,
+            tableNumber: parseInt(tableNumber, 10)
+        };
+
+        updateDoc(docRef, updates)
+            .then(() => {
+                toast({ title: 'Check-in realizado com sucesso!' });
+                onFinished();
+            })
+            .catch(e => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'update',
+                    requestResourceData: updates,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            })
+            .finally(() => setIsSubmitting(false));
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Fazer Check-in</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <p>Insira o número da mesa para o cliente antes de confirmar o check-in.</p>
+                <div className="space-y-2">
+                    <Label htmlFor="tableNumber">Número da Mesa</Label>
+                    <Input 
+                        id="tableNumber" 
+                        type="number" 
+                        value={tableNumber} 
+                        onChange={(e) => setTableNumber(e.target.value)} 
+                        placeholder="Ex: 15"
+                        disabled={isSubmitting}
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
+                <Button onClick={handleConfirmCheckIn} disabled={!tableNumber || isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar Check-in'}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
 
 function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { firestore } = useFirebase();
@@ -97,7 +162,8 @@ export default function OwnerReservationsPage() {
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
+  const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
 
   useEffect(() => {
      if (isUserLoading) {
@@ -137,19 +203,19 @@ export default function OwnerReservationsPage() {
   }, [reservations]);
 
 
-  const handleUpdateStatus = (reservationId: string, status: 'checked-in' | 'cancelled' ) => {
-    if (!firestore) return;
+  const handleCancelReservation = (reservationId: string) => {
+    if (!firestore || !confirm('Tem certeza que deseja cancelar esta reserva?')) return;
     const resDocRef = doc(firestore, 'reservations', reservationId);
     
-    updateDoc(resDocRef, { status })
+    updateDoc(resDocRef, { status: 'cancelled' })
       .then(() => {
-        toast({ title: 'Status da Reserva Atualizado!' });
+        toast({ title: 'Reserva Cancelada!' });
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: resDocRef.path,
           operation: 'update',
-          requestResourceData: { status },
+          requestResourceData: { status: 'cancelled' },
         });
         errorEmitter.emit('permission-error', permissionError);
       });
@@ -181,7 +247,7 @@ export default function OwnerReservationsPage() {
 
 
   return (
-    <Dialog open={!!selectedReservation} onOpenChange={(open) => !open && setSelectedReservation(null)}>
+    <Dialog>
         <div className="w-full max-w-6xl">
         <header className="mb-8">
             <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
@@ -209,6 +275,9 @@ export default function OwnerReservationsPage() {
                         day: '2-digit', month: 'long', year: 'numeric',
                         })}
                         </p>
+                         {reservation.tableNumber && (
+                           <p className="font-semibold flex items-center gap-2 pt-1"><Scan className="w-4 h-4"/> Mesa {reservation.tableNumber}</p>
+                        )}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1">
@@ -228,21 +297,21 @@ export default function OwnerReservationsPage() {
                 <CardFooter className="flex-col gap-2">
                     {reservation.status === 'confirmed' && (
                         <div className="grid grid-cols-2 gap-2 w-full">
-                            <Button size="sm" onClick={() => handleUpdateStatus(reservation.id, 'checked-in')}>
+                            <Button size="sm" onClick={() => setReservationForCheckIn(reservation)}>
                                 <Check className="mr-2 h-4 w-4" /> Fazer Check-in
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
+                            <Button size="sm" variant="destructive" onClick={() => handleCancelReservation(reservation.id)}>
                                 <X className="mr-2 h-4 w-4" /> Cancelar
                             </Button>
                         </div>
                     )}
                     {reservation.status === 'checked-in' && (
-                         <Button size="sm" variant="destructive" className="w-full" onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
+                         <Button size="sm" variant="destructive" className="w-full" onClick={() => handleCancelReservation(reservation.id)}>
                             <X className="mr-2 h-4 w-4" /> Cancelar Pedido
                         </Button>
                     )}
                      {reservation.status === 'payment-pending' && (
-                        <Button className="w-full" onClick={() => setSelectedReservation(reservation)}>
+                        <Button className="w-full" onClick={() => setReservationForPayment(reservation)}>
                              <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
                         </Button>
                     )}
@@ -258,7 +327,14 @@ export default function OwnerReservationsPage() {
             </div>
         )}
         </div>
-        {selectedReservation && <PaymentDialog reservation={selectedReservation} onFinished={() => setSelectedReservation(null)} />}
+        
+        <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
+            {reservationForPayment && <PaymentDialog reservation={reservationForPayment} onFinished={() => setReservationForPayment(null)} />}
+        </Dialog>
+        <Dialog open={!!reservationForCheckIn} onOpenChange={(open) => !open && setReservationForCheckIn(null)}>
+            {reservationForCheckIn && <CheckInDialog reservation={reservationForCheckIn} onFinished={() => setReservationForCheckIn(null)} />}
+        </Dialog>
+
     </Dialog>
   );
 }

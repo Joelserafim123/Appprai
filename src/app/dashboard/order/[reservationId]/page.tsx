@@ -7,7 +7,7 @@ import { useFirebase } from '@/firebase/provider';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { doc, collection, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
-import { Loader2, Minus, Plus, Info, Utensils } from 'lucide-react';
+import { Loader2, Minus, Plus, Info, Utensils, Scan } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { Reservation, MenuItem, CartItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -146,7 +146,12 @@ export default function OrderPage() {
         <div className="w-full max-w-5xl">
             <div className="mb-6">
                 <h1 className="text-3xl font-bold">Adicionar Itens ao Pedido</h1>
-                <p className="text-muted-foreground">Pedido para a barraca: <span className="font-semibold">{reservation.tentName}</span></p>
+                <div className="text-muted-foreground flex items-center gap-4">
+                    <p>Pedido para a barraca: <span className="font-semibold">{reservation.tentName}</span></p>
+                    {reservation.tableNumber && (
+                        <p className="font-semibold flex items-center gap-2"><Scan className="w-4 h-4"/> Mesa {reservation.tableNumber}</p>
+                    )}
+                </div>
             </div>
              <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
                 <div className="lg:col-span-2">
@@ -221,4 +226,3 @@ export default function OrderPage() {
         </div>
     );
 }
-

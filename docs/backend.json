@@ -82,6 +82,7 @@
         "userId": { "type": "string", "description": "The UID of the customer." },
         "tentId": { "type": "string", "description": "The ID of the tent." },
         "tentName": { "type": "string" },
+        "tableNumber": { "type": "number", "description": "The table number assigned at check-in." },
         "items": {
           "type": "array",
           "items": {

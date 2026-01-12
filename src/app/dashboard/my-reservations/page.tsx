@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, Scan } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -102,9 +102,14 @@ export default function MyReservationsPage() {
                     })}
                   </CardDescription>
                 </div>
-                 <Badge variant={statusConfig[reservation.status].variant}>
-                    {statusConfig[reservation.status].text}
-                </Badge>
+                 <div className='text-right'>
+                     <Badge variant={statusConfig[reservation.status].variant}>
+                        {statusConfig[reservation.status].text}
+                    </Badge>
+                    {reservation.status === 'checked-in' && reservation.tableNumber && (
+                        <p className="text-sm mt-2 font-semibold flex items-center justify-end gap-2"><Scan className="w-4 h-4"/> Mesa {reservation.tableNumber}</p>
+                    )}
+                 </div>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">

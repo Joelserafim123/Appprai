@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -49,7 +50,7 @@ service cloud.firestore {
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
       // Update logic is more granular now
       allow update: if request.auth != null && (
-        // Case 1: Tent owner can update status (check-in, cancel, complete) and paymentMethod
+        // Case 1: Tent owner can update status, paymentMethod, and tableNumber
         (get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid) ||
         // Case 2: User who made the reservation can update it
         (resource.data.userId == request.auth.uid && (
