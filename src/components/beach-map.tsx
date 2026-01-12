@@ -118,10 +118,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   const sortedTents = useMemo(() => {
     return [...tents]
-      .filter(tent => tent.latitude && tent.longitude)
+      .filter(tent => tent.location?.latitude && tent.location?.longitude)
       .map(tent => ({
         ...tent,
-        distance: haversineDistance({ lat: mapCenter.lat, lng: mapCenter.lng }, { lat: tent.latitude!, lng: tent.longitude! }),
+        distance: haversineDistance({ lat: mapCenter.lat, lng: mapCenter.lng }, { lat: tent.location.latitude, lng: tent.location.longitude }),
       }))
       .sort((a, b) => a.distance - b.distance);
   }, [tents, mapCenter]);
@@ -146,8 +146,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
-    if(tent.latitude && tent.longitude) {
-        map?.panTo({ lat: tent.latitude, lng: tent.longitude });
+    if(tent.location?.latitude && tent.location?.longitude) {
+        map?.panTo({ lat: tent.location.latitude, lng: tent.location.longitude });
     }
   };
 
@@ -200,10 +200,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             onZoomChanged={onCenterChanged}
         >
              {sortedTents.map((tent) => (
-                tent.latitude && tent.longitude && (
+                tent.location.latitude && tent.location.longitude && (
                 <Marker
                     key={tent.id}
-                    position={{ lat: tent.latitude, lng: tent.longitude }}
+                    position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
                     onClick={() => handleTentSelect(tent)}
                     icon={{
                         path: google.maps.SymbolPath.CIRCLE,
@@ -217,9 +217,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 )
              ))}
 
-            {selectedTent && selectedTent.latitude && selectedTent.longitude && (
+            {selectedTent && selectedTent.location.latitude && selectedTent.location.longitude && (
                 <InfoWindow
-                    position={{ lat: selectedTent.latitude, lng: selectedTent.longitude }}
+                    position={{ lat: selectedTent.location.latitude, lng: selectedTent.location.longitude }}
                     onCloseClick={() => setSelectedTent(null)}
                 >
                     <div className="p-2 max-w-xs">

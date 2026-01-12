@@ -17,8 +17,10 @@ export interface Tent {
   name: string;
   description: string;
   beachName: string;
-  latitude?: number;
-  longitude?: number;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
   minimumOrderForFeeWaiver?: number;
 }
 

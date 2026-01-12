@@ -50,8 +50,10 @@ const tentSchema = z.object({
   description: z.string().min(10, 'A descrição é obrigatória.'),
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
-  latitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
-  longitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
+  location: z.object({
+    latitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
+    longitude: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number()),
+  })
 });
 
 type TentFormData = z.infer<typeof tentSchema>;
@@ -82,13 +84,14 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       description: existingTent?.description || '',
       beachName: existingTent?.beachName || '',
       minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || null,
-      latitude: existingTent?.latitude || defaultCenter.lat,
-      longitude: existingTent?.longitude || defaultCenter.lng,
+      location: {
+        latitude: existingTent?.location?.latitude || defaultCenter.lat,
+        longitude: existingTent?.location?.longitude || defaultCenter.lng,
+      }
     },
   });
 
-  const watchLatitude = watch('latitude');
-  const watchLongitude = watch('longitude');
+  const watchedLocation = watch('location');
 
   const generateSlug = (name: string) => {
     return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
@@ -96,16 +99,16 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
   const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
     if (e.latLng) {
-        setValue('latitude', e.latLng.lat());
-        setValue('longitude', e.latLng.lng());
+        setValue('location.latitude', e.latLng.lat());
+        setValue('location.longitude', e.latLng.lng());
     }
   }, [setValue]);
 
   const handleGetCurrentLocation = () => {
     if(navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((position) => {
-            setValue('latitude', position.coords.latitude);
-            setValue('longitude', position.coords.longitude);
+            setValue('location.latitude', position.coords.latitude);
+            setValue('location.longitude', position.coords.longitude);
             toast({ title: "Localização atual obtida!" });
         }, (error) => {
             toast({ variant: 'destructive', title: "Erro de localização", description: error.message });
@@ -130,7 +133,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
     try {
       const docRef = doc(db, 'tents', tentId);
-      await setDoc(docRef, tentData, { merge: true });
+      // Use setDoc without merge to ensure the nested location object is overwritten.
+      await setDoc(docRef, tentData);
       
       toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
       onFinished();
@@ -180,13 +184,13 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div className="space-y-2">
                     <Label htmlFor="latitude">Latitude</Label>
-                    <Input id="latitude" type="number" step="any" {...register('latitude')} disabled={isSubmitting} />
-                    {errors.latitude && <p className="text-sm text-destructive">{errors.latitude.message}</p>}
+                    <Input id="latitude" type="number" step="any" {...register('location.latitude')} disabled={isSubmitting} />
+                    {errors.location?.latitude && <p className="text-sm text-destructive">{errors.location.latitude.message}</p>}
                  </div>
                  <div className="space-y-2">
                     <Label htmlFor="longitude">Longitude</Label>
-                    <Input id="longitude" type="number" step="any" {...register('longitude')} disabled={isSubmitting} />
-                    {errors.longitude && <p className="text-sm text-destructive">{errors.longitude.message}</p>}
+                    <Input id="longitude" type="number" step="any" {...register('location.longitude')} disabled={isSubmitting} />
+                    {errors.location?.longitude && <p className="text-sm text-destructive">{errors.location.longitude.message}</p>}
                  </div>
             </div>
              <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full" disabled={isSubmitting}>
@@ -196,12 +200,12 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             {isLoaded ? (
                 <GoogleMap
                     mapContainerStyle={mapContainerStyle}
-                    center={{ lat: watchLatitude, lng: watchLongitude }}
+                    center={{ lat: watchedLocation.latitude, lng: watchedLocation.longitude }}
                     zoom={15}
                     options={mapOptions}
                     onClick={handleMapClick}
                 >
-                    <Marker position={{ lat: watchLatitude, lng: watchLongitude }} />
+                    <Marker position={{ lat: watchedLocation.latitude, lng: watchedLocation.longitude }} />
                 </GoogleMap>
             ) : loadError ? <div>Erro ao carregar o mapa.</div> : <Loader2 className="animate-spin" />}
        </div>
@@ -230,7 +234,7 @@ function ImageUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     const file = watch("image")?.[0];
     const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file]);
 
-    const onSubmit = async (data: ImageFormData) => {
+    const onSubmit = (data: ImageFormData) => {
         if (!db || !data.image[0]) return;
         setIsSubmitting(true);
 
@@ -249,16 +253,18 @@ function ImageUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
             const collectionRef = collection(db, 'tents', tentId, 'images');
 
             try {
-                await addDoc(collectionRef, imageData);
+                addDoc(collectionRef, imageData).catch((e) => {
+                   const permissionError = new FirestorePermissionError({
+                      path: `tents/${tentId}/images`,
+                      operation: 'create',
+                      requestResourceData: imageData,
+                  });
+                  errorEmitter.emit('permission-error', permissionError);
+                  throw e;
+                });
                 toast({ title: "Imagem adicionada com sucesso!" });
                 onFinished();
             } catch(e) {
-                const permissionError = new FirestorePermissionError({
-                    path: `tents/${tentId}/images`,
-                    operation: 'create',
-                    requestResourceData: imageData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
                 toast({ variant: 'destructive', title: 'Erro ao adicionar imagem.' });
             } finally {
                 setIsSubmitting(false);
