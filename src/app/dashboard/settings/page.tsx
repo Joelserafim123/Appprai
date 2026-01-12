@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Camera } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -13,15 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/utils';
-import { cn } from '@/lib/utils';
-import { v4 as uuidv4 } from 'uuid';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -34,13 +29,10 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore, storage } = useFirebase();
+  const { firebaseApp, firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
@@ -69,67 +61,6 @@ export default function SettingsPage() {
     e.target.value = value;
     return e;
   }, []);
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user || !firebaseApp || !firestore || !storage) return;
-
-    setIsUploadingPhoto(true);
-
-    try {
-      const auth = getAuth(firebaseApp);
-      const currentUser = auth.currentUser;
-      if (!currentUser) throw new Error("Usuário não autenticado.");
-
-      // If there's an old photo, delete it from storage
-      if(user.storagePath) {
-          const oldFileRef = storageRef(storage, user.storagePath);
-          try {
-            await deleteObject(oldFileRef);
-          } catch(deleteError: any) {
-              // Ignore not found errors, but log others
-              if (deleteError.code !== 'storage/object-not-found') {
-                console.warn("Não foi possível apagar a foto antiga:", deleteError);
-              }
-          }
-      }
-
-      const fileId = uuidv4();
-      const newStoragePath = `users/${user.uid}/profile/${fileId}`;
-      const fileRef = storageRef(storage, newStoragePath);
-      
-      // 1. Upload new photo
-      await uploadBytes(fileRef, file);
-      const photoURL = await getDownloadURL(fileRef);
-
-      // 2. Update Auth profile
-      await updateProfile(currentUser, { photoURL });
-
-      // 3. Update storagePath in Firestore
-      const userDocRef = doc(firestore, "users", user.uid);
-      await updateDoc(userDocRef, { 
-          storagePath: newStoragePath,
-          photoURL: photoURL
-      });
-      
-      toast({
-        title: 'Foto de Perfil Atualizada!',
-        description: 'Sua nova foto foi salva com sucesso.',
-      });
-
-      refresh(); // Re-fetch user data to update UI
-
-    } catch(error) {
-       console.error("Erro ao atualizar foto de perfil:", error);
-       toast({
-          variant: 'destructive',
-          title: 'Erro no Upload',
-          description: 'Não foi possível salvar sua nova foto de perfil.',
-       });
-    } finally {
-      setIsUploadingPhoto(false);
-    }
-  };
   
   const onSubmit = async (data: ProfileFormData) => {
     if (!user || !firestore || !firebaseApp) return;
@@ -194,49 +125,16 @@ export default function SettingsPage() {
     <div className="w-full max-w-2xl space-y-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Configurações da Conta</h1>
-        <p className="text-muted-foreground">Gerencie as informações da sua conta e foto de perfil.</p>
+        <p className="text-muted-foreground">Gerencie as informações da sua conta.</p>
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
-             <div className="flex items-center gap-6">
-                
-                <div className="relative group">
-                    <Avatar className="h-24 w-24">
-                        <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ''} />
-                        <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
-                    </Avatar>
-                     <button 
-                        type="button" 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isSubmitting || isUploadingPhoto}
-                        className={cn(
-                          "absolute inset-0 bg-black/50 flex items-center justify-center rounded-full text-white",
-                          "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-                        )}
-                        aria-label="Alterar foto de perfil"
-                    >
-                       {isUploadingPhoto ? <Loader2 className="w-8 h-8 animate-spin" /> : <Camera className="w-8 h-8" />}
-                    </button>
-                    <Input
-                        id="profile-picture"
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        className="hidden"
-                        accept="image/*"
-                        disabled={isSubmitting || isUploadingPhoto}
-                    />
-                </div>
-
-                <div className="space-y-1">
-                    <CardTitle>Meu Perfil</CardTitle>
-                    <CardDescription>
-                      Clique na sua foto para alterá-la. A foto é salva automaticamente.
-                    </CardDescription>
-                </div>
-            </div>
+            <CardTitle>Meu Perfil</CardTitle>
+            <CardDescription>
+                Atualize as informações da sua conta.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
             <div className="space-y-2">
