@@ -9,7 +9,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { doc, collection, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { Loader2, Minus, Plus, Info, Utensils, Scan } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { Reservation, MenuItem, CartItem, ReservationItem } from '@/lib/types';
+import type { Reservation, MenuItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
