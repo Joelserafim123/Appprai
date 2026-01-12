@@ -1,199 +1,74 @@
-/**
- * Core Philosophy: This ruleset implements a dual-access security model tailored for a service marketplace application.
- * It combines a strict user-ownership model for private data with a public-read/owner-write model for shared/public data.
- * This ensures users have exclusive control over their personal information and activities, while public listings like beach tents are discoverable by all.
- *
- * Data Structure:
- * - /users/{userId}: This path is the root for all user-specific, private data, including their profile (`UserProfile`), orders (`Order`), and reservations (`Reservation`). Access is strictly controlled by the `userId`.
- * - /beachTents/{beachTentId}: This is a top-level collection for public listings. Each beach tent document contains an `ownerId` field to link it to a user in the `/users` collection, which is used to enforce write permissions. Subcollections like `menuItems` inherit their parent's ownership.
- *
- * Key Security Decisions:
- * - User Isolation: A user can only ever access data within their own `/users/{userId}` data tree. Listing other user profiles is explicitly disallowed to protect privacy.
- * - Public Discoverability: The `/beachTents` collection and its `/menuItems` subcollection are publicly readable. This allows any user, authenticated or not, to browse available tents and menus.
- * - Strict Ownership for Writes: All write operations (`create`, `update`, `delete`) are strictly controlled. Users can only write to their own data, and beach tent owners can only modify the tents they own.
- * - Shared Read/Update for Orders & Reservations: While a customer owns their orders and reservations, the relevant beach tent owner is granted permission to read (`get`) and update (e.g., change status) these documents. This is crucial for fulfillment. However, due to the data structure (`/users/{userId}/orders/...`), it is impossible for a tent owner to list all orders for their tent in a single query.
- *
- * Denormalization for Authorization:
- * This ruleset relies on denormalized ownership fields for efficient authorization. The `/beachTents/{beachTentId}` document contains an `ownerId`. The `/orders` and `/reservations` documents contain both a `customerId` and a `beachTentId`. This allows rules to make authorization decisions without performing slow, costly, or impossible cross-collection queries. The `ownerId` on a beach tent allows for a simple check for write operations, and the `beachTentId` on an order allows a `get()` call to the tent to verify the owner for shared access.
- */
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ------------------------------------------------------------------------
-    // Helper Functions
-    // ------------------------------------------------------------------------
-
-    /**
-     * Authenticated state checks.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * Ownership check based on a UID.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * Checks that a document being updated or deleted actually exists.
-     * Prevents modifying or deleting non-existent documents.
-     */
-    function isExistingDoc() {
-      return resource != null;
-    }
-
-    /**
-     * Combines an ownership check with an existence check for update/delete operations.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && isExistingDoc();
-    }
-
-    /**
-     * Checks if the currently authenticated user is the owner of the Beach Tent
-     * associated with an order or reservation by looking up the tent document.
-     */
-    function isAssociatedTentOwner(docData) {
-      let beachTentId = docData.beachTentId;
-      return isSignedIn() && get(/databases/$(database)/documents/beachTents/$(beachTentId)).data.ownerId == request.auth.uid;
-    }
-
-    /**
-     * Checks if the currently authenticated user is the owner of the parent
-     * Beach Tent document for operations on subcollections like menuItems.
-     */
-    function isParentTentOwner(beachTentId) {
-      return isSignedIn() && get(/databases/$(database)/documents/beachTents/$(beachTentId)).data.ownerId == request.auth.uid;
-    }
-
-
-    // ------------------------------------------------------------------------
-    // Validation Helper Functions (Prototyping Mode)
-    // ------------------------------------------------------------------------
     
-    /**
-     * Validates relational integrity for UserProfile documents.
-     * Ensures the internal `id` field matches the document's path ID.
-     */
-    function hasValidUserProfileIdOnCreate(userId) { return request.resource.data.id == userId; }
-    function isUserProfileIdImmutable() { return request.resource.data.id == resource.data.id; }
-    
-    /**
-     * Validates relational integrity for BeachTent documents.
-     * Ensures the creator is assigned as the owner and that ownership cannot be changed.
-     */
-    function creatorIsTentOwnerOnCreate() { return request.resource.data.ownerId == request.auth.uid; }
-    function isTentOwnerIdImmutable() { return request.resource.data.ownerId == resource.data.ownerId; }
-    
-    /**
-     * Validates relational integrity for MenuItem documents.
-     * Ensures the internal `beachTentId` field matches the parent document's ID.
-     */
-    function hasValidMenuItemIdOnCreate(beachTentId) { return request.resource.data.beachTentId == beachTentId; }
-    function isMenuItemIdImmutable() { return request.resource.data.beachTentId == resource.data.beachTentId; }
+    // Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
-    /**
-     * Validates relational integrity for Order documents.
-     * Ensures the internal `customerId` field matches the user's path ID.
-     */
-    function hasValidOrderCustomerIdOnCreate(userId) { return request.resource.data.customerId == userId; }
-    function isOrderCustomerIdImmutable() { return request.resource.data.customerId == resource.data.customerId; }
-
-    /**
-     * Validates relational integrity for Reservation documents.
-     * Ensures the internal `customerId` field matches the user's path ID.
-     */
-    function hasValidReservationCustomerIdOnCreate(userId) { return request.resource.data.customerId == userId; }
-    function isReservationCustomerIdImmutable() { return request.resource.data.customerId == resource.data.customerId; }
-
-
-    // ------------------------------------------------------------------------
-    // Collection Rules
-    // ------------------------------------------------------------------------
-
-    /**
-     * @description Users can create their own profile, and read, update, or delete it.
-     *              User profiles are private and cannot be listed by others.
-     * @path        /users/{userId}
-     * @allow       (create) A new user (auth.uid: 'user123') creating their own profile at `/users/user123`.
-     * @deny        (get) User 'user456' trying to read the profile at `/users/user123`.
-     * @principle   Restricts access to a user's own data tree and enforces self-creation.
-     */
+    //--------------------------------
+    // Users
+    //--------------------------------
+    // Only the authenticated user can read or write their own user document.
+    // No one can list all users.
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null; // Anyone can create a user doc, but usually tied to their own UID
       allow list: if false;
-      allow create: if isOwner(userId) && hasValidUserProfileIdOnCreate(userId);
-      allow update: if isExistingOwner(userId) && isUserProfileIdImmutable();
-      allow delete: if isExistingOwner(userId);
-
-      /**
-       * @description A user can manage their own orders. The associated beach tent owner can also
-       *              read and update an order (e.g., to change its status).
-       * @path        /users/{userId}/orders/{orderId}
-       * @allow       (get) The user 'user123' can get their own order.
-       * @allow       (get) The owner of the associated beach tent can get the order.
-       * @deny        (delete) The beach tent owner cannot delete the customer's order.
-       * @principle   Enforces a shared access model for transactional data.
-       */
-      match /orders/{orderId} {
-        allow get: if isOwner(userId) || (isExistingDoc() && isAssociatedTentOwner(resource.data));
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && hasValidOrderCustomerIdOnCreate(userId);
-        allow update: if (isOwner(userId) || isAssociatedTentOwner(resource.data)) && isExistingDoc() && isOrderCustomerIdImmutable();
-        allow delete: if isExistingOwner(userId);
-      }
-
-      /**
-       * @description A user can manage their own reservations. The associated beach tent owner
-       *              can also read and update a reservation.
-       * @path        /users/{userId}/reservations/{reservationId}
-       * @allow       (update) The beach tent owner can update a reservation to confirm it.
-       * @deny        (create) A user cannot create a reservation for another user.
-       * @principle   Enforces a shared access model for transactional data.
-       */
-      match /reservations/{reservationId} {
-        allow get: if isOwner(userId) || (isExistingDoc() && isAssociatedTentOwner(resource.data));
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && hasValidReservationCustomerIdOnCreate(userId);
-        allow update: if (isOwner(userId) || isAssociatedTentOwner(resource.data)) && isExistingDoc() && isReservationCustomerIdImmutable();
-        allow delete: if isExistingOwner(userId);
-      }
     }
 
-    /**
-     * @description Beach tents are public listings that anyone can read. Only the
-     *              authenticated owner of the tent can create, update, or delete it.
-     * @path        /beachTents/{beachTentId}
-     * @allow       (get) Any anonymous or authenticated user can view a beach tent's details.
-     * @deny        (update) A user trying to change the details of a tent they do not own.
-     * @principle   Implements a "Public Read with Owner-Only Writes" pattern.
-     */
-    match /beachTents/{beachTentId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn() && creatorIsTentOwnerOnCreate();
-      allow update: if isParentTentOwner(beachTentId) && isExistingDoc() && isTentOwnerIdImmutable();
-      allow delete: if isParentTentOwner(beachTentId) && isExistingDoc();
+    //--------------------------------
+    // Tents & Subcollections
+    //--------------------------------
+    match /tents/{tentId} {
+      // Anyone can read tent information.
+      allow read: if true;
+      // Only the authenticated owner can write to their tent document.
+      // On create, ownerId must match the user. On update, it must be unchanged.
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
 
-      /**
-       * @description Menu items are public and inherit ownership from their parent beach tent.
-       *              Anyone can read them, but only the tent owner can manage them.
-       * @path        /beachTents/{beachTentId}/menuItems/{menuItemId}
-       * @allow       (list) Any user can list the menu items for a given beach tent.
-       * @deny        (create) A user trying to add a menu item to a tent they do not own.
-       * @principle   Subcollection access is secured by checking ownership of the parent document.
-       */
-      match /menuItems/{menuItemId} {
-        allow get: if true;
-        allow list: if true;
-        allow create: if isParentTentOwner(beachTentId) && hasValidMenuItemIdOnCreate(beachTentId);
-        allow update: if isParentTentOwner(beachTentId) && isExistingDoc() && isMenuItemIdImmutable();
-        allow delete: if isParentTentOwner(beachTentId) && isExistingDoc();
-      }
+    // Media, MenuItems, RentalItems
+    match /tents/{tentId}/{collection}/{itemId} {
+      // Anyone can read subcollection items.
+      allow read: if true;
+      // Only the parent tent owner can write to these subcollections.
+      allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+    }
+
+    //--------------------------------
+    // Reservations
+    //--------------------------------
+    match /reservations/{reservationId} {
+      // A user can only create a reservation for themselves.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Only the user who made the reservation or the owner of the corresponding tent can read or update it.
+      allow read, update: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      // A reservation cannot be deleted via the client for business logic integrity.
+      allow delete: if false;
+    }
+
+    //--------------------------------
+    // Chats
+    //--------------------------------
+    match /chats/{chatId} {
+        // Only the two participants in the chat (the user and the tent owner) can read or write the chat document.
+        allow read, write: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+        // On create, the creator must be one of the participants.
+        allow create: if request.auth != null && (request.auth.uid == request.resource.data.userId || request.auth.uid == request.resource.data.tentOwnerId);
+
+        // Messages Subcollection
+        match /messages/{messageId} {
+            // Only participants can list or read messages.
+            allow list, read: if request.auth != null && (request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.userId || request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId);
+            // Only a participant can create a message, and they must be the sender.
+            allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid && (request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.userId || request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId);
+             // Messages are immutable.
+            allow update, delete: if false;
+        }
     }
   }
 }

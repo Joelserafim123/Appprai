@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -15,7 +14,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair } from 'lucide-react';
+import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardLayout({
@@ -40,6 +39,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/my-reservations">
             <Star />
             <span>Minhas Reservas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+       <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
+          <Link href="/dashboard/chats">
+            <MessageSquare />
+            <span>Conversas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -93,6 +100,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/reservations">
             <Star />
             <span>Reservas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
+          <Link href="/dashboard/chats">
+            <MessageSquare />
+            <span>Conversas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>

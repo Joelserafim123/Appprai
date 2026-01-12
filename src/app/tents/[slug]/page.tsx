@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -10,12 +8,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info, Loader2 } from 'lucide-react';
+import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info, Loader2, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -23,30 +21,8 @@ import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import type { Tent } from '@/app/page';
 import { cn } from '@/lib/utils';
+import type { TentMedia, MenuItem, RentalItem } from '@/lib/types';
 
-
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
-}
-
-interface RentalItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface TentMedia {
-  id: string;
-  mediaUrl: string;
-  mediaHint?: string;
-  description?: string;
-  type: 'image' | 'video';
-}
 
 type CartItem = { 
     item: MenuItem | RentalItem; 
@@ -113,6 +89,41 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     fetchTent();
   }, [tentQuery]);
 
+  const handleStartChat = async () => {
+    if (!user || !db || !tent) {
+        toast({ variant: 'destructive', title: 'Você precisa estar logado para iniciar uma conversa.' });
+        router.push(`/login?redirect=/tents/${params.slug}`);
+        return;
+    }
+
+    const chatId = `${user.uid}_${tent.id}`;
+    const chatDocRef = doc(db, 'chats', chatId);
+
+    try {
+        await setDoc(chatDocRef, {
+            userId: user.uid,
+            userName: user.displayName,
+            userPhotoURL: user.photoURL,
+            tentId: tent.id,
+            tentName: tent.name,
+            tentLogoUrl: tent.media?.[0]?.mediaUrl || '', // Use the first media item as logo
+            lastMessage: 'Conversa iniciada!',
+            lastMessageTimestamp: serverTimestamp()
+        }, { merge: true });
+
+        router.push(`/dashboard/chats?chatId=${chatId}`);
+
+    } catch (e: any) {
+         console.error("Error starting chat:", e);
+         const permissionError = new FirestorePermissionError({
+            path: `chats/${chatId}`,
+            operation: 'write',
+            requestResourceData: { userId: user.uid, tentId: tent.id }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+  };
+
 
   if (loadingTent || !tent) {
     return (
@@ -137,7 +148,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       const existing = prev[item.id] || { item, quantity: 0, type };
       let newQuantity = Math.max(0, existing.quantity + change);
       
-      // For rental items, cap the quantity at the available stock
       if (type === 'rental') {
         const rentalItem = item as RentalItem;
         if (rentalItem.quantity) {
@@ -199,16 +209,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
     try {
       const reservationsColRef = collection(db, 'reservations');
-      await addDoc(reservationsColRef, reservationData)
-        .catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-            path: reservationsColRef.path,
-            operation: 'create',
-            requestResourceData: reservationData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          throw permissionError;
-        });
+      await addDoc(reservationsColRef, reservationData);
 
       toast({
         title: "Pedido Confirmado!",
@@ -217,11 +218,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       router.push('/dashboard/my-reservations');
 
     } catch (error) {
-       toast({
-          variant: "destructive",
-          title: "Erro ao criar pedido",
-          description: "Não foi possível completar seu pedido. Tente novamente.",
+        const permissionError = new FirestorePermissionError({
+            path: `reservations`,
+            operation: 'create',
+            requestResourceData: reservationData,
         });
+        errorEmitter.emit('permission-error', permissionError);
     } finally {
         setIsSubmitting(false);
     }
@@ -264,6 +266,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         </div>
 
         <div className="container mx-auto max-w-7xl px-4 py-8">
+            <div className="mb-6 flex justify-end">
+                <Button onClick={handleStartChat} variant="outline">
+                    <MessageSquare className="mr-2 h-4 w-4"/>
+                    Iniciar Conversa
+                </Button>
+            </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
                  <Tabs defaultValue="menu" className="w-full">
