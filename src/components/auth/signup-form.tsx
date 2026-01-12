@@ -72,6 +72,7 @@ export function SignUpForm() {
       })
       const finalRedirect = redirectUrl || searchParams.get('redirect') || '/dashboard';
       router.push(finalRedirect);
+      router.refresh();
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -84,36 +85,25 @@ export function SignUpForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // Update Firebase Auth profile
       await updateProfile(user, {
         displayName: values.fullName,
-        photoURL: '',
+        photoURL: "", // Initialize with empty string
       });
 
       const userProfileData = {
         uid: user.uid,
         email: values.email,
         displayName: values.fullName,
-        cpf: values.cpf.replace(/\D/g, ""), // Store only digits
+        cpf: values.cpf.replace(/\D/g, ""),
         address: values.address,
         role: values.role,
-        photoURL: '',
-        storagePath: '',
+        photoURL: "",
+        createdAt: serverTimestamp(),
       };
 
       const userDocRef = doc(firestore, "users", user.uid);
       
-      setDoc(userDocRef, userProfileData)
-        .catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-              path: userDocRef.path,
-              operation: 'create',
-              requestResourceData: userProfileData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            // Re-throw the error to be caught by the outer catch block
-            throw permissionError;
-        });
+      await setDoc(userDocRef, userProfileData);
 
       toast({
         title: "Conta criada!",
@@ -122,15 +112,25 @@ export function SignUpForm() {
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Error creating account:", error);
-       let description = "Ocorreu um erro desconhecido.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "Este endereço de e-mail já está em uso.";
+      if (error.name === 'FirebaseError' && error.code === 'permission-denied') {
+        // This case is handled by the FirestorePermissionError and the global listener
+        const permissionError = new FirestorePermissionError({
+          path: `users/${getAuth(app).currentUser?.uid}`, // Approximate path
+          operation: 'create',
+          requestResourceData: values,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      } else {
+        let description = "Ocorreu um erro desconhecido.";
+        if (error.code === 'auth/email-already-in-use') {
+            description = "Este endereço de e-mail já está em uso.";
+        }
+        toast({
+            variant: "destructive",
+            title: "Falha ao criar conta",
+            description,
+        })
       }
-      toast({
-        variant: "destructive",
-        title: "Falha ao criar conta",
-        description,
-      })
     } finally {
       setIsSubmitting(false);
     }
@@ -146,27 +146,29 @@ export function SignUpForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user exists in Firestore
       const userDocRef = doc(firestore, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        // New user, create a document in Firestore but redirect to settings
-        await setDoc(userDocRef, {
+        const newUserProfile = {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
-          photoURL: user.photoURL,
+          photoURL: user.photoURL || "",
           createdAt: serverTimestamp(),
-          role: form.getValues('role') || 'customer', // Use role from form or default
-          cpf: '', // Needs to be filled out
-          address: '', // Needs to be filled out
-        });
-        // Redirect to settings to complete profile
+          role: form.getValues('role') || 'customer',
+          cpf: '',
+          address: '',
+        };
+        await setDoc(userDocRef, newUserProfile);
         handleAuthSuccess('/dashboard/settings'); 
       } else {
-        // Existing user
-        handleAuthSuccess();
+        const userData = userDoc.data();
+        if (!userData.cpf || !userData.address) {
+            handleAuthSuccess('/dashboard/settings');
+        } else {
+            handleAuthSuccess();
+        }
       }
 
     } catch (error: any) {
@@ -175,11 +177,20 @@ export function SignUpForm() {
       if (error.code === 'auth/popup-closed-by-user') {
         description = "A janela de login do Google foi fechada.";
       }
-      toast({
-        variant: "destructive",
-        title: "Falha no login com Google",
-        description,
-      })
+       if (error.name === 'FirebaseError' && error.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+          path: `users/${getAuth(app).currentUser?.uid}`,
+          operation: 'create',
+          requestResourceData: { email: getAuth(app).currentUser?.email },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      } else {
+        toast({
+            variant: "destructive",
+            title: "Falha no login com Google",
+            description,
+        })
+      }
     } finally {
       setIsGoogleSubmitting(false);
     }
@@ -232,13 +243,13 @@ export function SignUpForm() {
           </div>
         </div>
 
-         <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting || isGoogleSubmitting}>
+         <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting || isGoogleSubmitting}>
            {isGoogleSubmitting ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
            ) : (
             <svg role="img" viewBox="0 0 24 24" className="mr-2 h-4 w-4"><path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.05 1.05-2.36 1.62-3.8 1.62-2.97 0-5.4-2.44-5.4-5.4s2.43-5.4 5.4-5.4c1.35 0 2.64.52 3.58 1.44l2.15-2.15C17.2.73 15.23 0 12.48 0 5.88 0 .5 5.38.5 12s5.38 12 11.98 12c3.13 0 5.64-1.04 7.52-2.9s2.96-4.5 2.96-8.08c0-.6-.05-1.18-.15-1.72H12.48z"></path></svg>
            )}
-          Google
+          Inscrever-se com Google
         </Button>
 
          <div className="relative my-4">
@@ -261,7 +272,7 @@ export function SignUpForm() {
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="John Doe" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting} />
+                  <Input placeholder="Seu nome completo" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -277,7 +288,7 @@ export function SignUpForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting} />
+                  <Input placeholder="seu@email.com" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -316,7 +327,7 @@ export function SignUpForm() {
                <div className="relative">
                 <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="Sua rua, número" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting} />
+                  <Input placeholder="Sua rua, número, cidade" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -340,7 +351,7 @@ export function SignUpForm() {
           )}
         />
         <Button type="submit" className="w-full" disabled={isSubmitting || isGoogleSubmitting}>
-           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta com Email'}
+           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
         </Button>
       </form>
     </Form>

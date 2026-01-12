@@ -31,7 +31,6 @@ const formSchema = z.object({
 
 async function getEmailForCpf(db: Firestore, cpf: string): Promise<string | null> {
     const usersRef = collection(db, 'users');
-    // Remove formatting from CPF to match stored value
     const numericCpf = cpf.replace(/\D/g, "");
     const q = query(usersRef, where('cpf', '==', numericCpf));
     
@@ -41,7 +40,6 @@ async function getEmailForCpf(db: Firestore, cpf: string): Promise<string | null
             console.log(`Nenhum usuário encontrado com o CPF: ${numericCpf}`);
             return null;
         }
-        // Assuming CPF is unique, return the email of the first match
         const userDoc = querySnapshot.docs[0];
         return userDoc.data().email;
     } catch (error) {
@@ -68,7 +66,7 @@ export function LoginForm() {
   })
   
   const isCpf = (identifier: string) => {
-    return /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(identifier);
+    return /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(identifier) || /^\d{11}$/.test(identifier);
   }
 
   const handleAuthSuccess = (redirectUrl?: string) => {
@@ -78,6 +76,7 @@ export function LoginForm() {
       })
       const finalRedirect = redirectUrl || searchParams.get('redirect') || '/dashboard';
       router.push(finalRedirect);
+      router.refresh(); // Refresh the page to ensure user state is updated
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -136,27 +135,29 @@ export function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user exists in Firestore
       const userDocRef = doc(firestore, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        // New user, create a document in Firestore but redirect to settings
-        await setDoc(userDocRef, {
+        const newUserProfile = {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
-          photoURL: user.photoURL,
+          photoURL: user.photoURL || "",
           createdAt: serverTimestamp(),
-          role: 'customer', // Default role
-          cpf: '', // Needs to be filled out
-          address: '', // Needs to be filled out
-        });
-        // Redirect to settings to complete profile
+          role: 'customer',
+          cpf: '',
+          address: '',
+        };
+        await setDoc(userDocRef, newUserProfile);
         handleAuthSuccess('/dashboard/settings'); 
       } else {
-        // Existing user
-        handleAuthSuccess();
+        const userData = userDoc.data();
+        if (!userData.cpf || !userData.address) {
+            handleAuthSuccess('/dashboard/settings');
+        } else {
+            handleAuthSuccess();
+        }
       }
 
     } catch (error: any) {

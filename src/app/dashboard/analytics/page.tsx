@@ -66,9 +66,9 @@ export default function AnalyticsPage() {
   }, [firestore, user, isUserLoading]);
 
   const reservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !tentId || loadingTent) return null;
+    if (!firestore || !tentId) return null;
     return query(collection(firestore, 'reservations'), where('tentId', '==', tentId));
-  }, [firestore, tentId, loadingTent]);
+  }, [firestore, tentId]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 

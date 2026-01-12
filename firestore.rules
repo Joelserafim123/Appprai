@@ -11,12 +11,13 @@ service cloud.firestore {
     //--------------------------------
     // Users
     //--------------------------------
-    // Only the authenticated user can read or write their own user document.
-    // No one can list all users.
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null; // Anyone can create a user doc, but usually tied to their own UID
-      allow list: if false;
+      // Allow user to read and update their own document.
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      // Allow user to create their own document.
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Disallow deleting user documents and listing all users.
+      allow delete, list: if false;
     }
 
     //--------------------------------
@@ -25,8 +26,7 @@ service cloud.firestore {
     match /tents/{tentId} {
       // Anyone can read tent information.
       allow read: if true;
-      // Only the authenticated owner can write to their tent document.
-      // On create, ownerId must match the user. On update, it must be unchanged.
+      // The tent owner is the only one who can modify the tent.
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
@@ -36,7 +36,7 @@ service cloud.firestore {
       // Anyone can read subcollection items.
       allow read: if true;
       // Only the parent tent owner can write to these subcollections.
-      allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
     }
 
     //--------------------------------
@@ -45,8 +45,10 @@ service cloud.firestore {
     match /reservations/{reservationId} {
       // A user can only create a reservation for themselves.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Only the user who made the reservation or the owner of the corresponding tent can read or update it.
-      allow read, update: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      // Only the user who made the reservation or the owner of the corresponding tent can read it.
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      // Only the tent owner can update the status of a reservation.
+      allow update: if request.auth != null && get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid;
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
     }

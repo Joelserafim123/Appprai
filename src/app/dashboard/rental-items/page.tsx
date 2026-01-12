@@ -44,33 +44,30 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
     defaultValues: item || { name: '', price: 0, quantity: 1 },
   });
 
-  const onSubmit = async (data: RentalItemFormData) => {
+  const onSubmit = (data: RentalItemFormData) => {
     if (!firestore) return;
     setIsSubmitting(true);
     
+    const operation = item ? 'update' : 'create';
+    const docRef = item ? doc(firestore, 'tents', tentId, 'rentalItems', item.id) : null;
     const collectionRef = collection(firestore, 'tents', tentId, 'rentalItems');
-    
-    try {
-      if (item) {
-        const docRef = doc(firestore, 'tents', tentId, 'rentalItems', item.id);
-        await updateDoc(docRef, data);
-        toast({ title: "Item de aluguel atualizado com sucesso!" });
-      } else {
-        await addDoc(collectionRef, data);
-        toast({ title: "Item de aluguel adicionado com sucesso!" });
-      }
-      onFinished();
-    } catch (e: any) {
+
+    const promise = item && docRef ? updateDoc(docRef, data) : addDoc(collectionRef, data);
+
+    promise.then(() => {
+        toast({ title: `Item de aluguel ${item ? 'atualizado' : 'adicionado'} com sucesso!` });
+        onFinished();
+    }).catch((e: any) => {
         const permissionError = new FirestorePermissionError({
-            path: item ? `tents/${tentId}/rentalItems/${item.id}` : `tents/${tentId}/rentalItems`,
-            operation: item ? 'update' : 'create',
+            path: item && docRef ? docRef.path : collectionRef.path,
+            operation: operation,
             requestResourceData: data,
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: "Erro ao salvar item de aluguel." });
-    } finally {
+        // Toast will be handled by the global error listener in development
+    }).finally(() => {
         setIsSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -138,22 +135,21 @@ export default function RentalItemsPage() {
 
   const { data: rentalItems, isLoading: rentalsLoading, error } = useCollection<RentalItem>(rentalsQuery);
   
-  const deleteItem = async (itemId: string) => {
+  const deleteItem = (itemId: string) => {
     if (!firestore || !tentId) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
     const docRef = doc(firestore, 'tents', tentId, 'rentalItems', itemId);
-    try {
-        await deleteDoc(docRef);
+    
+    deleteDoc(docRef).then(() => {
         toast({ title: 'Item apagado com sucesso!' });
-    } catch(e) {
+    }).catch((e) => {
         const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
-    }
+    });
   }
 
   const openEditForm = (item: RentalItem) => {
