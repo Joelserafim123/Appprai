@@ -44,7 +44,11 @@ export default function AnalyticsPage() {
   const [loadingTent, setLoadingTent] = useState(true);
 
   useEffect(() => {
-    if (firestore && user) {
+    if (isUserLoading) {
+        setLoadingTent(true);
+        return;
+    };
+    if (firestore && user && user.role === 'owner') {
       setLoadingTent(true);
       const getTentId = async () => {
         const tentsRef = collection(firestore, 'tents');
@@ -56,7 +60,7 @@ export default function AnalyticsPage() {
         setLoadingTent(false);
       };
       getTentId();
-    } else if (!isUserLoading) {
+    } else {
       setLoadingTent(false);
     }
   }, [firestore, user, isUserLoading]);

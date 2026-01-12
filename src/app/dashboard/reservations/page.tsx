@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -37,9 +36,15 @@ export default function OwnerReservationsPage() {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
+  const [loadingTent, setLoadingTent] = useState(true);
 
   useEffect(() => {
-    if (firestore && user) {
+     if (isUserLoading) {
+        setLoadingTent(true);
+        return;
+    }
+    if (firestore && user && user.role === 'owner') {
+      setLoadingTent(true);
       const getTentId = async () => {
         const tentsRef = collection(firestore, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
@@ -47,10 +52,13 @@ export default function OwnerReservationsPage() {
         if (!querySnapshot.empty) {
           setTentId(querySnapshot.docs[0].id);
         }
+         setLoadingTent(false);
       };
       getTentId();
+    } else {
+        setLoadingTent(false);
     }
-  }, [firestore, user]);
+  }, [firestore, user, isUserLoading]);
 
   const reservationsQuery = useMemoFirebase(() => {
     if (!firestore || !tentId) return null;
@@ -87,7 +95,7 @@ export default function OwnerReservationsPage() {
       });
   };
 
-  if (isUserLoading || (reservationsLoading && !reservations)) {
+  if (isUserLoading || loadingTent) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -102,6 +110,15 @@ export default function OwnerReservationsPage() {
   if (error) {
       return <p className='text-destructive'>Erro ao carregar reservas: {error.message}</p>
   }
+  
+  if (reservationsLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
 
   return (
     <div className="w-full max-w-6xl">

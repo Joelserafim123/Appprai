@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -112,7 +110,11 @@ export default function RentalItemsPage() {
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
 
   useEffect(() => {
-    if (firestore && user) {
+    if (isUserLoading) {
+        setLoadingTent(true);
+        return;
+    }
+    if (firestore && user && user.role === 'owner') {
       setLoadingTent(true);
       const getTentId = async () => {
         const tentsRef = collection(firestore, 'tents');
@@ -124,7 +126,7 @@ export default function RentalItemsPage() {
         setLoadingTent(false);
       };
       getTentId();
-    } else if (!isUserLoading) {
+    } else {
         setLoadingTent(false);
     }
   }, [firestore, user, isUserLoading]);

@@ -23,6 +23,10 @@ export default function ChatsPage() {
 
   // Se o usuário for um dono, busca o ID da sua barraca
   useEffect(() => {
+    if (isUserLoading) {
+      setLoadingTentId(true);
+      return;
+    }
     if (firestore && user?.role === 'owner') {
       setLoadingTentId(true);
       const getTentId = async () => {
@@ -38,7 +42,7 @@ export default function ChatsPage() {
     } else {
       setLoadingTentId(false);
     }
-  }, [firestore, user]);
+  }, [firestore, user, isUserLoading]);
 
   // Monta a query de chats baseada na função do usuário
   const chatsQuery = useMemoFirebase(() => {

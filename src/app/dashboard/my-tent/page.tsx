@@ -2,7 +2,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, Upload, Video } from 'lucide-react';
@@ -126,7 +126,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
     
-    // Tent's docId is now based on user UID to simplify ownership rules.
     const tentId = user.uid;
     const docRef = doc(firestore, 'tents', tentId);
     
@@ -137,7 +136,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     };
 
     try {
-      // Use setDoc with merge to create or update.
       await setDoc(docRef, tentData, { merge: true });
       
       toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
@@ -462,9 +460,13 @@ export default function MyTentPage() {
   }, [firestore, user, toast]);
 
   useEffect(() => {
-    if(firestore && user) {
+    if (isUserLoading) {
+      setLoadingTent(true);
+      return;
+    }
+    if (firestore && user) {
         fetchTentData();
-    } else if (!isUserLoading) {
+    } else {
         setLoadingTent(false);
     }
   }, [firestore, user, isUserLoading, fetchTentData]);
