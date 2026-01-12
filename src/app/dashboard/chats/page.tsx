@@ -89,6 +89,7 @@ export default function ChatsPage() {
   }
   
   const selectedChat = chats?.find(c => c.id === selectedChatId) ?? null;
+  const defaultUserImage = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
   return (
     <div className="w-full h-[calc(100vh-120px)] flex flex-col">
@@ -111,7 +112,7 @@ export default function ChatsPage() {
                                 return (
                                 <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
                                     <Avatar className='h-10 w-10'>
-                                        <AvatarImage src={photoUrl || `https://picsum.photos/seed/person-avatar/200`} />
+                                        <AvatarImage src={photoUrl || defaultUserImage} />
                                         <AvatarFallback>
                                             {getInitials(displayName)}
                                         </AvatarFallback>

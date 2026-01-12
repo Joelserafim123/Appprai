@@ -149,9 +149,13 @@ export default function SettingsPage() {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, firestoreData);
   
-      const authProfileUpdate: { displayName?: string } = {};
+      const authProfileUpdate: { displayName?: string, photoURL?: string } = {};
       if (currentUser.displayName !== data.displayName) {
         authProfileUpdate.displayName = data.displayName;
+      }
+      // Preserve existing photoURL if not updating it
+      if (currentUser.photoURL) {
+          authProfileUpdate.photoURL = currentUser.photoURL;
       }
       
       if (Object.keys(authProfileUpdate).length > 0) {
@@ -177,6 +181,8 @@ export default function SettingsPage() {
       setIsSubmitting(false);
     }
   };
+
+  const defaultUserImage = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
 
   if (loading) {
@@ -205,7 +211,7 @@ export default function SettingsPage() {
                 
                 <div className="relative group">
                     <Avatar className="h-24 w-24">
-                        <AvatarImage src={user.photoURL || `https://picsum.photos/seed/person-avatar/200`} alt={user.displayName ?? ''} />
+                        <AvatarImage src={user.photoURL || defaultUserImage} alt={user.displayName ?? ''} />
                         <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                     </Avatar>
                      <button 

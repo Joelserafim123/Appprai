@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -54,6 +55,8 @@ export function Header() {
     }
     return name.substring(0, 2).toUpperCase();
   }
+  
+  const defaultUserImage = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
 
   return (
@@ -68,7 +71,7 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || `https://picsum.photos/seed/person-avatar/200`} alt={user.displayName || "User"} />
+                    <AvatarImage src={user.photoURL || defaultUserImage} alt={user.displayName || "User"} />
                     <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                   </Avatar>
                 </Button>
