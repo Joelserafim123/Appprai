@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { Logo } from '@/components/icons';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import Image from 'next/image';
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const authImage = PlaceHolderImages.find(p => p.id === 'map-background');
+  const authImageUrl = "https://picsum.photos/seed/auth-beach/1200/1800";
 
   return (
     <main className="min-h-screen w-full lg:grid lg:grid-cols-2">
@@ -23,11 +23,12 @@ export default function AuthLayout({
         </div>
       </div>
       <div className="hidden bg-muted lg:block relative">
-        <img
-          src={authImage?.imageUrl ?? "https://picsum.photos/seed/auth-beach/1200/1800"}
-          data-ai-hint={authImage?.imageHint ?? "sunny beach"}
+        <Image
+          src={authImageUrl}
+          data-ai-hint="sunny beach"
           alt="Uma bela praia ensolarada"
-          className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          fill
+          className="object-cover dark:brightness-[0.2] dark:grayscale"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/30 to-background/10" />
       </div>
