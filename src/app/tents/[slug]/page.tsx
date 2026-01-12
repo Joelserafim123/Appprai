@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -147,27 +148,84 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-    const handleQuantityChange = (item: MenuItem | RentalItem, type: 'menu' | 'rental', change: number) => {
+  const handleQuantityChange = (
+    item: MenuItem | RentalItem,
+    type: 'menu' | 'rental',
+    change: number
+  ) => {
     setCart((prev) => {
-      const existing = prev[item.id] || { item, quantity: 0, type };
-      let newQuantity = Math.max(0, existing.quantity + change);
-      
-      if (type === 'rental') {
-        const rentalItem = item as RentalItem;
-        if (rentalItem.quantity) {
-          newQuantity = Math.min(newQuantity, rentalItem.quantity);
+      const newCart = { ...prev };
+      const itemName = item.name.toLowerCase();
+
+      // Function to update an item's quantity
+      const updateItem = (
+        cart: Record<string, CartItem>,
+        itemToUpdate: RentalItem | MenuItem,
+        type: 'rental' | 'menu',
+        quantityChange: number
+      ): Record<string, CartItem> => {
+        const existing = cart[itemToUpdate.id] || {
+          item: itemToUpdate,
+          quantity: 0,
+          type,
+        };
+        let newQuantity = Math.max(0, existing.quantity + quantityChange);
+
+        // Enforce stock limits for rental items
+        if (type === 'rental') {
+          const rentalItem = itemToUpdate as RentalItem;
+          if (rentalItem.quantity) {
+            newQuantity = Math.min(newQuantity, rentalItem.quantity);
+          }
+        }
+
+        if (newQuantity === 0) {
+          const { [itemToUpdate.id]: _, ...rest } = cart;
+          return rest;
+        }
+
+        return {
+          ...cart,
+          [itemToUpdate.id]: { ...existing, quantity: newQuantity },
+        };
+      };
+
+      // Main item update
+      let updatedCart = updateItem(newCart, item, type, change);
+
+      // Automatic bundling logic for rentals
+      if (type === 'rental' && rentalItems) {
+        if (itemName.includes('cadeira')) {
+          const table = rentalItems.find((i) => i.name.toLowerCase().includes('mesa'));
+          if (table && change > 0 && !updatedCart[table.id]) {
+            updatedCart = updateItem(updatedCart, table, 'rental', 1);
+          } else if (change < 0 && updatedCart[item.id]?.quantity === 0) {
+              // If last chair is removed, remove table if no other chairs are left
+              const chairsLeft = Object.values(updatedCart).some(cartItem => cartItem.item.name.toLowerCase().includes('cadeira'));
+              if (!chairsLeft) {
+                  const table = rentalItems.find((i) => i.name.toLowerCase().includes('mesa'));
+                  if (table && updatedCart[table.id]) {
+                       updatedCart = updateItem(updatedCart, table, 'rental', -updatedCart[table.id].quantity);
+                  }
+              }
+          }
+        }
+
+        if (itemName.includes('mesa')) {
+          const chair = rentalItems.find((i) => i.name.toLowerCase().includes('cadeira'));
+          if (chair) {
+            if (change > 0 && !updatedCart[chair.id]) {
+              // Add 2 chairs if a table is added
+              updatedCart = updateItem(updatedCart, chair, 'rental', 2);
+            } else if (change < 0 && updatedCart[item.id]?.quantity === 0) {
+              // If table is removed, remove all chairs
+              updatedCart = updateItem(updatedCart, chair, 'rental', -updatedCart[chair.id].quantity);
+            }
+          }
         }
       }
 
-      if (newQuantity === 0) {
-        const { [item.id]: _, ...rest } = prev;
-        return rest;
-      }
-
-      return {
-        ...prev,
-        [item.id]: { ...existing, quantity: newQuantity },
-      };
+      return updatedCart;
     });
   };
 

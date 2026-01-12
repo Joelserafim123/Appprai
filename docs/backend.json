@@ -10,7 +10,9 @@
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string", "description": "User's full name." },
         "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
-        "address": { "type": "string" }
+        "address": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "storagePath": { "type": "string" }
       },
       "required": ["uid", "email", "displayName", "cpf", "address", "role"]
     },
@@ -66,7 +68,7 @@
       "description": "An item available for rent at a tent (e.g., chair, umbrella).",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
+        "name": { "type": "string", "enum": ["Cadeira", "Guarda-sol", "Mesa", "Kit Cadeira e Guarda-sol"]},
         "price": { "type": "number", "description": "Price per day." },
         "quantity": { "type": "number", "description": "Total available quantity." }
       },
@@ -130,7 +132,7 @@
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": ["password", "google"]
   },
   "firestore": {
     "/users/{userId}": {
