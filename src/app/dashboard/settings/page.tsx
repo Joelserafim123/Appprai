@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -20,6 +21,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { v4 as uuidv4 } from 'uuid';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -32,7 +34,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore: db } = useFirebase();
+  const { firebaseApp, firestore: db, storage } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -83,62 +85,66 @@ export default function SettingsPage() {
     }
   };
   
-  const fileToDataUri = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-        reader.readAsDataURL(file);
-    });
-  }
-
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firebaseApp || !db) return;
+    if (!user || !firebaseApp || !db || !storage) return;
     setIsSubmitting(true);
 
     const auth = getAuth(firebaseApp);
     const currentUser = auth.currentUser;
+    if (!currentUser) {
+        setIsSubmitting(false);
+        return;
+    }
     
     try {
         let photoURL = user.photoURL;
+        let storagePath = user.storagePath;
 
+        // 1. Upload new photo if it exists
         if (newPhotoFile) {
-            photoURL = await fileToDataUri(newPhotoFile);
+            const fileId = uuidv4();
+            storagePath = `users/${user.uid}/profile/${fileId}`;
+            const fileRef = storageRef(storage, storagePath);
+            await uploadBytes(fileRef, newPhotoFile);
+            photoURL = await getDownloadURL(fileRef);
         }
         
+        // 2. Prepare data for Auth and Firestore
+        const authProfileUpdate: { displayName: string, photoURL?: string } = {
+            displayName: data.displayName,
+        };
+        if (photoURL) {
+            authProfileUpdate.photoURL = photoURL;
+        }
+
         const firestoreData: {[key: string]: any} = {
             displayName: data.displayName,
             address: data.address,
             cpf: data.cpf.replace(/\D/g, ""),
-            photoURL: photoURL,
+            storagePath: storagePath, // Save storage path for future management
         };
         
-        if (currentUser) {
-            await updateProfile(currentUser, {
-                displayName: data.displayName,
-                photoURL: photoURL,
-            });
-        }
+        // 3. Update Auth profile
+        await updateProfile(currentUser, authProfileUpdate);
       
-      const userDocRef = doc(db, "users", user.uid);
-      await updateDoc(userDocRef, firestoreData);
+        // 4. Update Firestore document
+        const userDocRef = doc(db, "users", user.uid);
+        await updateDoc(userDocRef, firestoreData);
       
-      toast({
-        title: 'Perfil Atualizado!',
-        description: 'Suas informações foram salvas com sucesso.',
-      });
+        toast({
+            title: 'Perfil Atualizado!',
+            description: 'Suas informações foram salvas com sucesso.',
+        });
 
-      setNewPhotoFile(null);
-      refresh();
+        setNewPhotoFile(null);
+        refresh(); // This will re-fetch the user data including the new photoURL from Auth
 
     } catch(error: any) {
-      console.error("Error updating profile:", error);
-       const permissionError = new FirestorePermissionError({
-          path: `users/${user.uid}`,
-          operation: 'update',
-          requestResourceData: {
-              displayName: data.displayName,
-          },
+        console.error("Error updating profile:", error);
+        const permissionError = new FirestorePermissionError({
+            path: `users/${user.uid}`,
+            operation: 'update',
+            requestResourceData: { displayName: data.displayName },
         });
         errorEmitter.emit('permission-error', permissionError);
     } finally {

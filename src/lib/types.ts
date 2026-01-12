@@ -23,11 +23,13 @@ export interface UserProfile {
     address: string;
     photoURL?: string;
     role: 'customer' | 'owner';
+    storagePath?: string;
 }
 
 export interface TentMedia {
   id: string;
-  mediaUrl: string; // Can be a Data URI for images/videos
+  mediaUrl: string; // Public URL from Firebase Storage
+  storagePath: string; // Path to the file in Firebase Storage
   mediaHint?: string;
   description?: string;
   type: 'image' | 'video';

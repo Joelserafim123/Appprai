@@ -3,6 +3,7 @@
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -22,6 +23,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useMemoFirebase } from '@/firebase/provider';
+import { v4 as uuidv4 } from 'uuid';
 
 const mapContainerStyle = {
   width: '100%',
@@ -115,8 +117,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
     
-    const tentId = user.uid;
-    const docRef = doc(firestore, 'tents', tentId);
+    const docRef = doc(firestore, 'tents', user.uid);
     
     const tentData = {
       ...data,
@@ -124,22 +125,19 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       slug: generateSlug(data.name),
     };
 
-    try {
-      await setDoc(docRef, tentData, { merge: true });
-      
-      toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
-      onFinished();
-    } catch (e: any) {
-      console.error("Error saving tent data:", e);
-      const permissionError = new FirestorePermissionError({
-        path: `tents/${tentId}`,
-        operation: existingTent ? 'update' : 'create',
-        requestResourceData: tentData,
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    } finally {
-      setIsSubmitting(false);
-    }
+    setDoc(docRef, tentData, { merge: true }).then(() => {
+        toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
+        onFinished();
+    }).catch((e) => {
+        const permissionError = new FirestorePermissionError({
+            path: `tents/${user.uid}`,
+            operation: existingTent ? 'update' : 'create',
+            requestResourceData: tentData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    }).finally(() => {
+        setIsSubmitting(false);
+    });
   };
 
   return (
@@ -215,7 +213,7 @@ const mediaSchema = z.object({
 type MediaFormData = z.infer<typeof mediaSchema>;
 
 function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: () => void }) {
-    const { firestore } = useFirebase();
+    const { firestore, storage } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { register, handleSubmit, formState: { errors }, watch } = useForm<MediaFormData>({
@@ -226,46 +224,51 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file]);
     const isVideo = file?.type.startsWith('video/');
 
-    const fileToDataUri = (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-            reader.readAsDataURL(file);
-        });
-    }
-
     const onSubmit = async (data: MediaFormData) => {
-        if (!firestore || !data.media[0]) return;
+        if (!firestore || !storage || !data.media[0]) return;
         setIsSubmitting(true);
     
         const file = data.media[0];
+        const fileId = uuidv4();
+        const storagePath = `tents/${tentId}/media/${fileId}`;
+        const fileRef = storageRef(storage, storagePath);
         
         try {
-            const mediaUrl = await fileToDataUri(file);
+            // 1. Upload to Storage
+            await uploadBytes(fileRef, file);
+            
+            // 2. Get Download URL
+            const mediaUrl = await getDownloadURL(fileRef);
+
             const mediaType = file.type.startsWith('video') ? 'video' : 'image';
             
             const mediaData = {
                 mediaUrl,
+                storagePath,
                 description: data.description,
                 mediaHint: "beach tent", // Default hint
                 type: mediaType,
             };
     
             const collectionRef = collection(firestore, 'tents', tentId, 'media');
-            await addDoc(collectionRef, mediaData);
+            
+            // 3. Save reference in Firestore
+            addDoc(collectionRef, mediaData).catch((e) => {
+                 const permissionError = new FirestorePermissionError({
+                    path: collectionRef.path,
+                    operation: 'create',
+                    requestResourceData: { description: data.description },
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                throw e; // re-throw to be caught by outer catch
+            });
             
             toast({ title: "Mídia adicionada com sucesso!" });
             onFinished();
     
         } catch (e: any) {
             console.error("Error adding media:", e);
-            const permissionError = new FirestorePermissionError({
-                path: `tents/${tentId}/media`,
-                operation: 'create',
-                requestResourceData: { description: data.description },
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao adicionar mídia.' });
         } finally {
             setIsSubmitting(false);
         }
@@ -303,7 +306,7 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
 }
 
 function MediaManager({ tentId }: { tentId: string | null }) {
-    const { firestore } = useFirebase();
+    const { firestore, storage } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -316,16 +319,24 @@ function MediaManager({ tentId }: { tentId: string | null }) {
     const { data: tentMedia, isLoading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
 
     const handleDeleteMedia = async (media: TentMedia) => {
-        if (!firestore || !tentId || !confirm("Tem certeza que quer apagar este item da galeria?")) return;
+        if (!firestore || !storage || !tentId || !confirm("Tem certeza que quer apagar este item da galeria?")) return;
         
         setIsSubmitting(true);
         const docRef = doc(firestore, 'tents', tentId, 'media', media.id);
+        const fileRef = storageRef(storage, media.storagePath);
 
         try {
+            // Delete from Firestore first
             await deleteDoc(docRef);
+            // Then delete from Storage
+            await deleteObject(fileRef);
+
             toast({ title: "Mídia apagada com sucesso!" });
         } catch (e: any) {
             console.error("Error deleting media:", e);
+            // If firestore deletion fails, it will be caught here and we won't proceed to storage deletion.
+            // If storage deletion fails, we might have an orphaned record in Firestore.
+            // A more robust solution would involve a Cloud Function to clean up.
             const permissionError = new FirestorePermissionError({
                 path: docRef.path,
                 operation: 'delete',
@@ -409,12 +420,10 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        const tentsRef = collection(firestore, 'tents');
-        const q = query(tentsRef, where("ownerId", "==", user.uid));
-        const querySnapshot = await getDocs(q);
+        const tentDocRef = doc(firestore, 'tents', user.uid);
+        const docSnap = await getDoc(tentDocRef);
         
-        if (!querySnapshot.empty) {
-            const docSnap = querySnapshot.docs[0];
+        if (docSnap.exists()) {
             const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
             setTent(tentData);
         } else {
@@ -429,11 +438,7 @@ export default function MyTentPage() {
   }, [firestore, user, toast]);
 
   useEffect(() => {
-    if (isUserLoading) {
-      setLoadingTent(true);
-      return;
-    }
-    if (firestore && user) {
+    if (!isUserLoading && firestore && user) {
         fetchTentData();
     } else if (!isUserLoading) {
         setLoadingTent(false);

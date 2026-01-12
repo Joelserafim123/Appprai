@@ -8,10 +8,11 @@
         "uid": { "type": "string", "description": "The unique identifier from Firebase Auth." },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string", "description": "User's full name." },
-        "photoURL": { "type": "string", "description": "Data URI for the user's profile picture." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL for the user's profile picture from Firebase Storage." },
         "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
         "address": { "type": "string" },
-        "role": { "type": "string", "enum": ["customer", "owner"] }
+        "role": { "type": "string", "enum": ["customer", "owner"] },
+        "storagePath": { "type": "string", "description": "The path to the user's profile picture in Firebase Storage." }
       },
       "required": ["uid", "email", "displayName", "cpf", "address", "role"]
     },
@@ -39,15 +40,16 @@
     },
     "TentMedia": {
       "title": "Tent Media",
-      "description": "A media item (image or video) for a tent, stored as a Data URI.",
+      "description": "A media item (image or video) for a tent, stored in Firebase Storage.",
       "type": "object",
       "properties": {
-        "mediaUrl": { "type": "string", "description": "Data URI of the media file (image or video)." },
+        "mediaUrl": { "type": "string", "format": "uri", "description": "Public URL of the media file from Firebase Storage." },
+        "storagePath": { "type": "string", "description": "The path to the file in Firebase Storage." },
         "mediaHint": { "type": "string", "description": "A hint for AI processing, e.g., 'beach sunset'." },
         "description": { "type": "string", "description": "A description of the media." },
         "type": { "type": "string", "enum": ["image", "video"], "description": "The type of the media." }
       },
-      "required": ["mediaUrl", "description", "type"]
+      "required": ["mediaUrl", "storagePath", "description", "type"]
     },
     "MenuItem": {
       "title": "Menu Item",
