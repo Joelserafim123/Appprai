@@ -3,10 +3,10 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UploadCloud } from 'lucide-react';
+import { Loader2, UploadCloud, Camera } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -21,12 +21,13 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { v4 as uuidv4 } from 'uuid';
 import { getInitials } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, 'O endereço é obrigatório.'),
-  photo: z.any().optional(),
+  storagePath: z.string().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -43,12 +44,13 @@ export default function SettingsPage() {
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
 
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
           cpf: user?.cpf || '',
-          address: user?.address || ''
+          address: user?.address || '',
+          storagePath: user?.storagePath || '',
       }
   });
 
@@ -58,6 +60,7 @@ export default function SettingsPage() {
         displayName: user.displayName || '',
         cpf: user.cpf || '',
         address: user.address || '',
+        storagePath: user.storagePath || '',
       });
        setPhotoPreview(user.photoURL);
     }
@@ -94,10 +97,11 @@ export default function SettingsPage() {
     
     try {
         let photoURL = user.photoURL; // Start with the existing URL
+        let newStoragePath = data.storagePath;
 
         // 1. If a new photo is selected, upload it to Storage
         if (newPhotoFile) {
-            // Optional: Delete old photo from storage if it exists and is from storage
+            // Optional: Delete old photo from storage if it exists
             if (user.storagePath) {
                 const oldPhotoRef = storageRef(storage, user.storagePath);
                 try {
@@ -110,7 +114,7 @@ export default function SettingsPage() {
 
             const fileExtension = newPhotoFile.name.split('.').pop();
             const fileName = `${uuidv4()}.${fileExtension}`;
-            const newStoragePath = `user-profiles/${user.uid}/${fileName}`;
+            newStoragePath = `user-profiles/${user.uid}/${fileName}`;
             const newPhotoRef = storageRef(storage, newStoragePath);
             
             await uploadBytes(newPhotoRef, newPhotoFile);
@@ -118,13 +122,13 @@ export default function SettingsPage() {
             setValue('storagePath', newStoragePath); // Save new path
         }
         
-        // 2. Prepare data for Firestore and Auth
+        // 2. Prepare data for Firestore
         const firestoreData: {[key: string]: any} = {
             displayName: data.displayName,
             address: data.address,
             cpf: data.cpf.replace(/\D/g, ""),
             photoURL: photoURL,
-            ...(newPhotoFile && { storagePath: (watch as any)('storagePath') })
+            storagePath: newStoragePath,
         };
 
         const authProfileUpdate: { displayName?: string, photoURL?: string } = {
@@ -187,11 +191,36 @@ export default function SettingsPage() {
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
-             <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20">
-                    <AvatarImage src={photoPreview ?? undefined} alt={user.displayName ?? ''} />
-                    <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
-                </Avatar>
+             <div className="flex items-center gap-6">
+                
+                <div className="relative group">
+                    <Avatar className="h-24 w-24">
+                        <AvatarImage src={photoPreview ?? undefined} alt={user.displayName ?? ''} />
+                        <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+                    </Avatar>
+                     <button 
+                        type="button" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isSubmitting}
+                        className={cn(
+                          "absolute inset-0 bg-black/50 flex items-center justify-center rounded-full text-white",
+                          "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+                        )}
+                        aria-label="Alterar foto de perfil"
+                    >
+                       <Camera className="w-8 h-8" />
+                    </button>
+                    <Input
+                        id="profile-picture"
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="image/png, image/jpeg"
+                        disabled={isSubmitting}
+                    />
+                </div>
+
                 <div className="space-y-1">
                     <CardTitle>Meu Perfil</CardTitle>
                     <CardDescription>
@@ -200,29 +229,7 @@ export default function SettingsPage() {
                 </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-                <Label htmlFor="profile-picture">Foto de Perfil</Label>
-                <Input
-                    id="profile-picture"
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept="image/png, image/jpeg"
-                />
-                <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isSubmitting}
-                >
-                    <UploadCloud className="mr-2" />
-                    Carregar foto
-                </Button>
-                <p className="text-sm text-muted-foreground">Recomendado: imagem quadrada (ex: 1:1).</p>
-            </div>
-
+          <CardContent className="space-y-6 pt-6">
             <div className="space-y-2">
               <Label htmlFor="displayName">Nome Completo</Label>
               <Input id="displayName" {...register('displayName')} disabled={isSubmitting}/>
