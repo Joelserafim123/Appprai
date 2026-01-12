@@ -47,7 +47,6 @@ async function getEmailForCpf(db: Firestore, cpf: string): Promise<string | null
     try {
         const querySnapshot = await getDocs(q);
         if (querySnapshot.empty) {
-            console.log(`Nenhum usuário encontrado com o CPF: ${numericCpf}`);
             return null;
         }
         const userDoc = querySnapshot.docs[0];
@@ -187,7 +186,8 @@ export function LoginForm() {
         if (isCpf(values.identifier)) {
             const foundEmail = await getEmailForCpf(firestore, values.identifier);
             if (!foundEmail) {
-                throw new Error("auth/user-not-found");
+                // Throw an error that will be caught and handled as invalid credentials
+                throw new Error("auth/invalid-credential");
             }
             emailToLogin = foundEmail;
         }
