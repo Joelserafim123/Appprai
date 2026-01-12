@@ -9,8 +9,7 @@
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string", "description": "User's full name." },
         "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
-        "address": { "type": "string" },
-        "role": { "type": "string", "enum": ["customer", "owner"] }
+        "address": { "type": "string" }
       },
       "required": ["uid", "email", "displayName", "cpf", "address", "role"]
     },
@@ -42,11 +41,12 @@
       "type": "object",
       "properties": {
         "mediaUrl": { "type": "string", "format": "uri", "description": "Public URL of the media file from Firebase Storage." },
+        "storagePath": { "type": "string", "description": "The path to the file in Firebase Storage, for deletion." },
         "mediaHint": { "type": "string", "description": "A hint for AI processing, e.g., 'beach sunset'." },
         "description": { "type": "string", "description": "A description of the media." },
         "type": { "type": "string", "enum": ["image", "video"], "description": "The type of the media." }
       },
-      "required": ["mediaUrl", "description", "type"]
+      "required": ["mediaUrl", "storagePath", "description", "type"]
     },
     "MenuItem": {
       "title": "Menu Item",
@@ -128,7 +128,7 @@
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": ["password", "google"]
   },
   "firestore": {
     "/users/{userId}": {

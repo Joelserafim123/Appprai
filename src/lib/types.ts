@@ -23,7 +23,6 @@ export interface UserProfile {
     address: string;
     photoURL?: string;
     role: 'customer' | 'owner';
-    storagePath?: string;
 }
 
 export interface TentMedia {

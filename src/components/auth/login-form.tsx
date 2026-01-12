@@ -16,11 +16,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { KeyRound, Mail, Loader2, User } from "lucide-react"
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
-import { collection, query, where, getDocs, Firestore } from "firebase/firestore"
+import { collection, query, where, getDocs, Firestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { Separator } from "../ui/separator"
+import { Logo } from "../icons"
 
 const formSchema = z.object({
   identifier: z.string().min(1, { message: "Email ou CPF é obrigatório." }),
@@ -51,9 +53,11 @@ async function getEmailForCpf(db: Firestore, cpf: string): Promise<string | null
 
 export function LoginForm() {
   const { toast } = useToast()
-  const { app, firestore } = useFirebase();
+  const { firebaseApp, firestore } = useFirebase();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -67,10 +71,19 @@ export function LoginForm() {
     return /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(identifier);
   }
 
+  const handleAuthSuccess = (redirectUrl?: string) => {
+      toast({
+        title: "Login bem-sucedido",
+        description: "Redirecionando...",
+      })
+      const finalRedirect = redirectUrl || searchParams.get('redirect') || '/dashboard';
+      router.push(finalRedirect);
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!app || !firestore) return;
+    if (!firebaseApp || !firestore) return;
     setIsSubmitting(true);
-    const auth = getAuth(app);
+    const auth = getAuth(firebaseApp);
     let emailToLogin = values.identifier;
 
     try {
@@ -83,11 +96,7 @@ export function LoginForm() {
         }
         
       await signInWithEmailAndPassword(auth, emailToLogin, values.password);
-      toast({
-        title: "Login bem-sucedido",
-        description: "Redirecionando para o seu painel...",
-      })
-      router.push('/dashboard');
+      handleAuthSuccess();
     } catch (error: any) {
       console.error(error);
       let description = "Ocorreu um erro inesperado ao tentar fazer login.";
@@ -117,9 +126,58 @@ export function LoginForm() {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    if (!firebaseApp || !firestore) return;
+    setIsGoogleSubmitting(true);
+    const auth = getAuth(firebaseApp);
+    const provider = new GoogleAuthProvider();
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user exists in Firestore
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // New user, create a document in Firestore but redirect to settings
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          createdAt: serverTimestamp(),
+          role: 'customer', // Default role
+          cpf: '', // Needs to be filled out
+          address: '', // Needs to be filled out
+        });
+        // Redirect to settings to complete profile
+        handleAuthSuccess('/dashboard/settings'); 
+      } else {
+        // Existing user
+        handleAuthSuccess();
+      }
+
+    } catch (error: any) {
+      console.error("Google sign in error", error);
+      let description = "Não foi possível fazer login com o Google.";
+      if (error.code === 'auth/popup-closed-by-user') {
+        description = "A janela de login do Google foi fechada.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Falha no login com Google",
+        description,
+      })
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="identifier"
@@ -129,7 +187,7 @@ export function LoginForm() {
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="email@exemplo.com ou CPF" {...field} className="pl-10" disabled={isSubmitting} />
+                  <Input placeholder="email@exemplo.com ou CPF" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -147,17 +205,35 @@ export function LoginForm() {
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={isSubmitting}/>
+                  <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={isSubmitting || isGoogleSubmitting}/>
                 </FormControl>
               </div>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" className="w-full" disabled={isSubmitting || isGoogleSubmitting}>
           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Entrar'}
         </Button>
       </form>
+       <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              Ou continue com
+            </span>
+          </div>
+        </div>
+        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting || isGoogleSubmitting}>
+           {isGoogleSubmitting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+           ) : (
+            <svg role="img" viewBox="0 0 24 24" className="mr-2 h-4 w-4"><path fill="currentColor" d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.05 1.05-2.36 1.62-3.8 1.62-2.97 0-5.4-2.44-5.4-5.4s2.43-5.4 5.4-5.4c1.35 0 2.64.52 3.58 1.44l2.15-2.15C17.2.73 15.23 0 12.48 0 5.88 0 .5 5.38.5 12s5.38 12 11.98 12c3.13 0 5.64-1.04 7.52-2.9s2.96-4.5 2.96-8.08c0-.6-.05-1.18-.15-1.72H12.48z"></path></svg>
+           )}
+          Google
+        </Button>
     </Form>
   )
 }
