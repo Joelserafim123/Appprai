@@ -149,16 +149,11 @@ export default function SettingsPage() {
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, firestoreData);
   
-      const authProfileUpdate: { displayName?: string; photoURL?: string } = {};
+      const authProfileUpdate: { displayName?: string } = {};
       if (currentUser.displayName !== data.displayName) {
         authProfileUpdate.displayName = data.displayName;
       }
       
-      // This part ensures we don't accidentally wipe the photoURL
-      if (currentUser.photoURL) {
-          authProfileUpdate.photoURL = currentUser.photoURL;
-      }
-  
       if (Object.keys(authProfileUpdate).length > 0) {
         await updateProfile(currentUser, authProfileUpdate);
       }
