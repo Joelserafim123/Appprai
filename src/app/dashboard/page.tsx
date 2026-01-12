@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -72,7 +72,7 @@ function OwnerDashboard() {
 }
 
 export default function DashboardPage() {
-  const { user, loading } = useUser();
+  const { user, isUserLoading: loading } = useUser();
 
   if (loading) {
     return (
