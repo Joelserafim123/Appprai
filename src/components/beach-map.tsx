@@ -141,15 +141,16 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         map.setCenter(defaultCenter);
         map.setZoom(12);
       } else {
-        map.fitBounds(bounds);
-        if (tents.length === 1) {
-            map.setZoom(15);
-        } else {
-            const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
+         if (tents.length > 1) {
+            map.fitBounds(bounds);
+             const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
                 if (map.getZoom()! > 16) map.setZoom(16);
                 window.google.maps.event.removeListener(listener);
             });
-        }
+         } else {
+            map.setCenter(bounds.getCenter());
+            map.setZoom(15);
+         }
       }
     } else if (map) {
         if (navigator.geolocation) {
@@ -249,6 +250,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
                     onClick={() => handleTentSelect(tent)}
                     icon={getMarkerIcon(tent)}
+                    label={{
+                        text: tent.name.charAt(0),
+                        color: 'white',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                    }}
                 />
                 )
              ))}
