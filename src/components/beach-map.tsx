@@ -55,6 +55,8 @@ const haversineDistance = (
   return R * c;
 };
 
+// SVG path for a beach umbrella
+const umbrellaPath = "M12 2C6.48 2 2 6.48 2 12h10zm10 10c0 5.52-4.48 10-10 10V12zM12 12V2c5.52 0 10 4.48 10 10z";
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
@@ -135,16 +137,19 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
            bounds.extend(new window.google.maps.LatLng(tent.location.latitude, tent.location.longitude));
         }
       });
-      map.fitBounds(bounds);
-
-      if (tents.length === 1 && tents[0].location?.latitude) {
-        map.setCenter({lat: tents[0].location.latitude, lng: tents[0].location.longitude});
-        map.setZoom(15);
+      if (bounds.isEmpty()) {
+        map.setCenter(defaultCenter);
+        map.setZoom(12);
       } else {
-         const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
-            if (map.getZoom()! > 16) map.setZoom(16);
-            window.google.maps.event.removeListener(listener);
-         });
+        map.fitBounds(bounds);
+        if (tents.length === 1) {
+            map.setZoom(15);
+        } else {
+            const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
+                if (map.getZoom()! > 16) map.setZoom(16);
+                window.google.maps.event.removeListener(listener);
+            });
+        }
       }
     } else if (map) {
         if (navigator.geolocation) {
@@ -168,6 +173,26 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         map?.panTo({ lat: tent.location.latitude, lng: tent.location.longitude });
     }
   };
+
+  const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
+    let color = 'hsl(0, 84.2%, 60.2%)'; // destructive red
+    
+    if (selectedTent?.id === tent.id) {
+        color = 'hsl(var(--accent))'; // yellow
+    } else if (tent.hasAvailableKits) {
+        color = 'hsl(142.1, 76.2%, 36.3%)'; // green
+    }
+
+    return {
+        path: "M12 2C6.48 2 2 6.48 2 12h10V2zm10 10c0 5.52-4.48 10-10 10V12h10zM12 12V2c5.52 0 10 4.48 10 10H12z",
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: 1.5,
+        scale: 0.8,
+        anchor: new google.maps.Point(12, 12),
+    };
+  }
 
   const renderMap = () => {
     if (!googleMapsApiKey) {
@@ -223,14 +248,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     key={tent.id}
                     position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
                     onClick={() => handleTentSelect(tent)}
-                    icon={{
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: selectedTent?.id === tent.id ? 'hsl(var(--accent))' : 'hsl(var(--primary))',
-                        fillOpacity: 1,
-                        strokeColor: '#fff',
-                        strokeWeight: 2,
-                        scale: selectedTent?.id === tent.id ? 10 : 8,
-                    }}
+                    icon={getMarkerIcon(tent)}
                 />
                 )
              ))}
@@ -323,5 +341,3 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
-
-    

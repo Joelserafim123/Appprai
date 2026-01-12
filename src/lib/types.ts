@@ -16,6 +16,7 @@ export interface Tent {
     longitude: number;
   };
   minimumOrderForFeeWaiver?: number;
+  hasAvailableKits?: boolean;
   media?: TentMedia[];
 }
 

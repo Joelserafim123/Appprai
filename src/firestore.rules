@@ -29,7 +29,11 @@ service cloud.firestore {
       allow read: if true;
       // The tent owner is the only one who can modify the tent.
       // Now we enforce one tent per owner by making the doc id the owner's uid.
-      allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
+      allow create: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
+
+      // Allow owner to update most fields, including the new hasAvailableKits
+      allow update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
+      
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }

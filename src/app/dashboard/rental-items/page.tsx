@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -36,38 +37,49 @@ const rentalItemSchema = z.object({
 
 type RentalItemFormData = z.infer<typeof rentalItemSchema>;
 
-function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: RentalItem, onFinished: () => void }) {
+function RentalItemForm({ tentId, item, onFinished, hasKit }: { tentId: string, item?: RentalItem, onFinished: () => void, hasKit: boolean }) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, control, formState: { errors } } = useForm<RentalItemFormData>({
     resolver: zodResolver(rentalItemSchema),
-    defaultValues: item || { name: 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
+    defaultValues: item || { name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
   });
 
-  const onSubmit = (data: RentalItemFormData) => {
+  const onSubmit = async (data: RentalItemFormData) => {
     if (!firestore) return;
     setIsSubmitting(true);
     
+    const batch = writeBatch(firestore);
+    const tentRef = doc(firestore, 'tents', tentId);
+    
+    // Update availability status on tent
+    if (data.name === 'Kit Guarda-sol + 2 Cadeiras') {
+        batch.update(tentRef, { hasAvailableKits: data.quantity > 0 });
+    }
+
     const operation = item ? 'update' : 'create';
-    const docRef = item ? doc(firestore, 'tents', tentId, 'rentalItems', item.id) : null;
-    const collectionRef = collection(firestore, 'tents', tentId, 'rentalItems');
+    const docRef = item ? doc(firestore, 'tents', tentId, 'rentalItems', item.id) : doc(collection(firestore, 'tents', tentId, 'rentalItems'));
 
-    const promise = item && docRef ? updateDoc(docRef, data) : addDoc(collectionRef, data);
-
-    promise.then(() => {
+    if (item) {
+        batch.update(docRef, data);
+    } else {
+        batch.set(docRef, data);
+    }
+    
+    try {
+        await batch.commit();
         toast({ title: `Item de aluguel ${item ? 'atualizado' : 'adicionado'} com sucesso!` });
         onFinished();
-    }).catch((e: any) => {
-        const permissionError = new FirestorePermissionError({
-            path: item && docRef ? docRef.path : collectionRef.path,
+    } catch (e: any) {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: item ? docRef.path : `tents/${tentId}/rentalItems`,
             operation: operation,
             requestResourceData: data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }).finally(() => {
+        }));
+    } finally {
         setIsSubmitting(false);
-    });
+    }
   };
 
   return (
@@ -83,7 +95,7 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
                 <SelectValue placeholder="Selecione o tipo de item" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Kit Guarda-sol + 2 Cadeiras">Kit Guarda-sol + 2 Cadeiras</SelectItem>
+                <SelectItem value="Kit Guarda-sol + 2 Cadeiras" disabled={hasKit && !item}>Kit Guarda-sol + 2 Cadeiras</SelectItem>
                 <SelectItem value="Cadeira Adicional">Cadeira Adicional</SelectItem>
               </SelectContent>
             </Select>
@@ -149,21 +161,31 @@ export default function RentalItemsPage() {
 
   const { data: rentalItems, isLoading: rentalsLoading, error } = useCollection<RentalItem>(rentalsQuery);
   
-  const deleteItem = (itemId: string) => {
+  const deleteItem = async (itemToDelete: RentalItem) => {
     if (!firestore || !tentId) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
-    const docRef = doc(firestore, 'tents', tentId, 'rentalItems', itemId);
+    const docRef = doc(firestore, 'tents', tentId, 'rentalItems', itemToDelete.id);
     
-    deleteDoc(docRef).then(() => {
+    try {
+        const batch = writeBatch(firestore);
+        batch.delete(docRef);
+
+        if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
+            const tentRef = doc(firestore, 'tents', tentId);
+            batch.update(tentRef, { hasAvailableKits: false });
+        }
+        
+        await batch.commit();
         toast({ title: 'Item apagado com sucesso!' });
-    }).catch((e) => {
+
+    } catch (e) {
         const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
-    });
+    }
   }
 
   const openEditForm = (item: RentalItem) => {
@@ -240,7 +262,7 @@ export default function RentalItemsPage() {
                             <Button variant="ghost" size="icon" onClick={() => openEditForm(item)}>
                                 <Edit className='w-4 h-4'/>
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteItem(item.id)}>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteItem(item)}>
                                 <Trash className='w-4 h-4' />
                             </Button>
                         </div>
@@ -270,7 +292,7 @@ export default function RentalItemsPage() {
               <DialogHeader>
                   <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
               </DialogHeader>
-              <RentalItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} />
+              <RentalItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} hasKit={!!hasKit} />
           </DialogContent>
         }
     </Dialog>
