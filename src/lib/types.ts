@@ -9,6 +9,8 @@ export interface Tent {
   beachName: string;
   ownerId: string;
   ownerName: string;
+  bannerUrl?: string;
+  bannerStoragePath?: string;
   location: {
     latitude: number;
     longitude: number;
@@ -21,6 +23,7 @@ export interface UserProfile {
     uid: string;
     email: string;
     displayName: string;
+    photoURL?: string;
     cpf: string;
     address: string;
     role: 'customer' | 'owner';

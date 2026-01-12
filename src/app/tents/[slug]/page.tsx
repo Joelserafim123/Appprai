@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -274,28 +275,16 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <Header />
       <main>
         <div className="relative h-64 w-full md:h-96">
-         {loadingMedia ? <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : tentMedia && tentMedia.length > 0 ? (
-            tentMedia[0].type === 'video' ? (
-                <video
-                    src={tentMedia[0].mediaUrl}
-                    className="object-cover h-full w-full"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                />
-            ) : (
-                 <Image
-                    src={tentMedia[0].mediaUrl}
-                    alt={tent.name}
-                    data-ai-hint={tentMedia[0].mediaHint}
-                    className="object-cover"
-                    fill
-                    priority
-                />
-            )
+         {tent.bannerUrl ? (
+            <Image
+                src={tent.bannerUrl}
+                alt={tent.name}
+                className="object-cover"
+                fill
+                priority
+            />
          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Nenhuma imagem</div>
+            <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Nenhuma imagem de banner</div>
          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 text-white">
@@ -306,10 +295,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
         <div className="container mx-auto max-w-7xl px-4 py-8">
             <div className="mb-6 flex justify-end">
-                <Button onClick={handleStartChat} variant="outline">
+                 <Link href={`/dashboard/chats`} className={cn(buttonVariants({ variant: "outline" }))}>
                     <MessageSquare className="mr-2 h-4 w-4"/>
                     Iniciar Conversa
-                </Button>
+                </Link>
             </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">

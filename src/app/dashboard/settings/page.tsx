@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, User as UserIcon, Info } from 'lucide-react';
+import { Loader2, User as UserIcon, Info, Upload, Trash } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -15,16 +15,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Image from 'next/image';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
   address: z.string().min(5, 'O endereço é obrigatório.'),
+  photo: z.any().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -32,12 +35,11 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore } = useFirebase();
+  const { firebaseApp, firestore, storage } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { db } = useFirebase();
   
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
@@ -45,6 +47,13 @@ export default function SettingsPage() {
           address: user?.address || '',
       }
   });
+
+  const photoFile = watch("photo")?.[0];
+  const photoPreview = useMemo(() => {
+    if (photoFile) return URL.createObjectURL(photoFile);
+    return user?.photoURL;
+  }, [photoFile, user?.photoURL]);
+
 
   useEffect(() => {
     if (user) {
@@ -68,20 +77,30 @@ export default function SettingsPage() {
   
   
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firestore || !firebaseApp) return;
+    if (!user || !firestore || !firebaseApp || !storage) return;
     setIsSubmitting(true);
   
     try {
       const auth = getAuth(firebaseApp);
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("User not authenticated.");
+      
+      let photoURL = user.photoURL;
+      const file = data.photo?.[0];
+
+      if (file) {
+        const storagePath = `users/${user.uid}/profile.jpg`;
+        const fileRef = ref(storage, storagePath);
+        await uploadBytes(fileRef, file);
+        photoURL = await getDownloadURL(fileRef);
+      }
   
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
         address: data.address,
+        photoURL: photoURL
       };
 
-      // Only add CPF if it's not already set
       if (!user.cpf) {
         firestoreData.cpf = data.cpf.replace(/\D/g, "");
       }
@@ -89,9 +108,12 @@ export default function SettingsPage() {
       const userDocRef = doc(firestore, "users", user.uid);
       await updateDoc(userDocRef, firestoreData);
   
-      const authProfileUpdate: { displayName?: string } = {};
+      const authProfileUpdate: { displayName?: string, photoURL?: string } = {};
       if (currentUser.displayName !== data.displayName) {
         authProfileUpdate.displayName = data.displayName;
+      }
+       if (photoURL && currentUser.photoURL !== photoURL) {
+        authProfileUpdate.photoURL = photoURL;
       }
       
       if (Object.keys(authProfileUpdate).length > 0) {
@@ -159,12 +181,19 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24">
-                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName || "User"} />
-                    <AvatarFallback className="text-3xl">
-                        {getInitials(user.displayName)}
-                    </AvatarFallback>
-                </Avatar>
+                <div className="group relative">
+                    <Avatar className="h-24 w-24">
+                        <AvatarImage src={photoPreview ?? ''} alt={user.displayName || "User"} />
+                        <AvatarFallback className="text-3xl">
+                            {getInitials(user.displayName)}
+                        </AvatarFallback>
+                    </Avatar>
+                     <label htmlFor="photo" className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Upload className="h-6 w-6 text-white" />
+                    </label>
+                    <Input id="photo" type="file" className="hidden" accept="image/*" {...register('photo')} />
+                </div>
+
                 <div className="space-y-2">
                     <p className="font-medium">{user.displayName}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>

@@ -27,6 +27,8 @@
         "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
         "description": { "type": "string" },
         "beachName": { "type": "string" },
+        "bannerUrl": { "type": "string", "format": "uri", "description": "Public URL of the banner image from Firebase Storage." },
+        "bannerStoragePath": { "type": "string", "description": "The path to the banner file in Firebase Storage, for deletion." },
         "location": {
           "type": "object",
           "properties": {

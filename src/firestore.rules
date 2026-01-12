@@ -1,0 +1,73 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    //--------------------------------
+    // Users
+    //--------------------------------
+    match /users/{userId} {
+      // Allow user to read and update their own document.
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      // Allow user to create their own document.
+      allow create: if request.auth != null;
+      // Disallow deleting user documents and listing all users.
+      allow delete, list: if false;
+    }
+
+    //--------------------------------
+    // Tents & Subcollections
+    //--------------------------------
+    match /tents/{tentId} {
+      // Anyone can read tent information.
+      allow read: if true;
+      // The tent owner is the only one who can modify the tent.
+      // Now we enforce one tent per owner by making the doc id the owner's uid.
+      allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
+      // Tent owner can delete their tent.
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Media, MenuItems, RentalItems
+    match /tents/{tentId}/{collection}/{itemId} {
+      // Anyone can read subcollection items.
+      allow read: if true;
+      // Only the parent tent owner can write to these subcollections.
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+    }
+
+    //--------------------------------
+    // Reservations
+    //--------------------------------
+    match /reservations/{reservationId} {
+      // A user can only create a reservation for themselves.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Anyone involved (customer or owner) can read the reservation.
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      
+      // Update rules are now more granular.
+      allow update: if request.auth != null && (
+        // Case 1: Tent owner can update status, paymentMethod, tableNumber, or cancel.
+        // Also, owner can update the status of individual items.
+        (
+          get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
+        ) ||
+        // Case 2: Customer who made the reservation can add items (new items are 'pending') or request payment.
+        (
+          resource.data.userId == request.auth.uid &&
+          (request.resource.data.status == 'payment-pending' || request.resource.data.items.size() > resource.data.items.size())
+        )
+      );
+
+      // A reservation cannot be deleted via the client for business logic integrity.
+      allow delete: if false;
+    }
+  }
+}

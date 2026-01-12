@@ -1,13 +1,14 @@
 
+
 'use client';
 
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, CheckCircle2 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, CheckCircle2, Upload } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -297,9 +298,6 @@ function MediaManager({ tentId }: { tentId: string | null }) {
             toast({ title: "Mídia apagada com sucesso!" });
         } catch (e: any) {
             console.error("Error deleting media:", e);
-            // If firestore deletion fails, it will be caught here and we won't proceed to storage deletion.
-            // If storage deletion fails, we might have an orphaned record in Firestore.
-            // A more robust solution would involve a Cloud Function to clean up.
             const permissionError = new FirestorePermissionError({
                 path: docRef.path,
                 operation: 'delete',
@@ -372,6 +370,123 @@ function MediaManager({ tentId }: { tentId: string | null }) {
     );
 }
 
+function BannerManager({ tent, onFinished }: { tent: Tent | null, onFinished: () => void }) {
+    const { firestore, storage } = useFirebase();
+    const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
+
+    const bannerPreview = useMemo(() => {
+        if (bannerFile) return URL.createObjectURL(bannerFile);
+        return tent?.bannerUrl;
+    }, [bannerFile, tent?.bannerUrl]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setBannerFile(file);
+        }
+    };
+
+    const handleSaveBanner = async () => {
+        if (!firestore || !storage || !tent || !bannerFile) return;
+        setIsSubmitting(true);
+
+        const storagePath = `tents/${tent.id}/banner.jpg`;
+        const fileRef = storageRef(storage, storagePath);
+
+        try {
+            await uploadBytes(fileRef, bannerFile);
+            const bannerUrl = await getDownloadURL(fileRef);
+
+            const docRef = doc(firestore, 'tents', tent.id);
+            await updateDoc(docRef, { bannerUrl, bannerStoragePath: storagePath });
+            
+            toast({ title: "Banner atualizado com sucesso!" });
+            onFinished();
+
+        } catch(e) {
+            console.error("Error updating banner:", e);
+            toast({ variant: 'destructive', title: 'Erro ao atualizar banner' });
+        } finally {
+            setIsSubmitting(false);
+            setBannerFile(null);
+        }
+    }
+    
+    const handleDeleteBanner = async () => {
+         if (!firestore || !storage || !tent?.bannerStoragePath || !confirm("Tem certeza que quer remover o banner?")) return;
+        setIsSubmitting(true);
+
+        const fileRef = storageRef(storage, tent.bannerStoragePath);
+        
+        try {
+            await deleteObject(fileRef);
+            const docRef = doc(firestore, 'tents', tent.id);
+            await updateDoc(docRef, { bannerUrl: null, bannerStoragePath: null });
+            
+            toast({ title: "Banner removido!" });
+            onFinished();
+
+        } catch(e) {
+            console.error("Error deleting banner:", e);
+            toast({ variant: 'destructive', title: 'Erro ao remover banner' });
+        } finally {
+            setIsSubmitting(false);
+        }
+
+    }
+
+
+    if (!tent) {
+        return null;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ImageIcon />
+                    Gerenciar Banner
+                </CardTitle>
+                <CardDescription>
+                    Adicione ou remova a imagem de banner principal da sua barraca.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="relative aspect-video w-full bg-muted rounded-md overflow-hidden">
+                    {bannerPreview ? (
+                        <Image src={bannerPreview} alt="Banner da barraca" fill className="object-cover" />
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            <p>Sem banner</p>
+                        </div>
+                    )}
+                </div>
+                 <div className="flex flex-col sm:flex-row gap-2">
+                    <label htmlFor="banner-upload" className={cn(buttonVariants({ variant: "outline" }), "w-full cursor-pointer")}>
+                        <Upload className="mr-2" />
+                        {tent?.bannerUrl ? 'Trocar Banner' : 'Adicionar Banner'}
+                    </label>
+                    <Input id="banner-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange}/>
+
+                    {bannerFile && (
+                        <Button onClick={handleSaveBanner} disabled={isSubmitting} className="w-full">
+                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Banner'}
+                        </Button>
+                    )}
+                    {tent?.bannerUrl && !bannerFile && (
+                        <Button variant="destructive" onClick={handleDeleteBanner} disabled={isSubmitting} className="w-full">
+                            {isSubmitting ? <Loader2 className="animate-spin" /> : <><Trash className="mr-2"/> Remover Banner</>}
+                        </Button>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 export default function MyTentPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
@@ -443,6 +558,8 @@ export default function MyTentPage() {
           <TentForm user={user} existingTent={tent} onFinished={fetchTentData} />
         </CardContent>
       </Card>
+      
+      <BannerManager tent={tent} onFinished={fetchTentData} />
 
       <MediaManager tentId={tent?.id || null} />
     </div>
