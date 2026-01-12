@@ -5,7 +5,6 @@ import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface UserData extends User {
     [key: string]: any;
@@ -76,31 +75,27 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     userError: null,
   });
 
-  const fetchExtraData = useCallback(async (firebaseUser: User) => {
-    if (!firestore) return firebaseUser; // Return base user if firestore is not available
+  const fetchExtraData = useCallback(async (firebaseUser: User | null): Promise<UserData | null> => {
+    if (!firebaseUser) return null;
+    if (!firestore) return firebaseUser;
+
     try {
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
-            return { ...firebaseUser, ...userDoc.data() };
+            return { ...firebaseUser, ...userDoc.data() } as UserData;
         }
-        // If doc doesn't exist, maybe it's still being created.
-        // Return the base user and let a refresh handle it later.
-        return firebaseUser; 
+        return firebaseUser as UserData;
     } catch (error) {
         console.error("Error fetching user data from Firestore:", error);
-        // In case of error, still return the base auth user
-        // so the app doesn't think the user is logged out.
-        return firebaseUser;
+        return firebaseUser as UserData;
     }
   }, [firestore]);
   
   const refresh = useCallback(async () => {
-    if (auth?.currentUser) {
-        setUserState(s => ({ ...s, isUserLoading: true }));
-        const refreshedUser = await fetchExtraData(auth.currentUser);
-        setUserState(s => ({ ...s, user: refreshedUser, isUserLoading: false }));
-    }
+    setUserState(s => ({ ...s, isUserLoading: true }));
+    const refreshedUser = await fetchExtraData(auth.currentUser);
+    setUserState(s => ({ ...s, user: refreshedUser, isUserLoading: false }));
   }, [auth, fetchExtraData]);
 
   useEffect(() => {
@@ -110,13 +105,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUserState({ user: null, isUserLoading: true, userError: null });
-      if (firebaseUser) {
-        const userData = await fetchExtraData(firebaseUser);
-        setUserState({ user: userData, isUserLoading: false, userError: null });
-      } else {
-        setUserState({ user: null, isUserLoading: false, userError: null });
-      }
+      setUserState(s => ({ ...s, isUserLoading: true }));
+      const userData = await fetchExtraData(firebaseUser);
+      setUserState({ user: userData, isUserLoading: false, userError: null });
     }, (error) => {
       console.error("Auth state change error:", error);
       setUserState({ user: null, isUserLoading: false, userError: error });
