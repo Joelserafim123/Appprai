@@ -3,23 +3,21 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UploadCloud, Camera } from 'lucide-react';
+import { Loader2, Camera } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { v4 as uuidv4 } from 'uuid';
 import { getInitials } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +25,6 @@ const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, 'O endereço é obrigatório.'),
-  storagePath: z.string().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -35,7 +32,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore: db, storage } = useFirebase();
+  const { firebaseApp, firestore: db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -44,13 +41,12 @@ export default function SettingsPage() {
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
 
 
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
           cpf: user?.cpf || '',
           address: user?.address || '',
-          storagePath: user?.storagePath || '',
       }
   });
 
@@ -60,7 +56,6 @@ export default function SettingsPage() {
         displayName: user.displayName || '',
         cpf: user.cpf || '',
         address: user.address || '',
-        storagePath: user.storagePath || '',
       });
        setPhotoPreview(user.photoURL);
     }
@@ -87,50 +82,37 @@ export default function SettingsPage() {
       reader.readAsDataURL(file);
     }
   };
+  
+  const fileToDataUri = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+  }
 
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firebaseApp || !db || !storage) return;
+    if (!user || !firebaseApp || !db) return;
     setIsSubmitting(true);
 
     const auth = getAuth(firebaseApp);
     const currentUser = auth.currentUser;
     
     try {
-        let photoURL = user.photoURL; // Start with the existing URL
-        let newStoragePath = data.storagePath;
+        let photoURL = user.photoURL;
 
-        // 1. If a new photo is selected, upload it to Storage
         if (newPhotoFile) {
-            // Optional: Delete old photo from storage if it exists
-            if (user.storagePath) {
-                const oldPhotoRef = storageRef(storage, user.storagePath);
-                try {
-                    await deleteObject(oldPhotoRef);
-                } catch (e:any) {
-                    // Ignore if old photo doesn't exist, log other errors
-                    if(e.code !== 'storage/object-not-found') console.error("Could not delete old photo:", e)
-                }
-            }
-
-            const fileExtension = newPhotoFile.name.split('.').pop();
-            const fileName = `${uuidv4()}.${fileExtension}`;
-            newStoragePath = `user-profiles/${user.uid}/${fileName}`;
-            const newPhotoRef = storageRef(storage, newStoragePath);
-            
-            await uploadBytes(newPhotoRef, newPhotoFile);
-            photoURL = await getDownloadURL(newPhotoRef);
-            setValue('storagePath', newStoragePath); // Save new path
+            photoURL = await fileToDataUri(newPhotoFile);
         }
         
-        // 2. Prepare data for Firestore
         const firestoreData: {[key: string]: any} = {
             displayName: data.displayName,
             address: data.address,
             cpf: data.cpf.replace(/\D/g, ""),
-            storagePath: newStoragePath,
+            photoURL: photoURL,
         };
         
-        // 3. Update Auth Profile
         if (currentUser) {
             await updateProfile(currentUser, {
                 displayName: data.displayName,
@@ -138,7 +120,6 @@ export default function SettingsPage() {
             });
         }
       
-      // 4. Update Firestore Document
       const userDocRef = doc(db, "users", user.uid);
       await updateDoc(userDocRef, firestoreData);
       
@@ -147,8 +128,8 @@ export default function SettingsPage() {
         description: 'Suas informações foram salvas com sucesso.',
       });
 
-      setNewPhotoFile(null); // Reset file state
-      refresh(); // Use the refresh function from the hook to get all new data
+      setNewPhotoFile(null);
+      refresh();
 
     } catch(error: any) {
       console.error("Error updating profile:", error);

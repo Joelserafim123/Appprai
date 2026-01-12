@@ -2,28 +2,26 @@
 
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, Upload, Video } from 'lucide-react';
+import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import type { Tent } from '@/lib/types';
+import type { Tent, TentMedia } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useMemoFirebase } from '@/firebase/provider';
-import { v4 as uuidv4 } from 'uuid';
 
 const mapContainerStyle = {
   width: '100%',
@@ -60,15 +58,6 @@ const tentSchema = z.object({
 
 type TentFormData = z.infer<typeof tentSchema>;
 
-interface TentMedia {
-  id: string;
-  mediaUrl: string;
-  storagePath: string;
-  mediaHint: string;
-  description: string;
-  type: 'image' | 'video';
-}
-
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
@@ -81,7 +70,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     googleMapsApiKey: googleMapsApiKey
   });
 
-  const { register, handleSubmit, formState: { errors }, control, setValue, watch } = useForm<TentFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
       name: existingTent?.name || '',
@@ -126,8 +115,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
     
-    // Use the user's UID as the document ID for their tent.
-    // This ensures one tent per owner and simplifies queries.
     const tentId = user.uid;
     const docRef = doc(firestore, 'tents', tentId);
     
@@ -138,7 +125,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     };
 
     try {
-      // Use setDoc with merge:true to either create or update the document.
       await setDoc(docRef, tentData, { merge: true });
       
       toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
@@ -151,7 +137,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         requestResourceData: tentData,
       });
       errorEmitter.emit('permission-error', permissionError);
-      // The listener will show a generic error toast.
     } finally {
       setIsSubmitting(false);
     }
@@ -230,7 +215,7 @@ const mediaSchema = z.object({
 type MediaFormData = z.infer<typeof mediaSchema>;
 
 function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: () => void }) {
-    const { firestore, storage } = useFirebase();
+    const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { register, handleSubmit, formState: { errors }, watch } = useForm<MediaFormData>({
@@ -241,35 +226,32 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file]);
     const isVideo = file?.type.startsWith('video/');
 
+    const fileToDataUri = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+
     const onSubmit = async (data: MediaFormData) => {
-        if (!firestore || !storage || !data.media[0]) return;
+        if (!firestore || !data.media[0]) return;
         setIsSubmitting(true);
     
         const file = data.media[0];
-        const fileExtension = file.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExtension}`;
-        const storagePath = `tents/${tentId}/${fileName}`;
-        const fileRef = storageRef(storage, storagePath);
         
         try {
-            // 1. Upload file to Firebase Storage
-            await uploadBytes(fileRef, file);
-    
-            // 2. Get download URL
-            const mediaUrl = await getDownloadURL(fileRef);
-    
+            const mediaUrl = await fileToDataUri(file);
             const mediaType = file.type.startsWith('video') ? 'video' : 'image';
             
-            // 3. Prepare data for Firestore
             const mediaData = {
                 mediaUrl,
-                storagePath, // Save storage path for easy deletion
                 description: data.description,
                 mediaHint: "beach tent", // Default hint
                 type: mediaType,
             };
     
-            // 4. Save metadata to Firestore
             const collectionRef = collection(firestore, 'tents', tentId, 'media');
             await addDoc(collectionRef, mediaData);
             
@@ -278,14 +260,12 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     
         } catch (e: any) {
             console.error("Error adding media:", e);
-    
             const permissionError = new FirestorePermissionError({
                 path: `tents/${tentId}/media`,
                 operation: 'create',
-                requestResourceData: { description: data.description }, // Don't log file data
+                requestResourceData: { description: data.description },
             });
             errorEmitter.emit('permission-error', permissionError);
-            // The listener will show a toast.
         } finally {
             setIsSubmitting(false);
         }
@@ -323,7 +303,7 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
 }
 
 function MediaManager({ tentId }: { tentId: string | null }) {
-    const { firestore, storage } = useFirebase();
+    const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -336,39 +316,21 @@ function MediaManager({ tentId }: { tentId: string | null }) {
     const { data: tentMedia, isLoading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
 
     const handleDeleteMedia = async (media: TentMedia) => {
-        if (!firestore || !storage || !tentId || !confirm("Tem certeza que quer apagar este item da galeria?")) return;
+        if (!firestore || !tentId || !confirm("Tem certeza que quer apagar este item da galeria?")) return;
         
         setIsSubmitting(true);
         const docRef = doc(firestore, 'tents', tentId, 'media', media.id);
-        const fileRef = storageRef(storage, media.storagePath);
 
         try {
-            // Delete file from Storage first
-            await deleteObject(fileRef);
-            // Then delete the document from Firestore
             await deleteDoc(docRef);
             toast({ title: "Mídia apagada com sucesso!" });
         } catch (e: any) {
             console.error("Error deleting media:", e);
-            if (e.code === 'storage/object-not-found') {
-                // If file doesn't exist in storage, just delete firestore doc
-                 await deleteDoc(docRef).catch(e_firestore => {
-                     // If firestore deletion also fails, emit a permission error for Firestore
-                      const permissionError = new FirestorePermissionError({
-                        path: docRef.path,
-                        operation: 'delete',
-                      });
-                      errorEmitter.emit('permission-error', permissionError);
-                 });
-                 toast({ title: "Mídia apagada do banco de dados." });
-            } else {
-                const permissionError = new FirestorePermissionError({
-                    path: docRef.path,
-                    operation: 'delete',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                // Do not show a generic toast, the error listener will.
-            }
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
         } finally {
             setIsSubmitting(false);
         }
@@ -407,7 +369,7 @@ function MediaManager({ tentId }: { tentId: string | null }) {
                                  {media.type === 'video' ? (
                                     <video src={media.mediaUrl} className="object-cover rounded-md h-full w-full bg-black" />
                                  ) : (
-                                    <Image src={media.mediaUrl} alt={media.description} fill className="object-cover rounded-md" />
+                                    <Image src={media.mediaUrl} alt={media.description ?? ''} fill className="object-cover rounded-md" />
                                  )}
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
                                     <Button variant="destructive" size="icon" onClick={() => handleDeleteMedia(media)} disabled={isSubmitting}>
@@ -415,7 +377,7 @@ function MediaManager({ tentId }: { tentId: string | null }) {
                                     </Button>
                                 </div>
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity rounded-b-md">
-                                    <p className="truncate">{media.description}</p>
+                                    <p className="truncate">{media.description ?? ''}</p>
                                 </div>
                             </div>
                         ))}
@@ -447,13 +409,11 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        // Correctly query for the tent document where ownerId matches the user's UID.
         const tentsRef = collection(firestore, 'tents');
         const q = query(tentsRef, where("ownerId", "==", user.uid));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
-            // Assuming one owner has only one tent
             const docSnap = querySnapshot.docs[0];
             const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
             setTent(tentData);
@@ -515,7 +475,6 @@ export default function MyTentPage() {
         </CardContent>
       </Card>
 
-      {/* The MediaManager is only displayed if a tent exists, using the tent's ID */}
       <MediaManager tentId={tent?.id || null} />
     </div>
   );
