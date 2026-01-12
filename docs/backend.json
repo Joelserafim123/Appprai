@@ -129,7 +129,7 @@
     }
   },
   "auth": {
-    "providers": ["password", "google"]
+    "providers": ["password"]
   },
   "firestore": {
     "/users/{userId}": {
