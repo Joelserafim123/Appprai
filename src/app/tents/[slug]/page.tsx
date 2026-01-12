@@ -68,6 +68,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
               const userDoc = await getDoc(userDocRef);
               if (userDoc.exists()) {
                  tentData.ownerName = userDoc.data().displayName;
+              } else {
+                 // Fallback if owner user document is not found
+                 tentData.ownerName = tentData.name;
               }
           }
 
@@ -105,44 +108,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
-
-
-  const handleStartChat = async () => {
-    if (!user || !firestore || !tent) {
-        toast({ variant: 'destructive', title: 'Você precisa estar logado para iniciar uma conversa.' });
-        router.push(`/login?redirect=/tents/${params.slug}`);
-        return;
-    }
-
-    const chatId = `${user.uid}_${tent.id}`;
-    const chatDocRef = doc(firestore, 'chats', chatId);
-
-    try {
-        await setDoc(chatDocRef, {
-            userId: user.uid,
-            userName: user.displayName,
-            userPhotoURL: user.photoURL || '',
-            tentId: tent.id,
-            tentOwnerId: tent.ownerId,
-            tentName: tent.name,
-            tentLogoUrl: tentMedia?.[0]?.mediaUrl || '',
-            lastMessage: 'Conversa iniciada!',
-            lastMessageTimestamp: serverTimestamp()
-        }, { merge: true });
-
-        router.push(`/dashboard/chats?chatId=${chatId}`);
-
-    } catch (e: any) {
-         console.error("Error starting chat:", e);
-         const permissionError = new FirestorePermissionError({
-            path: `chats/${chatId}`,
-            operation: 'write',
-            requestResourceData: { userId: user.uid, tentId: tent.id }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
-  };
-
 
   if (loadingTent || !tent) {
     return (
@@ -236,7 +201,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       userName: user.displayName,
       tentId: tent.id,
       tentName: tent.name,
-      tentOwnerName: tent.ownerName,
+      tentOwnerName: tent.ownerName || tent.name, // Fallback to tent name
       tentLocation: tent.location,
       items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
@@ -294,12 +259,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         </div>
 
         <div className="container mx-auto max-w-7xl px-4 py-8">
-            <div className="mb-6 flex justify-end">
-                 <Link href={`/dashboard/chats`} className={cn(buttonVariants({ variant: "outline" }))}>
-                    <MessageSquare className="mr-2 h-4 w-4"/>
-                    Iniciar Conversa
-                </Link>
-            </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
                  <Tabs defaultValue="reserve" className="w-full">
