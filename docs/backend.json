@@ -1,133 +1,325 @@
-
 {
   "entities": {
-    "User": {
-      "title": "User",
-      "description": "Represents a user of the application.",
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
       "type": "object",
+      "description": "Represents a user (either customer or beach tent owner) profile.",
       "properties": {
-        "uid": { "type": "string", "description": "The unique ID of the user." },
-        "email": { "type": "string", "format": "email", "description": "The user's email address." },
-        "displayName": { "type": "string", "description": "The user's full name." },
-        "photoURL": { "type": "string", "format": "uri", "description": "URL of the user's profile picture." },
-        "cpf": { "type": "string", "description": "The user's CPF." },
-        "address": { "type": "string", "description": "The user's address." },
-        "role": { "type": "string", "enum": ["customer", "owner"], "description": "The role of the user." }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "cpf": {
+          "type": "string",
+          "description": "User's CPF (Brazilian tax identification number)."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "address": {
+          "type": "string",
+          "description": "User's address."
+        },
+        "isBeachTentOwner": {
+          "type": "boolean",
+          "description": "Indicates whether the user is a beach tent owner."
+        }
       },
-      "required": ["uid", "email", "displayName", "role", "cpf", "address"]
+      "required": [
+        "id",
+        "email",
+        "cpf",
+        "fullName",
+        "address",
+        "isBeachTentOwner"
+      ]
     },
-    "Tent": {
-      "title": "Tent",
-      "description": "Represents a beach tent business.",
+    "BeachTent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BeachTent",
       "type": "object",
+      "description": "Represents a beach tent.",
       "properties": {
-        "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
-        "name": { "type": "string" },
-        "slug": { "type": "string" },
-        "description": { "type": "string" },
-        "beachName": { "type": "string", "description": "The name of the beach where the tent is located." },
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the beach tent."
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Reference to UserProfile of the tent owner. (Relationship: UserProfile 1:N BeachTent)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the beach tent."
+        },
         "location": {
-            "type": "object",
-            "properties": {
-                "latitude": { "type": "number" },
-                "longitude": { "type": "number" }
-            },
-            "required": ["latitude", "longitude"]
+          "type": "string",
+          "description": "Geolocation coordinates of the tent."
         },
-        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "The minimum order total from the menu to waive rental fees." }
-      },
-      "required": ["ownerId", "name", "slug", "description", "beachName", "location"]
-    },
-    "TentMedia": {
-        "title": "Tent Media",
-        "description": "A media item (image or video) for a tent.",
-        "type": "object",
-        "properties": {
-            "mediaUrl": { "type": "string", "description": "URL of the media file (image or video)." },
-            "mediaHint": { "type": "string", "description": "A hint for AI processing, e.g., 'beach sunset'." },
-            "description": { "type": "string", "description": "A description of the media." },
-            "type": { "type": "string", "enum": ["image", "video"], "description": "The type of the media." }
-        },
-        "required": ["mediaUrl", "description", "mediaHint", "type"]
-    },
-    "MenuItem": {
-      "title": "Menu Item",
-      "description": "An item on a tent's menu.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "price": { "type": "number" },
-        "category": { "type": "string", "enum": ["Bebidas", "Petiscos", "Pratos Principais"] }
-      },
-      "required": ["name", "price", "category"]
-    },
-    "RentalItem": {
-        "title": "Rental Item",
-        "description": "An item available for rent at a tent.",
-        "type": "object",
-        "properties": {
-            "name": {"type": "string"},
-            "price": {"type": "number"},
-            "quantity": {"type": "number", "description": "The number of available items for rent."}
-        },
-        "required": ["name", "price", "quantity"]
-    },
-    "Reservation": {
-      "title": "Reservation",
-      "description": "Represents a user's reservation at a tent.",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "tentId": { "type": "string" },
-        "tentName": { "type": "string" },
-        "items": {
+        "photoGallery": {
           "type": "array",
+          "description": "Photo gallery of beach tent",
           "items": {
-            "type": "object",
-            "properties": {
-              "itemId": {"type": "string"},
-              "name": {"type": "string"},
-              "price": {"type": "number"},
-              "quantity": {"type": "number"}
-            },
-            "required": ["itemId", "name", "price", "quantity"]
+            "type": "string"
           }
         },
-        "total": { "type": "number" },
-        "createdAt": { "type": "object" },
-        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed"] }
+        "availableUmbrellas": {
+          "type": "number",
+          "description": "Number of available umbrellas for rent."
+        },
+        "availableChairs": {
+          "type": "number",
+          "description": "Number of available chairs for rent."
+        }
       },
-      "required": ["userId", "tentId", "tentName", "items", "total", "createdAt", "status"]
+      "required": [
+        "id",
+        "ownerId",
+        "name",
+        "location",
+        "availableUmbrellas",
+        "availableChairs"
+      ]
+    },
+    "MenuItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MenuItem",
+      "type": "object",
+      "description": "Represents an item on the beach tent's menu.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the menu item."
+        },
+        "beachTentId": {
+          "type": "string",
+          "description": "Reference to BeachTent. (Relationship: BeachTent 1:N MenuItem)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the menu item."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the menu item."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the menu item."
+        }
+      },
+      "required": [
+        "id",
+        "beachTentId",
+        "name",
+        "description",
+        "price"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order placed by a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to UserProfile of the customer who placed the order. (Relationship: UserProfile 1:N Order)"
+        },
+        "beachTentId": {
+          "type": "string",
+          "description": "Reference to BeachTent where the order was placed. (Relationship: BeachTent 1:N Order)"
+        },
+        "orderDate": {
+          "type": "string",
+          "description": "Date and time when the order was placed.",
+          "format": "date-time"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total amount of the order."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the order (e.g., pending, accepted, rejected, completed)."
+        },
+        "menuItemIds": {
+          "type": "array",
+          "description": "References to MenuItems in the order. (Relationship: MenuItem N:N Order)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "customerId",
+        "beachTentId",
+        "orderDate",
+        "totalAmount",
+        "status"
+      ]
+    },
+    "Reservation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Reservation",
+      "type": "object",
+      "description": "Represents a reservation made by a customer for tables, chairs, or kits.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the reservation."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to UserProfile of the customer who made the reservation. (Relationship: UserProfile 1:N Reservation)"
+        },
+        "beachTentId": {
+          "type": "string",
+          "description": "Reference to BeachTent where the reservation was made. (Relationship: BeachTent 1:N Reservation)"
+        },
+        "reservationDate": {
+          "type": "string",
+          "description": "Date and time for the reservation.",
+          "format": "date-time"
+        },
+        "numberOfTables": {
+          "type": "number",
+          "description": "Number of tables reserved."
+        },
+        "numberOfChairs": {
+          "type": "number",
+          "description": "Number of chairs reserved."
+        },
+        "kitType": {
+          "type": "string",
+          "description": "Type of kit reserved (if any)."
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "Total price for the reservation."
+        }
+      },
+      "required": [
+        "id",
+        "customerId",
+        "beachTentId",
+        "reservationDate"
+      ]
     }
   },
   "auth": {
-    "providers": ["email"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": { "$ref": "#/entities/User" },
-      "description": "Stores public user profile information."
-    },
-    "/tents/{tentId}": {
-        "schema": { "$ref": "#/entities/Tent" },
-        "description": "Stores information about each beach tent."
-    },
-    "/tents/{tentId}/media/{mediaId}": {
-        "schema": { "$ref": "#/entities/TentMedia" },
-        "description": "Media items for a specific tent."
-    },
-    "/tents/{tentId}/menuItems/{menuItemId}": {
-        "schema": { "$ref": "#/entities/MenuItem" },
-        "description": "Menu items for a specific tent."
-    },
-    "/tents/{tentId}/rentalItems/{rentalItemId}": {
-        "schema": { "$ref": "#/entities/RentalItem" },
-        "description": "Rental items for a specific tent."
-    },
-    "/reservations/{reservationId}": {
-        "schema": { "$ref": "#/entities/Reservation" },
-        "description": "Stores reservation data for users and tents."
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profile information. Path-based ownership ensures only the user can access their profile data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/beachTents/{beachTentId}",
+        "definition": {
+          "entityName": "BeachTent",
+          "schema": {
+            "$ref": "#/backend/entities/BeachTent"
+          },
+          "description": "Stores beach tent information.  Includes 'ownerId' which can be used in security rules to ensure that only the owner can modify the tent data.",
+          "params": [
+            {
+              "name": "beachTentId",
+              "description": "The unique identifier for the beach tent."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/beachTents/{beachTentId}/menuItems/{menuItemId}",
+        "definition": {
+          "entityName": "MenuItem",
+          "schema": {
+            "$ref": "#/backend/entities/MenuItem"
+          },
+          "description": "Stores menu items for a specific beach tent.",
+          "params": [
+            {
+              "name": "beachTentId",
+              "description": "The unique identifier for the beach tent."
+            },
+            {
+              "name": "menuItemId",
+              "description": "The unique identifier for the menu item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores orders placed by customers. Includes 'beachTentId' to associate the order with a specific tent.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (customer)."
+            },
+            {
+              "name": "orderId",
+              "description": "The unique identifier for the order."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/reservations/{reservationId}",
+        "definition": {
+          "entityName": "Reservation",
+          "schema": {
+            "$ref": "#/backend/entities/Reservation"
+          },
+          "description": "Stores reservations made by customers.  Includes 'beachTentId' to associate the reservation with a specific tent.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (customer)."
+            },
+            {
+              "name": "reservationId",
+              "description": "The unique identifier for the reservation."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support BeachPal's core features, focusing on secure data access and scalability. User profiles are stored in a dedicated collection, enabling easy management of user data and authentication. Beach tents, menu items, orders, and reservations are organized as subcollections under the respective beach tent document. This structure facilitates easy querying and management of data related to each beach tent. The real-time location tracking requirement is handled via denormalization of location data. This approach ensures that security rules can be efficiently applied without complex queries, thereby improving performance and maintainability. Additionally, all User-owned entities are placed under the `/users/{userId}` path. This guarantees ownership and simplifies security rules. The structure achieves Authorization Independence by avoiding hierarchical authorization dependencies. All authorization checks are based on the user's `uid` and roles, ensuring atomic operations and straightforward debugging. QAPs are supported by segregating data with different access needs into separate collections. The membership model ensures that collaborative data can be accessed securely."
   }
 }
