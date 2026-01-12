@@ -15,37 +15,74 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { KeyRound, Mail, Loader2 } from "lucide-react"
+import { KeyRound, Mail, Loader2, User } from "lucide-react"
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { collection, query, where, getDocs, Firestore } from "firebase/firestore"
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
+  identifier: z.string().min(1, { message: "Email ou CPF é obrigatório." }),
   password: z.string().min(1, { message: "A senha é obrigatória." }),
 })
 
+async function getEmailForCpf(db: Firestore, cpf: string): Promise<string | null> {
+    const usersRef = collection(db, 'users');
+    // Remove formatting from CPF to match stored value
+    const numericCpf = cpf.replace(/\D/g, "");
+    const q = query(usersRef, where('cpf', '==', numericCpf));
+    
+    try {
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            console.log(`Nenhum usuário encontrado com o CPF: ${numericCpf}`);
+            return null;
+        }
+        // Assuming CPF is unique, return the email of the first match
+        const userDoc = querySnapshot.docs[0];
+        return userDoc.data().email;
+    } catch (error) {
+        console.error("Erro ao buscar usuário por CPF:", error);
+        return null;
+    }
+}
+
+
 export function LoginForm() {
   const { toast } = useToast()
-  const { app } = useFirebase();
+  const { app, firestore } = useFirebase();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      identifier: "",
       password: "",
     },
   })
+  
+  const isCpf = (identifier: string) => {
+    return /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(identifier);
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!app) return;
+    if (!app || !firestore) return;
     setIsSubmitting(true);
     const auth = getAuth(app);
+    let emailToLogin = values.identifier;
+
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+        if (isCpf(values.identifier)) {
+            const foundEmail = await getEmailForCpf(firestore, values.identifier);
+            if (!foundEmail) {
+                throw new Error("auth/user-not-found");
+            }
+            emailToLogin = foundEmail;
+        }
+        
+      await signInWithEmailAndPassword(auth, emailToLogin, values.password);
       toast({
         title: "Login bem-sucedido",
         description: "Redirecionando para o seu painel...",
@@ -55,11 +92,13 @@ export function LoginForm() {
       console.error(error);
       let description = "Ocorreu um erro inesperado ao tentar fazer login.";
       
-      switch (error.code) {
+      const errorCode = error.code || error.message;
+
+      switch (errorCode) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
         case 'auth/invalid-credential':
-          description = "Credenciais inválidas. Verifique seu e-mail e senha.";
+          description = "Credenciais inválidas. Verifique seus dados e tente novamente.";
           break;
         case 'auth/too-many-requests':
           description = "Acesso bloqueado temporariamente devido a muitas tentativas. Tente novamente mais tarde.";
@@ -83,14 +122,14 @@ export function LoginForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
-          name="email"
+          name="identifier"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Email ou CPF</FormLabel>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="m@exemplo.com" {...field} className="pl-10" disabled={isSubmitting} />
+                  <Input placeholder="email@exemplo.com ou CPF" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />

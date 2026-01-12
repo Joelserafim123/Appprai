@@ -3,7 +3,9 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, User as UserIcon } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -14,13 +16,14 @@ import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { v4 as uuidv4 } from 'uuid';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, 'O endereço é obrigatório.'),
 });
 
@@ -29,15 +32,17 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore } = useFirebase();
+  const { firebaseApp, firestore, storage } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { db } = useFirebase();
   
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
-          cpf: user?.cpf || '',
           address: user?.address || '',
       }
   });
@@ -46,22 +51,51 @@ export default function SettingsPage() {
     if (user) {
       reset({
         displayName: user.displayName || '',
-        cpf: user.cpf || '',
         address: user.address || '',
       });
     }
   }, [user, reset]);
-
-  const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    value = value.replace(/\D/g, "");
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    e.target.value = value;
-    return e;
-  }, []);
   
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !storage || !db) return;
+
+    setIsUploading(true);
+
+    const fileId = uuidv4();
+    const filePath = `user-profiles/${user.uid}/${fileId}`;
+    const fileRef = storageRef(storage, filePath);
+
+    try {
+        await uploadBytes(fileRef, file);
+        const photoURL = await getDownloadURL(fileRef);
+        
+        const auth = getAuth(firebaseApp);
+        if (auth.currentUser) {
+            await updateProfile(auth.currentUser, { photoURL });
+        }
+
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, {
+            photoURL,
+            storagePath: filePath,
+        });
+
+        toast({ title: 'Foto de perfil atualizada!' });
+        refresh();
+
+    } catch (error: any) {
+        console.error("Error uploading profile picture:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro no Upload',
+            description: 'Não foi possível salvar sua nova foto de perfil.',
+        });
+    } finally {
+        setIsUploading(false);
+    }
+};
+
   const onSubmit = async (data: ProfileFormData) => {
     if (!user || !firestore || !firebaseApp) return;
     setIsSubmitting(true);
@@ -74,7 +108,6 @@ export default function SettingsPage() {
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
         address: data.address,
-        cpf: data.cpf.replace(/\D/g, ""),
       };
   
       const userDocRef = doc(firestore, "users", user.uid);
@@ -120,6 +153,8 @@ export default function SettingsPage() {
   if (!user) {
     return <p>Por favor, faça login para ver suas configurações.</p>;
   }
+  
+  const formattedCpf = user.cpf?.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 
   return (
     <div className="w-full max-w-2xl space-y-8">
@@ -133,10 +168,41 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
             <CardDescription>
-                Atualize as informações da sua conta.
+                Atualize as informações da sua conta. O CPF não pode ser alterado.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
+             <div className="flex items-center gap-6">
+                <div className="relative">
+                    <Avatar className="h-24 w-24">
+                        <AvatarImage src={user.photoURL || undefined} alt={user.displayName || "User"} />
+                        <AvatarFallback className="text-3xl">
+                            {getInitials(user.displayName)}
+                        </AvatarFallback>
+                    </Avatar>
+                     {isUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                            <Loader2 className="h-8 w-8 animate-spin text-white" />
+                        </div>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    <Button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                        <Upload className="mr-2"/>
+                        Alterar Foto
+                    </Button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="image/*"
+                        disabled={isUploading}
+                    />
+                    <p className="text-xs text-muted-foreground">JPG, GIF ou PNG. Tamanho máximo de 800K.</p>
+                </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="displayName">Nome Completo</Label>
               <Input id="displayName" {...register('displayName')} disabled={isSubmitting}/>
@@ -152,14 +218,10 @@ export default function SettingsPage() {
               <Label htmlFor="cpf">CPF</Label>
               <Input
                 id="cpf"
-                {...register('cpf', {
-                  onChange: handleCpfChange
-                })}
-                placeholder="000.000.000-00"
-                maxLength={14}
-                disabled={isSubmitting}
+                value={formattedCpf || ''}
+                disabled
+                readOnly
               />
-              {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Endereço</Label>
