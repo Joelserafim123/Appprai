@@ -94,6 +94,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     const tentData = {
       ...data,
       ownerId: user.uid,
+      ownerName: user.displayName,
       slug: generateSlug(data.name),
     };
 

@@ -8,6 +8,7 @@ export interface Tent {
   description: string;
   beachName: string;
   ownerId: string;
+  ownerName: string;
   location: {
     latitude: number;
     longitude: number;
@@ -44,7 +45,7 @@ export interface MenuItem {
 
 export interface RentalItem {
   id: string;
-  name: string;
+  name: 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional';
   price: number;
   quantity: number;
 }
@@ -63,8 +64,10 @@ export type PaymentMethod = 'card' | 'cash' | 'pix';
 export interface Reservation {
   id: string;
   userId: string;
+  userName: string;
   tentId: string;
   tentName: string;
+  tentOwnerName: string;
   tableNumber?: number;
   items: ReservationItem[];
   total: number;

@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tent } from "@/app/page";
+import type { Tent } from "@/lib/types";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

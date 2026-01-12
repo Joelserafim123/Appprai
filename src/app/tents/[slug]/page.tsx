@@ -21,7 +21,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Tent } from '@/app/page';
+import type { Tent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { TentMedia, MenuItem, RentalItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -220,8 +220,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
     const reservationData = {
       userId: user.uid,
+      userName: user.displayName,
       tentId: tent.id,
       tentName: tent.name,
+      tentOwnerName: tent.ownerName,
       items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
         name: item.name,

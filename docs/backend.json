@@ -22,6 +22,7 @@
       "type": "object",
       "properties": {
         "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
+        "ownerName": { "type": "string", "description": "The name of the user who owns the tent." },
         "name": { "type": "string" },
         "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
         "description": { "type": "string" },
@@ -36,7 +37,7 @@
         },
         "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Minimum order value to waive rental fees." }
       },
-      "required": ["ownerId", "name", "slug", "description", "beachName", "location"]
+      "required": ["ownerId", "ownerName", "name", "slug", "description", "beachName", "location"]
     },
     "TentMedia": {
       "title": "Tent Media",
@@ -80,8 +81,10 @@
       "type": "object",
       "properties": {
         "userId": { "type": "string", "description": "The UID of the customer." },
+        "userName": { "type": "string", "description": "The name of the customer." },
         "tentId": { "type": "string", "description": "The ID of the tent." },
         "tentName": { "type": "string" },
+        "tentOwnerName": { "type": "string", "description": "The name of the tent owner." },
         "tableNumber": { "type": "number", "description": "The table number assigned at check-in." },
         "items": {
           "type": "array",
@@ -101,7 +104,7 @@
         "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
         "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "How the bill was paid." }
       },
-      "required": ["userId", "tentId", "tentName", "items", "total", "createdAt", "status"]
+      "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "items", "total", "createdAt", "status"]
     },
     "Chat": {
       "title": "Chat",

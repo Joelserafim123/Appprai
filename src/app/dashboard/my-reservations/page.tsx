@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, Scan } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, Scan, User } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -94,12 +94,15 @@ export default function MyReservationsPage() {
                     <Tent className="w-5 h-5"/>
                     {reservation.tentName}
                   </CardTitle>
-                  <CardDescription>
-                    {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
+                  <CardDescription className="space-y-1 mt-1">
+                    <p className='flex items-center gap-2 text-xs'><User className="w-3 h-3"/> Por: {reservation.tentOwnerName}</p>
+                    <p>
+                        {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                        })}
+                    </p>
                   </CardDescription>
                 </div>
                  <div className='text-right'>

@@ -262,7 +262,7 @@ export default function OwnerReservationsPage() {
                     <div className='flex justify-between items-start'>
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <UserIcon className="w-5 h-5"/>
-                            Reserva
+                            Reserva de {reservation.userName}
                         </CardTitle>
                          <Badge variant={statusConfig[reservation.status].variant}>
                            {statusConfig[reservation.status].text}

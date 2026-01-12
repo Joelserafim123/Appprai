@@ -10,19 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { Logo } from '@/components/icons';
 import { useMemoFirebase } from '@/firebase/provider';
-
-export interface Tent {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  beachName: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  minimumOrderForFeeWaiver?: number;
-}
+import type { Tent as TentType } from '@/lib/types';
 
 export default function Home() {
   const { firestore } = useFirebase();
@@ -32,7 +20,7 @@ export default function Home() {
     return collection(firestore, 'tents');
   }, [firestore]);
 
-  const { data: tents, isLoading: loading } = useCollection<Tent>(tentsQuery);
+  const { data: tents, isLoading: loading } = useCollection<TentType>(tentsQuery);
 
   if (loading || !tents) {
     return (
