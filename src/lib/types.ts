@@ -71,6 +71,10 @@ export interface Reservation {
   tentId: string;
   tentName: string;
   tentOwnerName: string;
+  tentLocation: {
+    latitude: number;
+    longitude: number;
+  };
   tableNumber?: number;
   items: ReservationItem[];
   total: number;

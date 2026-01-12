@@ -85,6 +85,14 @@
         "tentId": { "type": "string", "description": "The ID of the tent." },
         "tentName": { "type": "string" },
         "tentOwnerName": { "type": "string", "description": "The name of the tent owner." },
+        "tentLocation": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          },
+          "required": ["latitude", "longitude"]
+        },
         "items": {
           "type": "array",
           "items": {
@@ -105,7 +113,7 @@
         "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"] },
         "tableNumber": { "type": "number" }
       },
-      "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "items", "total", "createdAt", "status"]
+      "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status"]
     }
   },
   "auth": {

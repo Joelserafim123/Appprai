@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X, Hourglass } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X, Hourglass, MapPin, Check } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -141,7 +141,14 @@ export default function MyReservationsPage() {
                     <p className="text-sm font-medium text-muted-foreground">Total</p>
                     <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
                 </div>
-                <div className='flex gap-2 w-full sm:w-auto justify-end'>
+                <div className='flex gap-2 w-full sm:w-auto justify-end flex-wrap'>
+                    {reservation.tentLocation && ['confirmed', 'checked-in'].includes(reservation.status) && (
+                        <Button asChild variant="outline">
+                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${reservation.tentLocation.latitude},${reservation.tentLocation.longitude}`} target="_blank" rel="noopener noreferrer">
+                                <MapPin className="mr-2 h-4 w-4"/> Como Chegar
+                            </a>
+                        </Button>
+                    )}
                     {reservation.status === 'checked-in' && (
                         <>
                             <Button asChild className='flex-1'>
@@ -155,9 +162,21 @@ export default function MyReservationsPage() {
                         </>
                     )}
                     {reservation.status === 'confirmed' && (
-                        <Button variant="destructive" onClick={() => handleCloseBill(reservation.id)}>
-                            <X className="mr-2 h-4 w-4"/> Cancelar Reserva
-                        </Button>
+                       <Button variant="destructive" onClick={() => {
+                            if (!firestore) return;
+                            if (!confirm("Tem certeza que deseja cancelar esta reserva?")) return;
+                            const resDocRef = doc(firestore, 'reservations', reservation.id);
+                            updateDoc(resDocRef, { status: 'cancelled' }).catch(err => {
+                                const permissionError = new FirestorePermissionError({
+                                    path: resDocRef.path,
+                                    operation: 'update',
+                                    requestResourceData: { status: 'cancelled' }
+                                });
+                                errorEmitter.emit('permission-error', permissionError);
+                            });
+                       }}>
+                           <X className="mr-2 h-4 w-4"/> Cancelar Reserva
+                       </Button>
                     )}
                 </div>
               </CardFooter>

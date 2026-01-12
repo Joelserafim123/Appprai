@@ -236,6 +236,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       tentId: tent.id,
       tentName: tent.name,
       tentOwnerName: tent.ownerName,
+      tentLocation: tent.location,
       items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
         name: item.name,
