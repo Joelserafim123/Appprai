@@ -12,7 +12,7 @@
         "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
         "address": { "type": "string" },
         "photoURL": { "type": "string", "format": "uri" },
-        "storagePath": { "type": "string" }
+        "role": { "type": "string", "enum": ["customer", "owner"] }
       },
       "required": ["uid", "email", "displayName", "cpf", "address", "role"]
     },
@@ -85,7 +85,6 @@
         "tentId": { "type": "string", "description": "The ID of the tent." },
         "tentName": { "type": "string" },
         "tentOwnerName": { "type": "string", "description": "The name of the tent owner." },
-        "tableNumber": { "type": "number", "description": "The table number assigned at check-in." },
         "items": {
           "type": "array",
           "items": {
@@ -101,38 +100,9 @@
         },
         "total": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
-        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "How the bill was paid." }
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed"] }
       },
       "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "items", "total", "createdAt", "status"]
-    },
-    "Chat": {
-      "title": "Chat",
-      "description": "Represents a single conversation thread between a user and a tent owner.",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "userPhotoURL": { "type": "string", "format": "uri" },
-        "tentId": { "type": "string" },
-        "tentOwnerId": { "type": "string" },
-        "tentName": { "type": "string" },
-        "tentLogoUrl": { "type": "string", "format": "uri" },
-        "lastMessage": { "type": "string" },
-        "lastMessageTimestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userId", "userName", "tentId", "tentOwnerId", "tentName", "lastMessageTimestamp"]
-    },
-    "ChatMessage": {
-      "title": "Chat Message",
-      "description": "Represents a single message within a chat.",
-      "type": "object",
-      "properties": {
-        "senderId": { "type": "string" },
-        "text": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["senderId", "text", "timestamp"]
     }
   },
   "auth": {
@@ -162,14 +132,6 @@
     "/reservations/{reservationId}": {
       "schema": { "$ref": "#/entities/Reservation" },
       "description": "Stores all reservations from all users."
-    },
-    "/chats/{chatId}": {
-        "schema": { "$ref": "#/entities/Chat" },
-        "description": "Metadata for a conversation between a user and a tent."
-    },
-    "/chats/{chatId}/messages/{messageId}": {
-        "schema": { "$ref": "#/entities/ChatMessage" },
-        "description": "Individual messages within a chat conversation."
     }
   }
 }
