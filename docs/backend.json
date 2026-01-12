@@ -95,7 +95,8 @@
         },
         "total": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed"] }
+        "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
+        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "How the bill was paid." }
       },
       "required": ["userId", "tentId", "tentName", "items", "total", "createdAt", "status"]
     },

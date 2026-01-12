@@ -47,8 +47,19 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       // Only the user who made the reservation or the owner of the corresponding tent can read it.
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
-      // Only the tent owner can update the status of a reservation.
-      allow update: if request.auth != null && get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid;
+      // Update logic is more granular now
+      allow update: if request.auth != null && (
+        // Case 1: Tent owner can update status (check-in, cancel, complete) and paymentMethod
+        (get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid) ||
+        // Case 2: User who made the reservation can update it
+        (resource.data.userId == request.auth.uid && (
+            // User can add items if status is 'checked-in'
+            (resource.data.status == 'checked-in' && request.resource.data.items.size() >= resource.data.items.size()) ||
+            // User can request payment
+            (request.resource.data.status == 'payment-pending' && resource.data.status == 'checked-in')
+          )
+        )
+      );
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
     }

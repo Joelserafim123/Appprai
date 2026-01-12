@@ -49,20 +49,27 @@ export interface RentalItem {
   quantity: number;
 }
 
+export interface ReservationItem {
+    itemId: string;
+    name: string;
+    price: number;
+    quantity: number;
+};
+
+export type ReservationStatus = 'confirmed' | 'checked-in' | 'payment-pending' | 'completed' | 'cancelled';
+export type PaymentMethod = 'card' | 'cash' | 'pix';
+
+
 export interface Reservation {
   id: string;
   userId: string;
   tentId: string;
   tentName: string;
-  items: {
-    itemId: string;
-    name: string;
-    price: number;
-    quantity: number;
-  }[];
+  items: ReservationItem[];
   total: number;
   createdAt: Timestamp;
-  status: 'confirmed' | 'cancelled' | 'completed';
+  status: ReservationStatus;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface Chat {

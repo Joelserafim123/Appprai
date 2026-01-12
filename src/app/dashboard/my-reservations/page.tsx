@@ -4,33 +4,32 @@
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
+import type { Reservation, ReservationStatus } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
-type ReservationItem = {
-  name: string;
-  quantity: number;
-  price: number;
-};
 
-type Reservation = {
-  id: string;
-  tentName: string;
-  total: number;
-  createdAt: Timestamp;
-  status: 'confirmed' | 'cancelled' | 'completed';
-  items: ReservationItem[];
+const statusText: Record<ReservationStatus, string> = {
+  'confirmed': 'Confirmada',
+  'checked-in': 'Check-in Feito',
+  'payment-pending': 'Pagamento Pendente',
+  'completed': 'Completa',
+  'cancelled': 'Cancelada'
 };
 
 export default function MyReservationsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
+  const { toast } = useToast();
 
   const reservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -46,6 +45,20 @@ export default function MyReservationsPage() {
     if (!reservations) return [];
     return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
   }, [reservations]);
+  
+  const handleCloseBill = (reservationId: string) => {
+    if (!firestore || !confirm("Tem certeza que deseja fechar a conta? Você não poderá adicionar mais itens.")) return;
+    const docRef = doc(firestore, 'reservations', reservationId);
+    updateDoc(docRef, { status: 'payment-pending' })
+    .catch(e => {
+       const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: { status: 'payment-pending' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    })
+  }
 
   if (isUserLoading || (reservationsLoading && !reservations)) {
     return (
@@ -89,9 +102,7 @@ export default function MyReservationsPage() {
                   </CardDescription>
                 </div>
                  <Badge variant={reservation.status === 'confirmed' ? 'default' : reservation.status === 'completed' ? 'secondary' : 'destructive'}>
-                    {reservation.status === 'confirmed' && 'Confirmada'}
-                    {reservation.status === 'cancelled' && 'Cancelada'}
-                    {reservation.status === 'completed' && 'Completa'}
+                    {statusText[reservation.status]}
                 </Badge>
               </CardHeader>
               <CardContent>
@@ -104,11 +115,23 @@ export default function MyReservationsPage() {
                     ))}
                 </ul>
               </CardContent>
-              <CardFooter className="flex justify-end font-bold text-lg">
-                <div className="text-right">
+              <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                 <div className="text-right w-full sm:w-auto">
                     <p className="text-sm font-medium text-muted-foreground">Total</p>
-                    <p>R$ {reservation.total.toFixed(2)}</p>
+                    <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
                 </div>
+                {reservation.status === 'checked-in' && (
+                    <div className='flex gap-2 w-full sm:w-auto'>
+                        <Button asChild className='flex-1'>
+                             <Link href={`/dashboard/order/${reservation.id}`}>
+                                <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
+                            </Link>
+                        </Button>
+                         <Button onClick={() => handleCloseBill(reservation.id)} variant="secondary" className='flex-1'>
+                            <CreditCard className="mr-2 h-4 w-4"/> Fechar Conta
+                        </Button>
+                    </div>
+                )}
               </CardFooter>
             </Card>
           ))}

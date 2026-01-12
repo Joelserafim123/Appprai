@@ -211,26 +211,23 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       status: 'confirmed',
     };
 
-    try {
-      const reservationsColRef = collection(firestore, 'reservations');
-      await addDoc(reservationsColRef, reservationData);
-
-      toast({
-        title: "Pedido Confirmado!",
-        description: `Seu pedido na ${tent.name} foi criado com sucesso.`,
-      });
-      router.push('/dashboard/my-reservations');
-
-    } catch (error) {
+    const reservationsColRef = collection(firestore, 'reservations');
+    addDoc(reservationsColRef, reservationData).then(() => {
+        toast({
+            title: "Reserva Confirmada!",
+            description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
+        });
+        router.push('/dashboard/my-reservations');
+    }).catch(error => {
         const permissionError = new FirestorePermissionError({
-            path: `reservations`,
+            path: reservationsColRef.path,
             operation: 'create',
             requestResourceData: reservationData,
         });
         errorEmitter.emit('permission-error', permissionError);
-    } finally {
+    }).finally(() => {
         setIsSubmitting(false);
-    }
+    });
   };
 
 
@@ -402,8 +399,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             <div className="lg:col-span-1">
                 <Card className="sticky top-24">
                     <CardHeader>
-                        <CardTitle>Seu Pedido</CardTitle>
-                        <CardDescription>Revise seus itens antes de finalizar.</CardDescription>
+                        <CardTitle>Sua Reserva Inicial</CardTitle>
+                        <CardDescription>Revise seus itens antes de fazer a reserva.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {isCartEmpty ? (
@@ -442,7 +439,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                             <p className="text-2xl font-bold">R$ {finalTotal.toFixed(2)}</p>
                         </div>
                         <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={isCartEmpty || isSubmitting}>
-                           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Finalizar Pedido'}
+                           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
                         </Button>
                     </CardFooter>
                 </Card>

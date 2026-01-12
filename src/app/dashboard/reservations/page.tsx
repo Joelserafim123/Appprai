@@ -1,35 +1,95 @@
+
 'use client';
 
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, orderBy, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useMemoFirebase } from '@/firebase/provider';
+import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
-type ReservationItem = {
-  name: string;
-  quantity: number;
-  price: number;
+const statusText: Record<ReservationStatus, string> = {
+  'confirmed': 'Confirmada',
+  'checked-in': 'Check-in Feito',
+  'payment-pending': 'Pagamento Pendente',
+  'completed': 'Completa',
+  'cancelled': 'Cancelada'
 };
 
-type Reservation = {
-  id: string;
-  tentId: string;
-  tentName: string;
-  userId: string;
-  total: number;
-  createdAt: Timestamp;
-  status: 'confirmed' | 'cancelled' | 'completed';
-  items: ReservationItem[];
-};
+function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
+    const { firestore } = useFirebase();
+    const { toast } = useToast();
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleConfirmPayment = () => {
+        if (!firestore || !paymentMethod) {
+            toast({ variant: 'destructive', title: 'Selecione um método de pagamento.'});
+            return;
+        };
+
+        setIsSubmitting(true);
+        const docRef = doc(firestore, 'reservations', reservation.id);
+        
+        updateDoc(docRef, { status: 'completed', paymentMethod })
+            .then(() => {
+                toast({ title: 'Pagamento Confirmado!' });
+                onFinished();
+            })
+            .catch(e => {
+                const permissionError = new FirestorePermissionError({
+                    path: docRef.path,
+                    operation: 'update',
+                    requestResourceData: { status: 'completed', paymentMethod },
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            })
+            .finally(() => setIsSubmitting(false));
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirmar Pagamento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <p>Confirme o recebimento do valor de <span className="font-bold">R$ {reservation.total.toFixed(2)}</span> e selecione o método de pagamento utilizado pelo cliente.</p>
+                <RadioGroup onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} value={paymentMethod ?? undefined}>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="card" id="card" />
+                        <Label htmlFor="card">Cartão</Label>
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="pix" id="pix" />
+                        <Label htmlFor="pix">PIX</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="cash" id="cash" />
+                        <Label htmlFor="cash">Dinheiro</Label>
+                    </div>
+                </RadioGroup>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                <Button onClick={handleConfirmPayment} disabled={!paymentMethod || isSubmitting}>
+                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar'}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
+
 
 export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
@@ -37,6 +97,7 @@ export default function OwnerReservationsPage() {
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
 
   useEffect(() => {
      if (isUserLoading) {
@@ -76,7 +137,7 @@ export default function OwnerReservationsPage() {
   }, [reservations]);
 
 
-  const handleUpdateStatus = (reservationId: string, status: 'confirmed' | 'cancelled' | 'completed') => {
+  const handleUpdateStatus = (reservationId: string, status: 'checked-in' | 'cancelled' ) => {
     if (!firestore) return;
     const resDocRef = doc(firestore, 'reservations', reservationId);
     
@@ -91,7 +152,6 @@ export default function OwnerReservationsPage() {
           requestResourceData: { status },
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: 'Erro ao atualizar status.' });
       });
   };
 
@@ -121,69 +181,84 @@ export default function OwnerReservationsPage() {
 
 
   return (
-    <div className="w-full max-w-6xl">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
-        <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
-      </header>
+    <Dialog open={!!selectedReservation} onOpenChange={(open) => !open && setSelectedReservation(null)}>
+        <div className="w-full max-w-6xl">
+        <header className="mb-8">
+            <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
+            <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
+        </header>
 
-      {sortedReservations && sortedReservations.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {sortedReservations.map((reservation) => (
-            <Card key={reservation.id}>
-              <CardHeader>
-                <div className='flex justify-between items-start'>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <UserIcon className="w-5 h-5"/>
-                        Reserva
-                    </CardTitle>
-                    <Badge variant={reservation.status === 'confirmed' ? 'default' : reservation.status === 'completed' ? 'secondary' : 'destructive'}>
-                        {reservation.status === 'confirmed' && 'Confirmada'}
-                        {reservation.status === 'cancelled' && 'Cancelada'}
-                        {reservation.status === 'completed' && 'Completa'}
-                    </Badge>
-                </div>
-                <CardDescription className='space-y-1 pt-2'>
-                    <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> ID: {reservation.id.substring(0, 8)}</p>
-                    <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
-                    {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
-                      day: '2-digit', month: 'long', year: 'numeric',
-                    })}
-                    </p>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                    {reservation.items.map((item, index) => (
-                        <li key={`${item.name}-${index}`} className="flex justify-between">
-                            <span>{item.quantity}x {item.name}</span>
-                            <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                        </li>
-                    ))}
-                </ul>
-                <div className="mt-4 pt-4 border-t text-right">
-                    <p className="text-sm font-medium text-muted-foreground">Total</p>
-                    <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
-                </div>
-              </CardContent>
-              <CardFooter className="flex-col gap-2">
-                 <p className="text-xs text-muted-foreground w-full text-left">Atualizar Status:</p>
-                 <div className="grid grid-cols-3 gap-2 w-full">
-                    <Button size="sm" variant={reservation.status === 'confirmed' ? 'default' : 'outline'} onClick={() => handleUpdateStatus(reservation.id, 'confirmed')}>Confirmar</Button>
-                    <Button size="sm" variant={reservation.status === 'completed' ? 'secondary' : 'outline'} onClick={() => handleUpdateStatus(reservation.id, 'completed')}>Completar</Button>
-                    <Button size="sm" variant={reservation.status === 'cancelled' ? 'destructive' : 'outline'} onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>Cancelar</Button>
-                 </div>
-              </CardFooter>
-            </Card>
-          ))}
+        {sortedReservations && sortedReservations.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {sortedReservations.map((reservation) => (
+                <Card key={reservation.id} className="flex flex-col">
+                <CardHeader>
+                    <div className='flex justify-between items-start'>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <UserIcon className="w-5 h-5"/>
+                            Reserva
+                        </CardTitle>
+                        <Badge variant={reservation.status === 'confirmed' || reservation.status === 'checked-in' ? 'default' : reservation.status === 'completed' ? 'secondary' : 'destructive'}>
+                           {statusText[reservation.status]}
+                        </Badge>
+                    </div>
+                    <CardDescription className='space-y-1 pt-2'>
+                        <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> ID: {reservation.id.substring(0, 8)}</p>
+                        <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
+                        {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
+                        day: '2-digit', month: 'long', year: 'numeric',
+                        })}
+                        </p>
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1">
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                        {reservation.items.map((item, index) => (
+                            <li key={`${item.name}-${index}`} className="flex justify-between">
+                                <span>{item.quantity}x {item.name}</span>
+                                <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="mt-4 pt-4 border-t text-right">
+                        <p className="text-sm font-medium text-muted-foreground">Total</p>
+                        <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex-col gap-2">
+                    {reservation.status === 'confirmed' && (
+                        <div className="grid grid-cols-2 gap-2 w-full">
+                            <Button size="sm" onClick={() => handleUpdateStatus(reservation.id, 'checked-in')}>
+                                <Check className="mr-2 h-4 w-4" /> Fazer Check-in
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
+                                <X className="mr-2 h-4 w-4" /> Cancelar
+                            </Button>
+                        </div>
+                    )}
+                    {reservation.status === 'checked-in' && (
+                         <Button size="sm" variant="destructive" className="w-full" onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
+                            <X className="mr-2 h-4 w-4" /> Cancelar Pedido
+                        </Button>
+                    )}
+                     {reservation.status === 'payment-pending' && (
+                        <Button className="w-full" onClick={() => setSelectedReservation(reservation)}>
+                             <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
+                        </Button>
+                    )}
+                </CardFooter>
+                </Card>
+            ))}
+            </div>
+        ) : (
+            <div className="rounded-lg border-2 border-dashed py-16 text-center">
+                <Star className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Sua barraca ainda não recebeu nenhuma reserva.</p>
+            </div>
+        )}
         </div>
-      ) : (
-        <div className="rounded-lg border-2 border-dashed py-16 text-center">
-            <Star className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
-            <p className="mt-2 text-sm text-muted-foreground">Sua barraca ainda não recebeu nenhuma reserva.</p>
-        </div>
-      )}
-    </div>
+        {selectedReservation && <PaymentDialog reservation={selectedReservation} onFinished={() => setSelectedReservation(null)} />}
+    </Dialog>
   );
 }
