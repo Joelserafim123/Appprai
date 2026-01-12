@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -37,11 +37,9 @@ export default function SettingsPage() {
   const { firebaseApp, firestore: db, storage } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
-
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
@@ -59,7 +57,6 @@ export default function SettingsPage() {
         cpf: user.cpf || '',
         address: user.address || '',
       });
-       setPhotoPreview(user.photoURL);
     }
   }, [user, reset]);
 
@@ -73,61 +70,78 @@ export default function SettingsPage() {
     return e;
   }, []);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      setNewPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file || !user || !firebaseApp || !db || !storage) return;
+
+    setIsUploadingPhoto(true);
+
+    try {
+      const auth = getAuth(firebaseApp);
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Usuário não autenticado.");
+
+      // If there's an old photo, delete it from storage
+      if(user.storagePath) {
+          const oldFileRef = storageRef(storage, user.storagePath);
+          try {
+            await deleteObject(oldFileRef);
+          } catch(deleteError: any) {
+              // Ignore not found errors, but log others
+              if (deleteError.code !== 'storage/object-not-found') {
+                console.warn("Não foi possível apagar a foto antiga:", deleteError);
+              }
+          }
+      }
+
+      const fileId = uuidv4();
+      const newStoragePath = `users/${user.uid}/profile/${fileId}`;
+      const fileRef = storageRef(storage, newStoragePath);
+      
+      // 1. Upload new photo
+      await uploadBytes(fileRef, file);
+      const photoURL = await getDownloadURL(fileRef);
+
+      // 2. Update Auth profile
+      await updateProfile(currentUser, { photoURL });
+
+      // 3. Update storagePath in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, { 
+          storagePath: newStoragePath,
+          photoURL: photoURL
+      });
+      
+      toast({
+        title: 'Foto de Perfil Atualizada!',
+        description: 'Sua nova foto foi salva com sucesso.',
+      });
+
+      refresh(); // Re-fetch user data to update UI
+
+    } catch(error) {
+       console.error("Erro ao atualizar foto de perfil:", error);
+       toast({
+          variant: 'destructive',
+          title: 'Erro no Upload',
+          description: 'Não foi possível salvar sua nova foto de perfil.',
+       });
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
   
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firebaseApp || !db || !storage) return;
+    if (!user || !db) return;
     setIsSubmitting(true);
 
-    const auth = getAuth(firebaseApp);
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-        setIsSubmitting(false);
-        return;
-    }
-    
     try {
-        let photoURL = user.photoURL;
-        let storagePath = user.storagePath;
-
-        // 1. Upload new photo if it exists
-        if (newPhotoFile) {
-            const fileId = uuidv4();
-            storagePath = `users/${user.uid}/profile/${fileId}`;
-            const fileRef = storageRef(storage, storagePath);
-            await uploadBytes(fileRef, newPhotoFile);
-            photoURL = await getDownloadURL(fileRef);
-        }
-        
-        // 2. Prepare data for Auth and Firestore
-        const authProfileUpdate: { displayName: string, photoURL?: string } = {
-            displayName: data.displayName,
-        };
-        if (photoURL) {
-            authProfileUpdate.photoURL = photoURL;
-        }
-
         const firestoreData: {[key: string]: any} = {
             displayName: data.displayName,
             address: data.address,
             cpf: data.cpf.replace(/\D/g, ""),
-            storagePath: storagePath, // Save storage path for future management
         };
-        
-        // 3. Update Auth profile
-        await updateProfile(currentUser, authProfileUpdate);
       
-        // 4. Update Firestore document
         const userDocRef = doc(db, "users", user.uid);
         await updateDoc(userDocRef, firestoreData);
       
@@ -136,8 +150,7 @@ export default function SettingsPage() {
             description: 'Suas informações foram salvas com sucesso.',
         });
 
-        setNewPhotoFile(null);
-        refresh(); // This will re-fetch the user data including the new photoURL from Auth
+        refresh(); 
 
     } catch(error: any) {
         console.error("Error updating profile:", error);
@@ -179,20 +192,20 @@ export default function SettingsPage() {
                 
                 <div className="relative group">
                     <Avatar className="h-24 w-24">
-                        <AvatarImage src={photoPreview ?? undefined} alt={user.displayName ?? ''} />
+                        <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ''} />
                         <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                     </Avatar>
                      <button 
                         type="button" 
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isUploadingPhoto}
                         className={cn(
                           "absolute inset-0 bg-black/50 flex items-center justify-center rounded-full text-white",
                           "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                         )}
                         aria-label="Alterar foto de perfil"
                     >
-                       <Camera className="w-8 h-8" />
+                       {isUploadingPhoto ? <Loader2 className="w-8 h-8 animate-spin" /> : <Camera className="w-8 h-8" />}
                     </button>
                     <Input
                         id="profile-picture"
@@ -201,14 +214,14 @@ export default function SettingsPage() {
                         onChange={handleFileChange}
                         className="hidden"
                         accept="image/png, image/jpeg"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isUploadingPhoto}
                     />
                 </div>
 
                 <div className="space-y-1">
                     <CardTitle>Meu Perfil</CardTitle>
                     <CardDescription>
-                      Estas são as informações associadas à sua conta.
+                      Clique na sua foto para alterá-la.
                     </CardDescription>
                 </div>
             </div>
