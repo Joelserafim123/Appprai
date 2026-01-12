@@ -302,7 +302,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                  <Tabs defaultValue="reserve" className="w-full">
                     <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
                         <TabsTrigger value="reserve">Aluguel</TabsTrigger>
-                        <TabsTrigger value="menu" disabled={!hasRentalKitInCart}>Cardápio</TabsTrigger>
+                        <TabsTrigger value="menu">Cardápio</TabsTrigger>
                         <TabsTrigger value="gallery">Galeria</TabsTrigger>
                     </TabsList>
                      <TabsContent value="menu" className="mt-6">
