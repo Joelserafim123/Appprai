@@ -125,7 +125,7 @@ export default function SettingsPage() {
         description: 'Suas informações foram salvas com sucesso.',
       });
 
-      if(refresh) refresh();
+      refresh(); // Use the refresh function from the hook
 
     } catch(error: any) {
       console.error("Error updating profile:", error);

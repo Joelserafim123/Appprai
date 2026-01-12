@@ -4,6 +4,7 @@ import React, { DependencyList, createContext, useContext, ReactNode, useMemo, u
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface UserData extends User {
     [key: string]: any;
@@ -23,22 +24,19 @@ interface UserAuthState {
 }
 
 export interface FirebaseContextState {
-  firebaseApp: FirebaseApp | null;
-  firestore: Firestore | null;
-  auth: Auth | null;
-  user: UserData | null;
-  isUserLoading: boolean;
-  userError: Error | null;
+  firebaseApp: FirebaseApp;
+  firestore: Firestore;
+  auth: Auth;
 }
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-export const useFirebase = (): FirebaseContextState => {
+export const useFirebase = (): FirebaseContextState & { db: Firestore } => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
-  return context;
+  return { ...context, db: context.firestore };
 };
 
 export const useAuth = (): Auth => {
@@ -63,22 +61,29 @@ const UserContext = createContext<UserAuthState | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { auth, firestore } = useFirebase();
-  const [userState, setUserState] = useState<UserAuthState>({
+  const [userState, setUserState] = useState<Omit<UserAuthState, 'refresh'>>({
     user: null,
     isUserLoading: true,
     userError: null,
-    refresh: () => {},
   });
 
   const fetchExtraData = useCallback(async (firebaseUser: User) => {
-    if (firestore) {
-      const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-      const userDoc = await getDoc(userDocRef);
-      if (userDoc.exists()) {
-        return { ...firebaseUser, ...userDoc.data() };
-      }
+    if (!firestore) return firebaseUser; // Return base user if firestore is not available
+    try {
+        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+            return { ...firebaseUser, ...userDoc.data() };
+        }
+        // If doc doesn't exist, maybe it's still being created.
+        // Return the base user and let a refresh handle it later.
+        return firebaseUser; 
+    } catch (error) {
+        console.error("Error fetching user data from Firestore:", error);
+        // In case of error, still return the base auth user
+        // so the app doesn't think the user is logged out.
+        return firebaseUser;
     }
-    return firebaseUser;
   }, [firestore]);
   
   const refresh = useCallback(async () => {
@@ -91,24 +96,25 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     if (!auth) {
-      setUserState({ user: null, isUserLoading: false, userError: new Error("Auth service not available."), refresh: () => {} });
+      setUserState({ user: null, isUserLoading: false, userError: new Error("Auth service not available.") });
       return;
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUserState({ user: null, isUserLoading: true, userError: null });
       if (firebaseUser) {
-        setUserState(s => ({ ...s, isUserLoading: true }));
         const userData = await fetchExtraData(firebaseUser);
-        setUserState({ user: userData, isUserLoading: false, userError: null, refresh });
+        setUserState({ user: userData, isUserLoading: false, userError: null });
       } else {
-        setUserState({ user: null, isUserLoading: false, userError: null, refresh });
+        setUserState({ user: null, isUserLoading: false, userError: null });
       }
     }, (error) => {
-      setUserState({ user: null, isUserLoading: false, userError: error, refresh });
+      console.error("Auth state change error:", error);
+      setUserState({ user: null, isUserLoading: false, userError: error });
     });
 
     return () => unsubscribe();
-  }, [auth, fetchExtraData, refresh]);
+  }, [auth, fetchExtraData]);
 
   const providerValue = useMemo(() => ({ ...userState, refresh }), [userState, refresh]);
 
@@ -139,9 +145,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     firebaseApp,
     firestore,
     auth,
-    user: null, // User state will be managed by UserProvider
-    isUserLoading: true,
-    userError: null,
   }), [firebaseApp, firestore, auth]);
 
   return (
