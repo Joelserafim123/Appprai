@@ -93,14 +93,17 @@
               "itemId": { "type": "string" },
               "name": { "type": "string" },
               "price": { "type": "number" },
-              "quantity": { "type": "number" }
+              "quantity": { "type": "number" },
+              "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled"] }
             },
-            "required": ["itemId", "name", "price", "quantity"]
+            "required": ["itemId", "name", "price", "quantity", "status"]
           }
         },
         "total": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"] }
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"] },
+        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"] },
+        "tableNumber": { "type": "number" }
       },
       "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "items", "total", "createdAt", "status"]
     }

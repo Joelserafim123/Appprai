@@ -7,12 +7,12 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X, Hourglass } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
-import type { Reservation, ReservationStatus } from '@/lib/types';
+import type { Reservation, ReservationStatus, ReservationItemStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -26,6 +26,12 @@ const statusConfig: Record<ReservationStatus, { text: string; variant: "default"
   'completed': { text: 'Completa', variant: 'secondary' },
   'cancelled': { text: 'Cancelada', variant: 'destructive' }
 };
+
+const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
+  'pending': { text: 'Pendente', color: 'text-amber-600', icon: Hourglass },
+  'confirmed': { text: 'Confirmado', color: 'text-green-600', icon: Check },
+  'cancelled': { text: 'Cancelado', color: 'text-red-600', icon: X },
+}
 
 export default function MyReservationsPage() {
   const { user, isUserLoading } = useUser();
@@ -116,12 +122,18 @@ export default function MyReservationsPage() {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                    {reservation.items.map((item, index) => (
-                        <li key={`${item.name}-${index}`} className="flex justify-between">
-                            <span>{item.quantity}x {item.name}</span>
+                    {reservation.items.map((item, index) => {
+                      const StatusIcon = item.status ? itemStatusConfig[item.status]?.icon : null;
+                      return (
+                        <li key={`${item.name}-${index}`} className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              {StatusIcon && <StatusIcon className={cn("w-3 h-3", item.status ? itemStatusConfig[item.status].color : '')}/>}
+                              <span>{item.quantity}x {item.name}</span>
+                            </div>
                             <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                         </li>
-                    ))}
+                      )
+                    })}
                 </ul>
               </CardContent>
               <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -141,6 +153,11 @@ export default function MyReservationsPage() {
                                 <CreditCard className="mr-2 h-4 w-4"/> Fechar Conta
                             </Button>
                         </>
+                    )}
+                    {reservation.status === 'confirmed' && (
+                        <Button variant="destructive" onClick={() => handleCloseBill(reservation.id)}>
+                            <X className="mr-2 h-4 w-4"/> Cancelar Reserva
+                        </Button>
                     )}
                 </div>
               </CardFooter>

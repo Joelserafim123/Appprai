@@ -50,11 +50,14 @@ export interface RentalItem {
   quantity: number;
 }
 
+export type ReservationItemStatus = 'pending' | 'confirmed' | 'cancelled';
+
 export interface ReservationItem {
     itemId: string;
     name: string;
     price: number;
     quantity: number;
+    status: ReservationItemStatus;
 };
 
 export type ReservationStatus = 'confirmed' | 'checked-in' | 'payment-pending' | 'completed' | 'cancelled';

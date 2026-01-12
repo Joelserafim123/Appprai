@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -23,7 +22,7 @@ import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import type { Tent } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import type { TentMedia, MenuItem, RentalItem } from '@/lib/types';
+import type { TentMedia, MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
 
 
@@ -63,10 +62,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
 
           // Fetch owner's name from users collection
-          const userDocRef = doc(firestore, 'users', tentData.ownerId);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-             tentData.ownerName = userDoc.data().displayName;
+          if (firestore) {
+              const userDocRef = doc(firestore, 'users', tentData.ownerId);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                 tentData.ownerName = userDoc.data().displayName;
+              }
           }
 
           setTent(tentData);
@@ -240,7 +241,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         name: item.name,
         price: item.price,
         quantity: quantity,
-      })),
+        status: 'confirmed', // All initial items are confirmed
+      } as ReservationItem)),
       total: finalTotal,
       createdAt: serverTimestamp(),
       status: 'confirmed',

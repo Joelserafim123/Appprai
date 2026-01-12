@@ -55,13 +55,14 @@ service cloud.firestore {
       // Update rules are now more granular.
       allow update: if request.auth != null && (
         // Case 1: Tent owner can update status, paymentMethod, tableNumber, or cancel.
+        // Also, owner can update the status of individual items.
         (
           get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
         ) ||
-        // Case 2: Customer who made the reservation can add items or request payment.
+        // Case 2: Customer who made the reservation can add items (new items are 'pending') or request payment.
         (
           resource.data.userId == request.auth.uid &&
-          (request.resource.data.status == 'payment-pending' || request.resource.data.size() > resource.data.size())
+          (request.resource.data.status == 'payment-pending' || request.resource.data.items.size() > resource.data.items.size())
         )
       );
 

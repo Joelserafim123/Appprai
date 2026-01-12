@@ -116,24 +116,23 @@ export default function OrderPage() {
             name: item.name,
             price: item.price,
             quantity: quantity,
+            status: 'pending', // Items added later are pending
         }));
     
-        const newTotal = reservation.total + newItemsTotal;
-    
+        // Only add items, total is updated by owner upon confirmation
         updateDoc(reservationRef, {
-            items: arrayUnion(...newItems),
-            total: newTotal
+            items: arrayUnion(...newItems)
         }).then(() => {
             toast({
-                title: "Itens Adicionados!",
-                description: `Seu pedido foi atualizado com sucesso.`,
+                title: "Pedido Enviado!",
+                description: `Sua solicitação foi enviada para a barraca. Aguarde a confirmação.`,
             });
             router.push('/dashboard/my-reservations');
         }).catch(error => {
             const permissionError = new FirestorePermissionError({
                 path: reservationRef.path,
                 operation: 'update',
-                requestResourceData: { items: newItems, total: newTotal },
+                requestResourceData: { items: newItems },
             });
             errorEmitter.emit('permission-error', permissionError);
         }).finally(() => {
@@ -158,7 +157,7 @@ export default function OrderPage() {
                      <Card>
                         <CardHeader>
                             <CardTitle>Cardápio</CardTitle>
-                            <CardDescription>Selecione os itens para adicionar ao seu pedido.</CardDescription>
+                            <CardDescription>Selecione os itens para adicionar ao seu pedido. Eles serão confirmados pelo barraqueiro.</CardDescription>
                         </CardHeader>
                         <CardContent>
                         {loadingMenu ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : (
@@ -213,11 +212,11 @@ export default function OrderPage() {
                         </CardContent>
                         <CardFooter className="flex-col items-stretch gap-4">
                             <div className="flex justify-between items-baseline border-t pt-4">
-                                <p className="text-sm text-muted-foreground">Subtotal</p>
+                                <p className="text-sm text-muted-foreground">Subtotal (pendente)</p>
                                 <p className="text-2xl font-bold">R$ {newItemsTotal.toFixed(2)}</p>
                             </div>
                             <Button size="lg" className="w-full" onClick={handleAddItemsToReservation} disabled={isCartEmpty || isSubmitting}>
-                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Adicionar ao Pedido'}
+                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Enviar Pedido para Confirmação'}
                             </Button>
                         </CardFooter>
                     </Card>
