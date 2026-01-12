@@ -145,6 +145,12 @@ export default function SettingsPage() {
         const userDocRef = doc(db, "users", user.uid);
         await updateDoc(userDocRef, firestoreData);
       
+        // Update auth profile as well if name changed
+        const auth = getAuth(firebaseApp);
+        if(auth.currentUser && auth.currentUser.displayName !== data.displayName) {
+            await updateProfile(auth.currentUser, { displayName: data.displayName });
+        }
+
         toast({
             title: 'Perfil Atualizado!',
             description: 'Suas informações foram salvas com sucesso.',
@@ -221,7 +227,7 @@ export default function SettingsPage() {
                 <div className="space-y-1">
                     <CardTitle>Meu Perfil</CardTitle>
                     <CardDescription>
-                      Clique na sua foto para alterá-la.
+                      Clique na sua foto para alterá-la. A foto é salva automaticamente.
                     </CardDescription>
                 </div>
             </div>
