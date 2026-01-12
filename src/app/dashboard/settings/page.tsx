@@ -231,7 +231,7 @@ export default function SettingsPage() {
                         ref={fileInputRef}
                         onChange={handleFileChange}
                         className="hidden"
-                        accept="image/png, image/jpeg"
+                        accept="image/*"
                         disabled={isSubmitting || isUploadingPhoto}
                     />
                 </div>

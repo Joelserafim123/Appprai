@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -278,7 +279,7 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="media">Arquivo de Mídia</Label>
-                <Input id="media" type="file" accept="image/png, image/jpeg, image/gif, video/mp4, video/quicktime" {...register('media')} />
+                <Input id="media" type="file" accept="image/*,video/*" {...register('media')} />
                  {previewUrl && (
                     <div className="mt-2 relative aspect-video w-full overflow-hidden rounded-md">
                         {isVideo ? (
@@ -420,10 +421,12 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        const tentDocRef = doc(firestore, 'tents', user.uid);
-        const docSnap = await getDoc(tentDocRef);
+        const tentsRef = collection(firestore, 'tents');
+        const q = query(tentsRef, where('ownerId', '==', user.uid));
+        const querySnapshot = await getDocs(q);
         
-        if (docSnap.exists()) {
+        if (!querySnapshot.empty) {
+            const docSnap = querySnapshot.docs[0];
             const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
             setTent(tentData);
         } else {
