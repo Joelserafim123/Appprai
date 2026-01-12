@@ -132,42 +132,54 @@ export default function SettingsPage() {
   };
   
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !db) return;
+    if (!user || !db || !firebaseApp) return;
     setIsSubmitting(true);
-
+  
     try {
-        const firestoreData: {[key: string]: any} = {
-            displayName: data.displayName,
-            address: data.address,
-            cpf: data.cpf.replace(/\D/g, ""),
-        };
+      const auth = getAuth(firebaseApp);
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("User not authenticated.");
+  
+      const firestoreData: { [key: string]: any } = {
+        displayName: data.displayName,
+        address: data.address,
+        cpf: data.cpf.replace(/\D/g, ""),
+      };
+  
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, firestoreData);
+  
+      const authProfileUpdate: { displayName?: string; photoURL?: string } = {};
+      if (currentUser.displayName !== data.displayName) {
+        authProfileUpdate.displayName = data.displayName;
+      }
       
-        const userDocRef = doc(db, "users", user.uid);
-        await updateDoc(userDocRef, firestoreData);
-      
-        // Update auth profile as well if name changed
-        const auth = getAuth(firebaseApp);
-        if(auth.currentUser && auth.currentUser.displayName !== data.displayName) {
-            await updateProfile(auth.currentUser, { displayName: data.displayName });
-        }
-
-        toast({
-            title: 'Perfil Atualizado!',
-            description: 'Suas informações foram salvas com sucesso.',
-        });
-
-        refresh(); 
-
-    } catch(error: any) {
-        console.error("Error updating profile:", error);
-        const permissionError = new FirestorePermissionError({
-            path: `users/${user.uid}`,
-            operation: 'update',
-            requestResourceData: { displayName: data.displayName },
-        });
-        errorEmitter.emit('permission-error', permissionError);
+      // This part ensures we don't accidentally wipe the photoURL
+      if (currentUser.photoURL) {
+          authProfileUpdate.photoURL = currentUser.photoURL;
+      }
+  
+      if (Object.keys(authProfileUpdate).length > 0) {
+        await updateProfile(currentUser, authProfileUpdate);
+      }
+  
+      toast({
+        title: 'Perfil Atualizado!',
+        description: 'Suas informações foram salvas com sucesso.',
+      });
+  
+      refresh();
+  
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      const permissionError = new FirestorePermissionError({
+        path: `users/${user.uid}`,
+        operation: 'update',
+        requestResourceData: { displayName: data.displayName },
+      });
+      errorEmitter.emit('permission-error', permissionError);
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -198,7 +210,7 @@ export default function SettingsPage() {
                 
                 <div className="relative group">
                     <Avatar className="h-24 w-24">
-                        <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ''} />
+                        <AvatarImage src={user.photoURL || `https://picsum.photos/seed/person-avatar/200`} alt={user.displayName ?? ''} />
                         <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                     </Avatar>
                      <button 
