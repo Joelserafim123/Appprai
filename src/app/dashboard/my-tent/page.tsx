@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, CheckCircle2 } from 'lucide-react';
@@ -385,11 +385,10 @@ export default function MyTentPage() {
     try {
         // A barraca do dono tem o ID igual ao UID do dono.
         const docRef = doc(firestore, 'tents', user.uid);
-        const docSnap = await getDocs(query(collection(firestore, 'tents'), where('ownerId', '==', user.uid)));
+        const docSnap = await getDoc(docRef);
         
-        if (!docSnap.empty) {
-            const tentDoc = docSnap.docs[0];
-            const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
+        if (docSnap.exists()) {
+            const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
             setTent(tentData);
         } else {
             setTent(null);
