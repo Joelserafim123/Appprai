@@ -23,6 +23,7 @@ export default function ChatsPage() {
   // Se o usuário for um dono, busca o ID da sua barraca
   useEffect(() => {
     if (db && user?.role === 'owner') {
+      setLoadingTentId(true);
       const getTentId = async () => {
         const tentsRef = collection(db, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
@@ -40,11 +41,10 @@ export default function ChatsPage() {
 
   // Monta a query de chats baseada na função do usuário
   const chatsQuery = useMemo(() => {
-    if (!db || !user) return null;
+    if (!db || !user || loadingTentId) return null;
 
     if (user.role === 'owner' && !tentId) {
-        // Dono sem barraca ou ainda carregando ID da barraca
-        if (loadingTentId) return null;
+        // Se for dono e não tiver barraca (após o carregamento ter terminado), retorna uma query vazia.
         return query(collection(db, 'chats'), where('tentId', '==', 'nonexistent-id-to-return-empty'));
     }
 
