@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -59,8 +59,17 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         if (querySnapshot.empty) {
           notFound();
         } else {
-          const tentData = querySnapshot.docs[0].data() as Tent;
-          setTent({ ...tentData, id: querySnapshot.docs[0].id });
+          const tentDoc = querySnapshot.docs[0];
+          const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
+
+          // Fetch owner's name from users collection
+          const userDocRef = doc(firestore, 'users', tentData.ownerId);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+             tentData.ownerName = userDoc.data().displayName;
+          }
+
+          setTent(tentData);
         }
       } catch (error) {
         console.error("Error fetching tent:", error);
@@ -70,7 +79,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       }
     };
     fetchTent();
-  }, [tentQuery]);
+  }, [tentQuery, firestore]);
 
 
   const menuQuery = useMemoFirebase(() => {
@@ -172,8 +181,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         
         // If removing the kit, also remove additional chairs
         if (item.id === rentalKit?.id) {
-           const { [additionalChair!.id]: __, ...finalRest } = rest;
-           return finalRest;
+           if (additionalChair?.id) {
+            const { [additionalChair.id]: __, ...finalRest } = rest;
+            return finalRest;
+           }
         }
 
         return rest;
