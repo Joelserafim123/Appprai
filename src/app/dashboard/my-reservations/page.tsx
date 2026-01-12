@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, Scan, User } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -60,6 +60,24 @@ export default function MyReservationsPage() {
         errorEmitter.emit('permission-error', permissionError);
     })
   }
+
+  const handleCancelReservation = (reservationId: string) => {
+    if (!firestore || !confirm('Tem certeza que deseja cancelar esta reserva?')) return;
+    const resDocRef = doc(firestore, 'reservations', reservationId);
+    
+    updateDoc(resDocRef, { status: 'cancelled' })
+      .then(() => {
+        toast({ title: 'Reserva Cancelada!' });
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: resDocRef.path,
+          operation: 'update',
+          requestResourceData: { status: 'cancelled' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  };
 
   if (isUserLoading || (reservationsLoading && !reservations)) {
     return (
@@ -129,18 +147,25 @@ export default function MyReservationsPage() {
                     <p className="text-sm font-medium text-muted-foreground">Total</p>
                     <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
                 </div>
-                {reservation.status === 'checked-in' && (
-                    <div className='flex gap-2 w-full sm:w-auto'>
-                        <Button asChild className='flex-1'>
-                             <Link href={`/dashboard/order/${reservation.id}`}>
-                                <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
-                            </Link>
+                <div className='flex gap-2 w-full sm:w-auto justify-end'>
+                    {reservation.status === 'confirmed' && (
+                         <Button onClick={() => handleCancelReservation(reservation.id)} variant="destructive" size="sm">
+                            <X className="mr-2 h-4 w-4"/> Cancelar
                         </Button>
-                         <Button onClick={() => handleCloseBill(reservation.id)} variant="secondary" className='flex-1'>
-                            <CreditCard className="mr-2 h-4 w-4"/> Fechar Conta
-                        </Button>
-                    </div>
-                )}
+                    )}
+                    {reservation.status === 'checked-in' && (
+                        <>
+                            <Button asChild className='flex-1'>
+                                <Link href={`/dashboard/order/${reservation.id}`}>
+                                    <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
+                                </Link>
+                            </Button>
+                            <Button onClick={() => handleCloseBill(reservation.id)} variant="secondary" className='flex-1'>
+                                <CreditCard className="mr-2 h-4 w-4"/> Fechar Conta
+                            </Button>
+                        </>
+                    )}
+                </div>
               </CardFooter>
             </Card>
           ))}

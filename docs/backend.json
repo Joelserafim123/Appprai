@@ -100,7 +100,7 @@
         },
         "total": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed"] }
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"] }
       },
       "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "items", "total", "createdAt", "status"]
     }
