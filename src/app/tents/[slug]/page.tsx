@@ -52,8 +52,14 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   }, [firestore, params.slug]);
 
   useEffect(() => {
+    if (!firestore) return; // Aguarda o firestore estar pronto
+
     const fetchTent = async () => {
-      if (!tentQuery) return;
+      if (!tentQuery) {
+        setLoadingTent(true);
+        return
+      };
+
       try {
         const querySnapshot = await getDocs(tentQuery);
         if (querySnapshot.empty) {
@@ -62,16 +68,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           const tentDoc = querySnapshot.docs[0];
           const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
 
-          // Fetch owner's name from users collection
-          if (firestore) {
-              const userDocRef = doc(firestore, 'users', tentData.ownerId);
-              const userDoc = await getDoc(userDocRef);
-              if (userDoc.exists()) {
-                 tentData.ownerName = userDoc.data().displayName;
-              } else {
-                 // Fallback if owner user document is not found
-                 tentData.ownerName = tentData.name;
-              }
+          const userDocRef = doc(firestore, 'users', tentData.ownerId);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+              tentData.ownerName = userDoc.data().displayName;
+          } else {
+              tentData.ownerName = tentData.name;
           }
 
           setTent(tentData);
@@ -84,7 +86,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       }
     };
     fetchTent();
-  }, [tentQuery, firestore]);
+  }, [tentQuery, firestore, params.slug]);
 
 
   const menuQuery = useMemoFirebase(() => {
@@ -201,7 +203,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       userName: user.displayName,
       tentId: tent.id,
       tentName: tent.name,
-      tentOwnerName: tent.ownerName || tent.name, // Fallback to tent name
+      tentOwnerName: tent.ownerName,
       tentLocation: tent.location,
       items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
