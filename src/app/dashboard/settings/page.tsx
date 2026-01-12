@@ -115,15 +115,7 @@ export default function SettingsPage() {
       
       const userDocRef = doc(db, "users", user.uid);
       
-      await updateDoc(userDocRef, firestoreData).catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: userDocRef.path,
-          operation: 'update',
-          requestResourceData: firestoreData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-      });
+      await updateDoc(userDocRef, firestoreData);
       
       toast({
         title: 'Perfil Atualizado!',
@@ -134,13 +126,17 @@ export default function SettingsPage() {
 
     } catch(error: any) {
       console.error("Error updating profile:", error);
-      if (!(error instanceof FirestorePermissionError)) {
-         toast({
-            variant: 'destructive',
-            title: 'Erro ao atualizar perfil',
-            description: error.message || 'Não foi possível salvar suas alterações.',
+       const permissionError = new FirestorePermissionError({
+          path: `users/${user.uid}`,
+          operation: 'update',
+          requestResourceData: {
+              displayName: data.displayName,
+              address: data.address,
+              cpf: data.cpf.replace(/\D/g, ""),
+              ...(photoPreview && photoPreview !== user.photoURL && { photoURL: 'updated' })
+          },
         });
-      }
+        errorEmitter.emit('permission-error', permissionError);
     } finally {
         setIsSubmitting(false);
     }
