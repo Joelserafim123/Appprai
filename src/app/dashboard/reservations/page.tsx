@@ -258,23 +258,6 @@ export default function OwnerReservationsPage() {
       });
   }
 
-  const { pendingItems, confirmedItems } = useMemo(() => {
-      const pending: (ReservationItem & { originalIndex: number })[] = [];
-      const confirmed: (ReservationItem & { originalIndex: number })[] = [];
-      
-      reservations?.forEach(res => {
-          res.items.forEach((item, index) => {
-              if (item.status === 'pending') {
-                  pending.push({ ...item, originalIndex: index });
-              } else {
-                  confirmed.push({ ...item, originalIndex: index });
-              }
-          })
-      });
-      return { pendingItems, confirmedItems };
-  }, [reservations]);
-
-
   if (isUserLoading || loadingTent) {
     return (
       <div className="flex h-full items-center justify-center">
