@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
 import { User, Mail, KeyRound, Home, Briefcase, UserCircle, Loader2 } from "lucide-react"
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
 import { getFirestore, doc, setDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
@@ -36,7 +36,7 @@ const formSchema = z.object({
 
 export function SignUpForm() {
   const { toast } = useToast()
-  const { app } = useFirebase();
+  const { firebaseApp: app } = useFirebase();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -73,6 +73,11 @@ export function SignUpForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
+      // Update Firebase Auth profile
+      await updateProfile(user, {
+        displayName: values.fullName,
+      });
+
       const userProfileData = {
         uid: user.uid,
         email: values.email,
@@ -80,7 +85,7 @@ export function SignUpForm() {
         cpf: values.cpf.replace(/\D/g, ""), // Store only digits
         address: values.address,
         role: values.role,
-        photoURL: '',
+        photoURL: '', // Initially empty, user can upload later
       };
 
       const userDocRef = doc(db, "users", user.uid);
@@ -93,6 +98,7 @@ export function SignUpForm() {
               requestResourceData: userProfileData,
             });
             errorEmitter.emit('permission-error', permissionError);
+            // Re-throw the error to be caught by the outer catch block
             throw permissionError;
         });
 
