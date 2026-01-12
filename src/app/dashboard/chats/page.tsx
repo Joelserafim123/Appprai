@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -104,20 +105,23 @@ export default function ChatsPage() {
                 <CardContent className="flex-1 overflow-y-auto p-2">
                     {chats && chats.length > 0 ? (
                         <div className="space-y-2">
-                           {chats.map((chat) => (
+                           {chats.map((chat) => {
+                                const photoUrl = user.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl;
+                                const displayName = user.role === 'owner' ? chat.userName : chat.tentName;
+                                return (
                                 <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
                                     <Avatar className='h-10 w-10'>
-                                        <AvatarImage src={user.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl} />
+                                        <AvatarImage src={photoUrl || `https://picsum.photos/seed/person-avatar/200`} />
                                         <AvatarFallback>
-                                            {getInitials(user.role === 'owner' ? chat.userName : chat.tentName)}
+                                            {getInitials(displayName)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className='flex-1 overflow-hidden'>
-                                        <p className='font-semibold truncate'>{user.role === 'owner' ? chat.userName : chat.tentName}</p>
+                                        <p className='font-semibold truncate'>{displayName}</p>
                                         <p className='text-xs text-muted-foreground truncate'>{chat.lastMessage}</p>
                                     </div>
                                 </button>
-                           ))}
+                           )})}
                         </div>
                     ) : (
                         <div className="text-center py-8 text-sm text-muted-foreground">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -105,7 +106,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         await setDoc(chatDocRef, {
             userId: user.uid,
             userName: user.displayName,
-            userPhotoURL: user.photoURL,
+            userPhotoURL: user.photoURL || `https://picsum.photos/seed/person-avatar/200`,
             tentId: tent.id,
             tentOwnerId: tent.ownerId,
             tentName: tent.name,

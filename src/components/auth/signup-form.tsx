@@ -68,6 +68,7 @@ export function SignUpForm() {
 
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const defaultPhotoURL = `https://picsum.photos/seed/person-avatar/200`;
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -76,6 +77,7 @@ export function SignUpForm() {
       // Update Firebase Auth profile
       await updateProfile(user, {
         displayName: values.fullName,
+        photoURL: defaultPhotoURL,
       });
 
       const userProfileData = {
@@ -85,7 +87,8 @@ export function SignUpForm() {
         cpf: values.cpf.replace(/\D/g, ""), // Store only digits
         address: values.address,
         role: values.role,
-        photoURL: '', // Initially empty, user can upload later
+        photoURL: defaultPhotoURL,
+        storagePath: '',
       };
 
       const userDocRef = doc(db, "users", user.uid);
