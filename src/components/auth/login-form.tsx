@@ -20,7 +20,6 @@ import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "fir
 import { useFirebase } from "@/firebase/provider"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
-import { collection, query, where, getDocs, Firestore } from "firebase/firestore"
 import {
   Dialog,
   DialogContent,
@@ -31,31 +30,12 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
-import Link from "next/link"
 
 
 const formSchema = z.object({
-  identifier: z.string().min(1, { message: "Email ou CPF é obrigatório." }),
+  email: z.string().email({ message: "Email inválido." }),
   password: z.string().min(1, { message: "A senha é obrigatória." }),
 })
-
-async function getEmailForCpf(db: Firestore, cpf: string): Promise<string | null> {
-    const usersRef = collection(db, 'users');
-    const numericCpf = cpf.replace(/\D/g, "");
-    const q = query(usersRef, where('cpf', '==', numericCpf));
-    
-    try {
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
-            return null;
-        }
-        const userDoc = querySnapshot.docs[0];
-        return userDoc.data().email;
-    } catch (error) {
-        console.error("Erro ao buscar usuário por CPF:", error);
-        return null;
-    }
-}
 
 
 function ForgotPasswordDialog() {
@@ -157,15 +137,11 @@ export function LoginForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      identifier: "",
+      email: "",
       password: "",
     },
   })
   
-  const isCpf = (identifier: string) => {
-    return /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(identifier) || /^\d{11}$/.test(identifier);
-  }
-
   const handleAuthSuccess = () => {
       toast({
         title: "Login bem-sucedido",
@@ -177,22 +153,12 @@ export function LoginForm() {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!firebaseApp || !firestore) return;
+    if (!firebaseApp) return;
     setIsSubmitting(true);
     const auth = getAuth(firebaseApp);
-    let emailToLogin = values.identifier;
-
+    
     try {
-        if (isCpf(values.identifier)) {
-            const foundEmail = await getEmailForCpf(firestore, values.identifier);
-            if (!foundEmail) {
-                // Throw an error that will be caught and handled as invalid credentials
-                throw new Error("auth/invalid-credential");
-            }
-            emailToLogin = foundEmail;
-        }
-        
-      await signInWithEmailAndPassword(auth, emailToLogin, values.password);
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       handleAuthSuccess();
     } catch (error: any) {
       console.error(error);
@@ -204,7 +170,7 @@ export function LoginForm() {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
         case 'auth/invalid-credential':
-          description = "Credenciais inválidas. Verifique seus dados e tente novamente.";
+          description = "Credenciais inválidas. Verifique seu e-mail e senha e tente novamente.";
           break;
         case 'auth/too-many-requests':
           description = "Acesso bloqueado temporariamente devido a muitas tentativas. Tente novamente mais tarde.";
@@ -229,14 +195,14 @@ export function LoginForm() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="identifier"
+            name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email ou CPF</FormLabel>
+                <FormLabel>Email</FormLabel>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <FormControl>
-                    <Input placeholder="email@exemplo.com ou CPF" {...field} className="pl-10" disabled={isSubmitting} />
+                    <Input placeholder="email@exemplo.com" {...field} className="pl-10" disabled={isSubmitting} />
                   </FormControl>
                 </div>
                 <FormMessage />
