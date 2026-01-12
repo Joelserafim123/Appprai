@@ -127,7 +127,6 @@ export default function SettingsPage() {
             displayName: data.displayName,
             address: data.address,
             cpf: data.cpf.replace(/\D/g, ""),
-            photoURL: photoURL,
             storagePath: newStoragePath,
         };
 
