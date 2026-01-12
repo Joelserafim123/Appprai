@@ -126,6 +126,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
     
+    // Use the user's UID as the document ID for their tent.
+    // This ensures one tent per owner and simplifies queries.
     const tentId = user.uid;
     const docRef = doc(firestore, 'tents', tentId);
     
@@ -136,17 +138,20 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     };
 
     try {
+      // Use setDoc with merge:true to either create or update the document.
       await setDoc(docRef, tentData, { merge: true });
       
       toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
       onFinished();
     } catch (e: any) {
+      console.error("Error saving tent data:", e);
       const permissionError = new FirestorePermissionError({
         path: `tents/${tentId}`,
         operation: existingTent ? 'update' : 'create',
         requestResourceData: tentData,
       });
       errorEmitter.emit('permission-error', permissionError);
+      // The listener will show a generic error toast.
     } finally {
       setIsSubmitting(false);
     }
@@ -442,10 +447,14 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        const docRef = doc(firestore, 'tents', user.uid);
-        const docSnap = await getDoc(docRef);
+        // Correctly query for the tent document where ownerId matches the user's UID.
+        const tentsRef = collection(firestore, 'tents');
+        const q = query(tentsRef, where("ownerId", "==", user.uid));
+        const querySnapshot = await getDocs(q);
         
-        if (docSnap.exists()) {
+        if (!querySnapshot.empty) {
+            // Assuming one owner has only one tent
+            const docSnap = querySnapshot.docs[0];
             const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
             setTent(tentData);
         } else {
@@ -466,7 +475,7 @@ export default function MyTentPage() {
     }
     if (firestore && user) {
         fetchTentData();
-    } else {
+    } else if (!isUserLoading) {
         setLoadingTent(false);
     }
   }, [firestore, user, isUserLoading, fetchTentData]);
