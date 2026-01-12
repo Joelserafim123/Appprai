@@ -119,11 +119,11 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     }
   }
 
-
   const onSubmit = async (data: TentFormData) => {
     if (!db || !user) return;
     setIsSubmitting(true);
-
+    
+    // The document ID for a user's tent is their UID.
     const tentId = user.uid;
     
     const tentData = {
@@ -134,21 +134,18 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
     try {
       const docRef = doc(db, 'tents', tentId);
-      // Use setDoc without merge to ensure the nested location object is overwritten.
-      setDoc(docRef, tentData).catch((e) => {
-          const permissionError = new FirestorePermissionError({
-            path: `tents/${tentId}`,
-            operation: existingTent ? 'update' : 'create',
-            requestResourceData: tentData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          throw e;
-      });
+      // Use setDoc to create or overwrite. This ensures nested objects are updated.
+      await setDoc(docRef, tentData);
       
       toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
       onFinished();
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Erro ao salvar informações.' });
+      const permissionError = new FirestorePermissionError({
+        path: `tents/${tentId}`,
+        operation: existingTent ? 'update' : 'create',
+        requestResourceData: tentData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
     } finally {
       setIsSubmitting(false);
     }
@@ -238,16 +235,20 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file]);
     const isVideo = file?.type.startsWith('video/');
 
-    const onSubmit = (data: MediaFormData) => {
+    const onSubmit = async (data: MediaFormData) => {
         if (!db || !data.media[0]) return;
         setIsSubmitting(true);
-
+    
         const file = data.media[0];
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-
-        reader.onloadend = async () => {
-            const mediaUrl = reader.result as string;
+        
+        try {
+            const mediaUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = (error) => reject(error);
+            });
+    
             const mediaType = file.type.startsWith('video') ? 'video' : 'image';
             
             const mediaData = {
@@ -256,32 +257,33 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
                 mediaHint: "beach tent", // Default hint
                 type: mediaType,
             };
-
+    
             const collectionRef = collection(db, 'tents', tentId, 'media');
-
-            try {
-                addDoc(collectionRef, mediaData).catch((e) => {
-                   const permissionError = new FirestorePermissionError({
-                      path: `tents/${tentId}/media`,
-                      operation: 'create',
-                      requestResourceData: mediaData,
-                  });
-                  errorEmitter.emit('permission-error', permissionError);
-                  throw e;
-                });
-                toast({ title: "Mídia adicionada com sucesso!" });
-                onFinished();
-            } catch(e) {
-                toast({ variant: 'destructive', title: 'Erro ao adicionar mídia.' });
-            } finally {
-                setIsSubmitting(false);
-            }
-        };
-        
-        reader.onerror = () => {
-            toast({ variant: 'destructive', title: 'Erro ao ler o arquivo.' });
+            await addDoc(collectionRef, mediaData);
+            
+            toast({ title: "Mídia adicionada com sucesso!" });
+            onFinished();
+    
+        } catch (e: any) {
+            console.error("Error adding media:", e);
+    
+            // This data is for the error log, not for saving.
+            const errorData = {
+                description: data.description,
+                mediaHint: "beach tent",
+                type: file.type.startsWith('video') ? 'video' : 'image',
+            };
+            
+            const permissionError = new FirestorePermissionError({
+                path: `tents/${tentId}/media`,
+                operation: 'create',
+                requestResourceData: errorData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            // The listener will show a toast. We don't need another one.
+        } finally {
             setIsSubmitting(false);
-        };
+        }
     };
 
     return (
