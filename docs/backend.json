@@ -68,7 +68,7 @@
       "description": "An item available for rent at a tent (e.g., chair, umbrella).",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
+        "name": { "type": "string", "enum": ["Kit Guarda-sol + 2 Cadeiras", "Cadeira Adicional"] },
         "price": { "type": "number", "description": "Price per day." },
         "quantity": { "type": "number", "description": "Total available quantity." }
       },

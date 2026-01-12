@@ -91,6 +91,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuQuery);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
   const { data: tentMedia, isLoading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
+  
+  const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
+  const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
 
 
   const handleStartChat = async () => {
@@ -111,7 +114,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             tentId: tent.id,
             tentOwnerId: tent.ownerId,
             tentName: tent.name,
-            tentLogoUrl: tentMedia?.[0]?.mediaUrl || '', // Use the first media item as logo
+            tentLogoUrl: tentMedia?.[0]?.mediaUrl || '',
             lastMessage: 'Conversa iniciada!',
             lastMessageTimestamp: serverTimestamp()
         }, { merge: true });
@@ -157,7 +160,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       const existing = prev[item.id] || { item, quantity: 0, type };
       let newQuantity = Math.max(0, existing.quantity + change);
 
-      // Enforce stock limits for rental items
       if (type === 'rental') {
         const rentalItem = item as RentalItem;
         if (rentalItem.quantity) {
@@ -167,6 +169,13 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
       if (newQuantity === 0) {
         const { [item.id]: _, ...rest } = prev;
+        
+        // If removing the kit, also remove additional chairs
+        if (item.id === rentalKit?.id) {
+           const { [additionalChair!.id]: __, ...finalRest } = rest;
+           return finalRest;
+        }
+
         return rest;
       }
 
@@ -184,11 +193,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const isFeeWaived = feeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= feeWaiverAmount;
   
   const finalTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
-
+  
+  const hasRentalKitInCart = rentalKit && cart[rentalKit.id] && cart[rentalKit.id].quantity > 0;
   const isCartEmpty = Object.keys(cart).length === 0;
 
   const handleCreateReservation = async () => {
-    if (!user || !firestore || isCartEmpty) {
+    if (!user || !firestore || !hasRentalKitInCart) {
       if(!user) {
         toast({
           variant: "destructive",
@@ -196,6 +206,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           description: "Você precisa estar logado para fazer um pedido.",
         });
         router.push(`/login?redirect=/tents/${tent.slug}`);
+      } else if (!hasRentalKitInCart) {
+         toast({
+          variant: "destructive",
+          title: "Aluguel Obrigatório",
+          description: "Você precisa alugar um 'Kit Guarda-sol + 2 Cadeiras' para fazer uma reserva.",
+        });
       }
       return;
     };
@@ -281,10 +297,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
-                 <Tabs defaultValue="menu" className="w-full">
+                 <Tabs defaultValue="reserve" className="w-full">
                     <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
-                        <TabsTrigger value="menu">Cardápio</TabsTrigger>
                         <TabsTrigger value="reserve">Aluguel</TabsTrigger>
+                        <TabsTrigger value="menu" disabled={!hasRentalKitInCart}>Cardápio</TabsTrigger>
                         <TabsTrigger value="gallery">Galeria</TabsTrigger>
                     </TabsList>
                      <TabsContent value="menu" className="mt-6">
@@ -336,28 +352,47 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                         <TabsContent value="reserve" className="mt-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Alugar Mesas e Cadeiras</CardTitle>
-                                    <CardDescription>Garanta seu lugar ao sol antes de chegar. { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
+                                    <CardTitle>Aluguel de Itens</CardTitle>
+                                    <CardDescription>Para reservar, é obrigatório o aluguel do "Kit Guarda-sol + 2 Cadeiras". { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                 {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
-                                        rentalItems.map((rental) => (
-                                            <div key={rental.id} className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <>
+                                        {rentalKit && (
+                                            <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
                                                 <div>
                                                     <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                        {rental.name.includes('Kit') ? <><Umbrella className="h-5 w-5"/> + <Armchair className="h-5 w-5"/></> : rental.name.includes('Guarda-sol') ? <Umbrella className="h-5 w-5"/> : <Armchair className="h-5 w-5"/>}
-                                                        {rental.name}
+                                                        <Umbrella className="h-5 w-5"/> + <Armchair className="h-5 w-5"/>
+                                                        {rentalKit.name}
                                                     </h3>
-                                                    <p className="text-sm text-muted-foreground">Disponível: {rental.quantity - (cart[rental.id]?.quantity || 0)}</p>
-                                                    <p className="text-2xl font-bold text-primary">R$ {rental.price.toFixed(2)}</p>
+                                                    <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
+                                                    <p className="text-2xl font-bold text-primary">R$ {rentalKit.price.toFixed(2)}</p>
                                                 </div>
                                                 <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                    <Input type="number" readOnly value={cart[rental.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rental, 'rental', 1)} disabled={isSubmitting || (cart[rental.id]?.quantity || 0) >= rental.quantity}><Plus className="h-4 w-4"/></Button>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                    <Input type="number" readOnly value={cart[rentalKit.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity}><Plus className="h-4 w-4"/></Button>
                                                 </div>
                                             </div>
-                                        ))
+                                        )}
+                                        {additionalChair && (
+                                             <div className={cn("flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between transition-opacity", !hasRentalKitInCart && "opacity-50 pointer-events-none")}>
+                                                <div>
+                                                    <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                        <Armchair className="h-5 w-5"/>
+                                                        {additionalChair.name}
+                                                    </h3>
+                                                    <p className="text-sm text-muted-foreground">Disponível: {additionalChair.quantity - (cart[additionalChair.id]?.quantity || 0)}</p>
+                                                    <p className="text-xl font-bold text-primary">R$ {additionalChair.price.toFixed(2)}</p>
+                                                </div>
+                                                <div className="mt-4 flex items-center gap-2 sm:mt-0">
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', -1)} disabled={isSubmitting || !hasRentalKitInCart}><Minus className="h-4 w-4"/></Button>
+                                                    <Input type="number" readOnly value={cart[additionalChair.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting || !hasRentalKitInCart}/>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity}><Plus className="h-4 w-4"/></Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                     ) : (
                                         <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
                                     )}
@@ -444,7 +479,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                             <p className="text-sm text-muted-foreground">Total</p>
                             <p className="text-2xl font-bold">R$ {finalTotal.toFixed(2)}</p>
                         </div>
-                        <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={isCartEmpty || isSubmitting}>
+                        <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
                         </Button>
                     </CardFooter>

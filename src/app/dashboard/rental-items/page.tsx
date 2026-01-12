@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -19,16 +19,17 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type RentalItem = {
   id: string;
-  name: string;
+  name: 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional';
   price: number;
   quantity: number;
 };
 
 const rentalItemSchema = z.object({
-  name: z.string().min(2, 'O nome é obrigatório.'),
+  name: z.enum(['Kit Guarda-sol + 2 Cadeiras', 'Cadeira Adicional'], { required_error: 'O nome é obrigatório.' }),
   price: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().min(0, 'O preço deve ser positivo.')),
   quantity: z.preprocess((a) => parseInt(z.string().parse(a), 10), z.number().min(0, 'A quantidade deve ser positiva.')),
 });
@@ -39,9 +40,9 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<RentalItemFormData>({
+  const { register, handleSubmit, control, formState: { errors } } = useForm<RentalItemFormData>({
     resolver: zodResolver(rentalItemSchema),
-    defaultValues: item || { name: '', price: 0, quantity: 1 },
+    defaultValues: item || { name: 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
   });
 
   const onSubmit = (data: RentalItemFormData) => {
@@ -64,7 +65,6 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
             requestResourceData: data,
         });
         errorEmitter.emit('permission-error', permissionError);
-        // Toast will be handled by the global error listener in development
     }).finally(() => {
         setIsSubmitting(false);
     });
@@ -74,7 +74,21 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
         <Label htmlFor="name">Nome do Item</Label>
-        <Input id="name" {...register('name')} />
+        <Controller
+          name="name"
+          control={control}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!item}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo de item" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Kit Guarda-sol + 2 Cadeiras">Kit Guarda-sol + 2 Cadeiras</SelectItem>
+                <SelectItem value="Cadeira Adicional">Cadeira Adicional</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
         {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
       </div>
       <div>
@@ -162,6 +176,8 @@ export default function RentalItemsPage() {
     setIsFormOpen(true);
   }
 
+  const hasKit = useMemo(() => rentalItems?.some(item => item.name === 'Kit Guarda-sol + 2 Cadeiras'), [rentalItems]);
+  const hasAdditionalChair = useMemo(() => rentalItems?.some(item => item.name === 'Cadeira Adicional'), [rentalItems]);
 
   if (isUserLoading || loadingTent) {
     return (
@@ -208,7 +224,7 @@ export default function RentalItemsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Itens de Aluguel</h1>
             <p className="text-muted-foreground">Gerencie cadeiras, guarda-sóis e outros itens.</p>
             </div>
-            <Button onClick={openNewForm}>
+            <Button onClick={openNewForm} disabled={!!(hasKit && hasAdditionalChair)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar Item
             </Button>
@@ -242,7 +258,7 @@ export default function RentalItemsPage() {
             <div className="text-center py-16 border-2 border-dashed rounded-lg">
                 <Armchair className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-medium">Nenhum item de aluguel cadastrado</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Comece adicionando seu primeiro item.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Comece adicionando o "Kit Guarda-sol + 2 Cadeiras".</p>
                 <Button onClick={openNewForm} className="mt-6">
                     Adicionar Item de Aluguel
                 </Button>
