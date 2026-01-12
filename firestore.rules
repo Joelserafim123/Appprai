@@ -28,8 +28,9 @@ service cloud.firestore {
       // Anyone can read tent information.
       allow read: if true;
       // The tent owner is the only one who can modify the tent.
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      allow create, update: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      // Tent owner can delete their tent. TentId must match owner's UID.
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid && tentId == request.auth.uid;
     }
 
     // Media, MenuItems, RentalItems
@@ -52,11 +53,11 @@ service cloud.firestore {
       allow update: if request.auth != null && (
         // Case 1: Tent owner can update status, paymentMethod, and tableNumber
         (get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid) ||
-        // Case 2: User who made the reservation can update it
+        // Case 2: User who made the reservation can update it, but with restrictions
         (resource.data.userId == request.auth.uid && (
-            // User can add items if status is 'checked-in'
+            // User can add items only if status is 'checked-in'
             (resource.data.status == 'checked-in' && request.resource.data.items.size() >= resource.data.items.size()) ||
-            // User can request payment
+            // User can request payment if status is 'checked-in'
             (request.resource.data.status == 'payment-pending' && resource.data.status == 'checked-in')
           )
         )

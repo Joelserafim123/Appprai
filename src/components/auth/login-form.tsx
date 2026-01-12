@@ -66,14 +66,14 @@ export function LoginForm() {
     return /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(identifier) || /^\d{11}$/.test(identifier);
   }
 
-  const handleAuthSuccess = (redirectUrl?: string) => {
+  const handleAuthSuccess = () => {
       toast({
         title: "Login bem-sucedido",
         description: "Redirecionando...",
       })
-      const finalRedirect = redirectUrl || searchParams.get('redirect') || '/dashboard';
-      router.push(finalRedirect);
-      router.refresh(); // Refresh the page to ensure user state is updated
+      const redirectUrl = searchParams.get('redirect');
+      router.push(redirectUrl || '/dashboard');
+      router.refresh(); 
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {

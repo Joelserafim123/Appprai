@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, CheckCircle2 } from 'lucide-react';
@@ -25,6 +25,7 @@ import Image from 'next/image';
 import { useMemoFirebase } from '@/firebase/provider';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
+import { addDoc } from 'firebase/firestore';
 
 
 const tentSchema = z.object({
@@ -103,7 +104,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         onFinished();
     }).catch((e) => {
         const permissionError = new FirestorePermissionError({
-            path: `tents/${user.uid}`,
+            path: docRef.path,
             operation: existingTent ? 'update' : 'create',
             requestResourceData: tentData,
         });
@@ -382,13 +383,13 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        const tentsRef = collection(firestore, 'tents');
-        const q = query(tentsRef, where('ownerId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
+        // A barraca do dono tem o ID igual ao UID do dono.
+        const docRef = doc(firestore, 'tents', user.uid);
+        const docSnap = await getDocs(query(collection(firestore, 'tents'), where('ownerId', '==', user.uid)));
         
-        if (!querySnapshot.empty) {
-            const docSnap = querySnapshot.docs[0];
-            const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
+        if (!docSnap.empty) {
+            const tentDoc = docSnap.docs[0];
+            const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
             setTent(tentData);
         } else {
             setTent(null);
