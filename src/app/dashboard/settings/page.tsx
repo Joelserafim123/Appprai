@@ -34,7 +34,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore: db, storage } = useFirebase();
+  const { firebaseApp, firestore, storage } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -72,7 +72,7 @@ export default function SettingsPage() {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !user || !firebaseApp || !db || !storage) return;
+    if (!file || !user || !firebaseApp || !firestore || !storage) return;
 
     setIsUploadingPhoto(true);
 
@@ -106,7 +106,7 @@ export default function SettingsPage() {
       await updateProfile(currentUser, { photoURL });
 
       // 3. Update storagePath in Firestore
-      const userDocRef = doc(db, "users", user.uid);
+      const userDocRef = doc(firestore, "users", user.uid);
       await updateDoc(userDocRef, { 
           storagePath: newStoragePath,
           photoURL: photoURL
@@ -132,7 +132,7 @@ export default function SettingsPage() {
   };
   
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !db || !firebaseApp) return;
+    if (!user || !firestore || !firebaseApp) return;
     setIsSubmitting(true);
   
     try {
@@ -146,16 +146,12 @@ export default function SettingsPage() {
         cpf: data.cpf.replace(/\D/g, ""),
       };
   
-      const userDocRef = doc(db, "users", user.uid);
+      const userDocRef = doc(firestore, "users", user.uid);
       await updateDoc(userDocRef, firestoreData);
   
-      const authProfileUpdate: { displayName?: string, photoURL?: string } = {};
+      const authProfileUpdate: { displayName?: string } = {};
       if (currentUser.displayName !== data.displayName) {
         authProfileUpdate.displayName = data.displayName;
-      }
-      // Preserve existing photoURL if not updating it
-      if (currentUser.photoURL) {
-          authProfileUpdate.photoURL = currentUser.photoURL;
       }
       
       if (Object.keys(authProfileUpdate).length > 0) {
@@ -181,9 +177,6 @@ export default function SettingsPage() {
       setIsSubmitting(false);
     }
   };
-
-  const defaultUserImage = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
-
 
   if (loading) {
     return (
@@ -211,7 +204,7 @@ export default function SettingsPage() {
                 
                 <div className="relative group">
                     <Avatar className="h-24 w-24">
-                        <AvatarImage src={user.photoURL || defaultUserImage} alt={user.displayName ?? ''} />
+                        <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ''} />
                         <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                     </Avatar>
                      <button 
