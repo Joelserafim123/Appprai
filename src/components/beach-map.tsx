@@ -129,7 +129,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   useEffect(() => {
     if (map && tents.length > 0) {
-      // Fit map to show all markers
       const bounds = new window.google.maps.LatLngBounds();
       tents.forEach(tent => {
         if(tent.location?.latitude && tent.location?.longitude) {
@@ -138,19 +137,16 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       });
       map.fitBounds(bounds);
 
-      // If only one tent, zoom in closer
       if (tents.length === 1 && tents[0].location?.latitude) {
         map.setCenter({lat: tents[0].location.latitude, lng: tents[0].location.longitude});
         map.setZoom(15);
       } else {
-         // Add a listener to adjust zoom only after bounds have been fitted.
          const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
             if (map.getZoom()! > 16) map.setZoom(16);
             window.google.maps.event.removeListener(listener);
          });
       }
-    } else {
-        // Attempt to get location on initial load without forcing it
+    } else if (map) {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
                 const userLocation = {
@@ -160,7 +156,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 setMapCenter(userLocation);
                 map?.panTo(userLocation);
             }, (error) => {
-                // This can fail silently if permissions are not granted
                 console.warn("Aviso de Geolocalização na carga inicial: ", error.message);
             });
         }

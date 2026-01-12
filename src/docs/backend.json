@@ -1,0 +1,148 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user profile for both customers and tent owners.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique identifier from Firebase Auth." },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string", "description": "User's full name." },
+        "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
+        "address": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "role": { "type": "string", "enum": ["customer", "owner"] }
+      },
+      "required": ["uid", "email", "displayName", "cpf", "address", "role"]
+    },
+    "Tent": {
+      "title": "Tent",
+      "description": "Represents a beach tent business.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
+        "ownerName": { "type": "string", "description": "The name of the user who owns the tent." },
+        "name": { "type": "string" },
+        "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
+        "description": { "type": "string" },
+        "beachName": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          },
+          "required": ["latitude", "longitude"]
+        },
+        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Minimum order value to waive rental fees." }
+      },
+      "required": ["ownerId", "ownerName", "name", "slug", "description", "beachName", "location"]
+    },
+    "TentMedia": {
+      "title": "Tent Media",
+      "description": "A media item (image or video) for a tent, stored in Firebase Storage.",
+      "type": "object",
+      "properties": {
+        "mediaUrl": { "type": "string", "format": "uri", "description": "Public URL of the media file from Firebase Storage." },
+        "storagePath": { "type": "string", "description": "The path to the file in Firebase Storage, for deletion." },
+        "mediaHint": { "type": "string", "description": "A hint for AI processing, e.g., 'beach sunset'." },
+        "description": { "type": "string", "description": "A description of the media." },
+        "type": { "type": "string", "enum": ["image", "video"], "description": "The type of the media." }
+      },
+      "required": ["mediaUrl", "storagePath", "description", "type"]
+    },
+    "MenuItem": {
+      "title": "Menu Item",
+      "description": "An item available on a tent's menu.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["Bebidas", "Petiscos", "Pratos Principais"] }
+      },
+      "required": ["name", "price", "category"]
+    },
+    "RentalItem": {
+      "title": "Rental Item",
+      "description": "An item available for rent at a tent (e.g., chair, umbrella).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "enum": ["Kit Guarda-sol + 2 Cadeiras", "Cadeira Adicional"] },
+        "price": { "type": "number", "description": "Price per day." },
+        "quantity": { "type": "number", "description": "Total available quantity." }
+      },
+      "required": ["name", "price", "quantity"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "A customer's reservation for rental items and/or menu items.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the customer." },
+        "userName": { "type": "string", "description": "The name of the customer." },
+        "tentId": { "type": "string", "description": "The ID of the tent." },
+        "tentName": { "type": "string" },
+        "tentOwnerName": { "type": "string", "description": "The name of the tent owner." },
+        "tentLocation": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          },
+          "required": ["latitude", "longitude"]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "itemId": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "quantity": { "type": "number" },
+              "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled"] }
+            },
+            "required": ["itemId", "name", "price", "quantity", "status"]
+          }
+        },
+        "total": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"] },
+        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"] },
+        "tableNumber": { "type": "number" }
+      },
+      "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "google"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores public-facing user profile information."
+    },
+    "/tents/{tentId}": {
+      "schema": { "$ref": "#/entities/Tent" },
+      "description": "Stores information about each beach tent."
+    },
+    "/tents/{tentId}/media/{mediaId}": {
+      "schema": { "$ref": "#/entities/TentMedia" },
+      "description": "Media items (photos/videos) for a specific tent."
+    },
+    "/tents/{tentId}/menuItems/{menuItemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Menu items for a specific tent."
+    },
+    "/tents/{tentId}/rentalItems/{rentalItemId}": {
+      "schema": { "$ref": "#/entities/RentalItem" },
+      "description": "Rental items for a specific tent."
+    },
+    "/reservations/{reservationId}": {
+      "schema": { "$ref": "#/entities/Reservation" },
+      "description": "Stores all reservations from all users."
+    }
+  }
+}
