@@ -16,14 +16,15 @@ import type { Reservation, ReservationStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { cn } from '@/lib/utils';
 
 
-const statusText: Record<ReservationStatus, string> = {
-  'confirmed': 'Confirmada',
-  'checked-in': 'Check-in Feito',
-  'payment-pending': 'Pagamento Pendente',
-  'completed': 'Completa',
-  'cancelled': 'Cancelada'
+const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
+  'confirmed': { text: 'Confirmada', variant: 'default' },
+  'checked-in': { text: 'Check-in Feito', variant: 'default' },
+  'payment-pending': { text: 'Pagamento Pendente', variant: 'destructive' },
+  'completed': { text: 'Completa', variant: 'secondary' },
+  'cancelled': { text: 'Cancelada', variant: 'destructive' }
 };
 
 export default function MyReservationsPage() {
@@ -86,7 +87,7 @@ export default function MyReservationsPage() {
       {sortedReservations && sortedReservations.length > 0 ? (
         <div className="space-y-6">
           {sortedReservations.map((reservation) => (
-            <Card key={reservation.id}>
+            <Card key={reservation.id} className="transition-all hover:shadow-md">
               <CardHeader className='flex-row justify-between items-start'>
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -101,8 +102,8 @@ export default function MyReservationsPage() {
                     })}
                   </CardDescription>
                 </div>
-                 <Badge variant={reservation.status === 'confirmed' ? 'default' : reservation.status === 'completed' ? 'secondary' : 'destructive'}>
-                    {statusText[reservation.status]}
+                 <Badge variant={statusConfig[reservation.status].variant}>
+                    {statusConfig[reservation.status].text}
                 </Badge>
               </CardHeader>
               <CardContent>

@@ -19,12 +19,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
-const statusText: Record<ReservationStatus, string> = {
-  'confirmed': 'Confirmada',
-  'checked-in': 'Check-in Feito',
-  'payment-pending': 'Pagamento Pendente',
-  'completed': 'Completa',
-  'cancelled': 'Cancelada'
+const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
+  'confirmed': { text: 'Confirmada', variant: 'default' },
+  'checked-in': { text: 'Check-in Feito', variant: 'default' },
+  'payment-pending': { text: 'Pagamento Pendente', variant: 'destructive' },
+  'completed': { text: 'Completa', variant: 'secondary' },
+  'cancelled': { text: 'Cancelada', variant: 'destructive' }
 };
 
 function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
@@ -191,15 +191,15 @@ export default function OwnerReservationsPage() {
         {sortedReservations && sortedReservations.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {sortedReservations.map((reservation) => (
-                <Card key={reservation.id} className="flex flex-col">
+                <Card key={reservation.id} className="flex flex-col transition-all hover:shadow-md">
                 <CardHeader>
                     <div className='flex justify-between items-start'>
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <UserIcon className="w-5 h-5"/>
                             Reserva
                         </CardTitle>
-                        <Badge variant={reservation.status === 'confirmed' || reservation.status === 'checked-in' ? 'default' : reservation.status === 'completed' ? 'secondary' : 'destructive'}>
-                           {statusText[reservation.status]}
+                         <Badge variant={statusConfig[reservation.status].variant}>
+                           {statusConfig[reservation.status].text}
                         </Badge>
                     </div>
                     <CardDescription className='space-y-1 pt-2'>
