@@ -129,15 +129,13 @@ export default function SettingsPage() {
             cpf: data.cpf.replace(/\D/g, ""),
             storagePath: newStoragePath,
         };
-
-        const authProfileUpdate: { displayName?: string, photoURL?: string } = {
-            displayName: data.displayName,
-            photoURL: photoURL,
-        };
         
         // 3. Update Auth Profile
         if (currentUser) {
-            await updateProfile(currentUser, authProfileUpdate);
+            await updateProfile(currentUser, {
+                displayName: data.displayName,
+                photoURL: photoURL,
+            });
         }
       
       // 4. Update Firestore Document
