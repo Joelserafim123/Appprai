@@ -87,7 +87,6 @@ export function SignUpForm() {
 
       await updateProfile(user, {
         displayName: values.fullName,
-        photoURL: "", // Initialize with empty string
       });
 
       const userProfileData = {
@@ -97,7 +96,6 @@ export function SignUpForm() {
         cpf: values.cpf.replace(/\D/g, ""),
         address: values.address,
         role: values.role,
-        photoURL: "",
         createdAt: serverTimestamp(),
       };
 
@@ -154,7 +152,6 @@ export function SignUpForm() {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
-          photoURL: user.photoURL || "",
           createdAt: serverTimestamp(),
           role: form.getValues('role') || 'customer',
           cpf: '',

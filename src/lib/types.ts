@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Tent {
@@ -21,7 +22,6 @@ export interface UserProfile {
     displayName: string;
     cpf: string;
     address: string;
-    photoURL?: string;
     role: 'customer' | 'owner';
 }
 

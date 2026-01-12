@@ -143,7 +143,6 @@ export function LoginForm() {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
-          photoURL: user.photoURL || "",
           createdAt: serverTimestamp(),
           role: 'customer',
           cpf: '',

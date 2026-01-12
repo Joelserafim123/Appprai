@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, User as UserIcon } from 'lucide-react';
+import { Loader2, User as UserIcon, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -155,13 +154,13 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
             <CardDescription>
-                Atualize as informações da sua conta.
+                Atualize as informações da sua conta. O CPF não pode ser alterado.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
                 <Avatar className="h-24 w-24">
-                    <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName || "User"} />
+                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName || "User"} />
                     <AvatarFallback className="text-3xl">
                         {getInitials(user.displayName)}
                     </AvatarFallback>
