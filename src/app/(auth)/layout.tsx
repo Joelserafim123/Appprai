@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { Logo } from '@/components/icons';
 import Image from 'next/image';
+import { authImageUrl } from '@/lib/placeholder-images';
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const authImageUrl = "https://picsum.photos/seed/auth-beach/1200/1800";
 
   return (
     <main className="min-h-screen w-full lg:grid lg:grid-cols-2">

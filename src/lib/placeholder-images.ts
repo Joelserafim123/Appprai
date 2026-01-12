@@ -1,9 +1,2 @@
 
-export type ImagePlaceholder = {
-  id: string;
-  description: string;
-  imageUrl: string;
-  imageHint: string;
-};
-
-export const PlaceHolderImages: ImagePlaceholder[] = [];
+export const authImageUrl = "https://picsum.photos/seed/auth-beach/1200/1800";
