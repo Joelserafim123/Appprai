@@ -28,7 +28,8 @@ service cloud.firestore {
       // Anyone can read tent information.
       allow read: if true;
       // The tent owner is the only one who can modify the tent.
-      allow create, update: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      // Now we enforce one tent per owner by making the doc id the owner's uid.
+      allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
@@ -47,8 +48,23 @@ service cloud.firestore {
     match /reservations/{reservationId} {
       // A user can only create a reservation for themselves.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Only the user who made the reservation or the owner of the corresponding tent can read or update it.
-      allow read, update: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      
+      // Anyone involved (customer or owner) can read the reservation.
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      
+      // Update rules are now more granular.
+      allow update: if request.auth != null && (
+        // Case 1: Tent owner can update status, paymentMethod, tableNumber, or cancel.
+        (
+          get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
+        ) ||
+        // Case 2: Customer who made the reservation can add items or request payment.
+        (
+          resource.data.userId == request.auth.uid &&
+          (request.resource.data.status == 'payment-pending' || request.resource.data.size() > resource.data.size())
+        )
+      );
+
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
     }

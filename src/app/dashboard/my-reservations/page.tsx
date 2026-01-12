@@ -61,24 +61,6 @@ export default function MyReservationsPage() {
     })
   }
 
-  const handleCancelReservation = (reservationId: string) => {
-    if (!firestore || !confirm('Tem certeza que deseja cancelar esta reserva?')) return;
-    const resDocRef = doc(firestore, 'reservations', reservationId);
-    
-    updateDoc(resDocRef, { status: 'cancelled' })
-      .then(() => {
-        toast({ title: 'Reserva Cancelada!' });
-      })
-      .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: resDocRef.path,
-          operation: 'update',
-          requestResourceData: { status: 'cancelled' },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
-  };
-
   if (isUserLoading || (reservationsLoading && !reservations)) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -148,11 +130,6 @@ export default function MyReservationsPage() {
                     <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
                 </div>
                 <div className='flex gap-2 w-full sm:w-auto justify-end'>
-                    {reservation.status === 'confirmed' && (
-                         <Button onClick={() => handleCancelReservation(reservation.id)} variant="destructive" size="sm">
-                            <X className="mr-2 h-4 w-4"/> Cancelar
-                        </Button>
-                    )}
                     {reservation.status === 'checked-in' && (
                         <>
                             <Button asChild className='flex-1'>
