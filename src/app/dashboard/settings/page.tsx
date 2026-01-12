@@ -102,15 +102,18 @@ export default function SettingsPage() {
             address: data.address,
             cpf: data.cpf.replace(/\D/g, ""),
         };
+
+        const authProfileUpdate: { displayName?: string, photoURL?: string } = {
+            displayName: data.displayName,
+        };
         
         if (photoPreview && photoPreview !== user.photoURL) {
             firestoreData.photoURL = photoPreview;
+            authProfileUpdate.photoURL = photoPreview;
         }
 
         if (currentUser) {
-            await updateProfile(currentUser, {
-                displayName: data.displayName,
-            });
+            await updateProfile(currentUser, authProfileUpdate);
         }
       
       const userDocRef = doc(db, "users", user.uid);
