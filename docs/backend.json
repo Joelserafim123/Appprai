@@ -32,7 +32,7 @@
           },
           "required": ["latitude", "longitude"]
         },
-        "minimumOrderForFeeWaiver": { "type": "number", "description": "Minimum order value to waive rental fees." }
+        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Minimum order value to waive rental fees." }
       },
       "required": ["ownerId", "name", "slug", "description", "beachName", "location"]
     },

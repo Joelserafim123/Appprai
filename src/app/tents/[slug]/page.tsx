@@ -175,7 +175,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const menuTotal = Object.values(cart).filter(i => i.type === 'menu').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
 
   const feeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
-  const isFeeWaived = feeWaiverAmount > 0 && menuTotal >= feeWaiverAmount;
+  const isFeeWaived = feeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= feeWaiverAmount;
   
   const finalTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
 
