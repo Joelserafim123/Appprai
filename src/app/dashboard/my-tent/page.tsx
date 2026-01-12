@@ -349,7 +349,14 @@ function MediaManager({ tentId }: { tentId: string | null }) {
             console.error("Error deleting media:", e);
             if (e.code === 'storage/object-not-found') {
                 // If file doesn't exist in storage, just delete firestore doc
-                 await deleteDoc(docRef).catch(console.error);
+                 await deleteDoc(docRef).catch(e_firestore => {
+                     // If firestore deletion also fails, emit a permission error for Firestore
+                      const permissionError = new FirestorePermissionError({
+                        path: docRef.path,
+                        operation: 'delete',
+                      });
+                      errorEmitter.emit('permission-error', permissionError);
+                 });
                  toast({ title: "Mídia apagada do banco de dados." });
             } else {
                 const permissionError = new FirestorePermissionError({
@@ -357,7 +364,7 @@ function MediaManager({ tentId }: { tentId: string | null }) {
                     operation: 'delete',
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                toast({ variant: 'destructive', title: 'Erro ao apagar mídia.' });
+                // Do not show a generic toast, the error listener will.
             }
         } finally {
             setIsSubmitting(false);
@@ -433,23 +440,15 @@ export default function MyTentPage() {
   const [loadingTent, setLoadingTent] = useState(true);
   const { toast } = useToast();
 
-  const tentQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    // A user can only own one tent, and its ID is their UID.
-    return doc(firestore, 'tents', user.uid);
-  }, [firestore, user]);
-  
   const fetchTentData = useCallback(async () => {
-    if (!tentQuery) return;
+    if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        // We query based on ownerId to find the tent document.
-        const q = query(collection(firestore!, 'tents'), where('ownerId', '==', user!.uid));
-        const querySnapshot = await getDocs(q);
+        const docRef = doc(firestore, 'tents', user.uid);
+        const docSnap = await getDoc(docRef);
         
-        if (!querySnapshot.empty) {
-            const doc = querySnapshot.docs[0];
-            const tentData = { id: doc.id, ...doc.data() } as Tent;
+        if (docSnap.exists()) {
+            const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
             setTent(tentData);
         } else {
             setTent(null);
@@ -460,7 +459,7 @@ export default function MyTentPage() {
     } finally {
         setLoadingTent(false);
     }
-  }, [firestore, user, toast, tentQuery]);
+  }, [firestore, user, toast]);
 
   useEffect(() => {
     if(firestore && user) {

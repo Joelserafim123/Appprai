@@ -43,11 +43,12 @@
       "type": "object",
       "properties": {
         "mediaUrl": { "type": "string", "description": "URL of the media file (image or video)." },
+        "storagePath": { "type": "string", "description": "Path to the file in Firebase Storage." },
         "mediaHint": { "type": "string", "description": "A hint for AI processing, e.g., 'beach sunset'." },
         "description": { "type": "string", "description": "A description of the media." },
         "type": { "type": "string", "enum": ["image", "video"], "description": "The type of the media." }
       },
-      "required": ["mediaUrl", "description", "mediaHint", "type"]
+      "required": ["mediaUrl", "storagePath", "description", "mediaHint", "type"]
     },
     "MenuItem": {
       "title": "Menu Item",

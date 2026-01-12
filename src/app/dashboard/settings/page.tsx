@@ -13,17 +13,20 @@ import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { v4 as uuidv4 } from 'uuid';
+import { getInitials } from '@/lib/utils';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
   address: z.string().min(5, 'O endereço é obrigatório.'),
+  photo: z.any().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -31,15 +34,16 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore: db } = useFirebase();
+  const { firebaseApp, firestore: db, storage } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
 
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
@@ -69,18 +73,10 @@ export default function SettingsPage() {
     return e;
   }, []);
 
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return 'U';
-    const names = name.split(' ');
-    if (names.length > 1) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  }
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setNewPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
@@ -90,34 +86,59 @@ export default function SettingsPage() {
   };
 
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firebaseApp || !db) return;
+    if (!user || !firebaseApp || !db || !storage) return;
     setIsSubmitting(true);
 
     const auth = getAuth(firebaseApp);
     const currentUser = auth.currentUser;
     
     try {
+        let photoURL = user.photoURL; // Start with the existing URL
+
+        // 1. If a new photo is selected, upload it to Storage
+        if (newPhotoFile) {
+            // Optional: Delete old photo from storage if it exists and is from storage
+            if (user.storagePath) {
+                const oldPhotoRef = storageRef(storage, user.storagePath);
+                try {
+                    await deleteObject(oldPhotoRef);
+                } catch (e:any) {
+                    // Ignore if old photo doesn't exist, log other errors
+                    if(e.code !== 'storage/object-not-found') console.error("Could not delete old photo:", e)
+                }
+            }
+
+            const fileExtension = newPhotoFile.name.split('.').pop();
+            const fileName = `${uuidv4()}.${fileExtension}`;
+            const newStoragePath = `user-profiles/${user.uid}/${fileName}`;
+            const newPhotoRef = storageRef(storage, newStoragePath);
+            
+            await uploadBytes(newPhotoRef, newPhotoFile);
+            photoURL = await getDownloadURL(newPhotoRef);
+            setValue('storagePath', newStoragePath); // Save new path
+        }
+        
+        // 2. Prepare data for Firestore and Auth
         const firestoreData: {[key: string]: any} = {
             displayName: data.displayName,
             address: data.address,
             cpf: data.cpf.replace(/\D/g, ""),
+            photoURL: photoURL,
+            ...(newPhotoFile && { storagePath: (watch as any)('storagePath') })
         };
 
         const authProfileUpdate: { displayName?: string, photoURL?: string } = {
             displayName: data.displayName,
+            photoURL: photoURL,
         };
         
-        if (photoPreview && photoPreview !== user.photoURL) {
-            firestoreData.photoURL = photoPreview;
-            authProfileUpdate.photoURL = photoPreview;
-        }
-
+        // 3. Update Auth Profile
         if (currentUser) {
             await updateProfile(currentUser, authProfileUpdate);
         }
       
+      // 4. Update Firestore Document
       const userDocRef = doc(db, "users", user.uid);
-      
       await updateDoc(userDocRef, firestoreData);
       
       toast({
@@ -125,7 +146,8 @@ export default function SettingsPage() {
         description: 'Suas informações foram salvas com sucesso.',
       });
 
-      refresh(); // Use the refresh function from the hook
+      setNewPhotoFile(null); // Reset file state
+      refresh(); // Use the refresh function from the hook to get all new data
 
     } catch(error: any) {
       console.error("Error updating profile:", error);
@@ -134,9 +156,6 @@ export default function SettingsPage() {
           operation: 'update',
           requestResourceData: {
               displayName: data.displayName,
-              address: data.address,
-              cpf: data.cpf.replace(/\D/g, ""),
-              ...(photoPreview && photoPreview !== user.photoURL && { photoURL: 'updated' })
           },
         });
         errorEmitter.emit('permission-error', permissionError);

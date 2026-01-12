@@ -267,6 +267,16 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     <h2 className="text-lg font-bold">Barracas Próximas</h2>
                     <p className="text-sm text-muted-foreground">Ordenado pela proximidade</p>
                 </div>
+                 <Button 
+                    size="icon" 
+                    variant="outline"
+                    onClick={handleGetCurrentLocation}
+                    disabled={isLocating}
+                    aria-label="Usar minha localização atual"
+                    className="rounded-full"
+                >
+                    {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
+                </Button>
             </div>
         </div>
         <ScrollArea className="flex-1">
@@ -306,7 +316,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         {renderMap()}
          <Button 
             size="icon" 
-            className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg"
+            className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg md:hidden"
             onClick={handleGetCurrentLocation}
             disabled={isLocating}
             aria-label="Usar minha localização atual"
