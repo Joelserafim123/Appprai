@@ -62,11 +62,11 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const [isLocating, setIsLocating] = useState(false);
   const { toast } = useToast();
   
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: googleMapsApiKey,
+    googleMapsApiKey: googleMapsApiKey ? googleMapsApiKey : undefined,
     libraries: ['marker']
   });
   
@@ -323,3 +323,5 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
+
+    
