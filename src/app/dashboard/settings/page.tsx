@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, UploadCloud } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -30,8 +30,8 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 
 export default function SettingsPage() {
-  const { user, loading, refresh } = useUser();
-  const { app, db } = useFirebase();
+  const { user, isUserLoading: loading, refresh } = useUser();
+  const { firebaseApp, firestore: db } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -90,10 +90,10 @@ export default function SettingsPage() {
   };
 
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !app || !db) return;
+    if (!user || !firebaseApp || !db) return;
     setIsSubmitting(true);
 
-    const auth = getAuth(app);
+    const auth = getAuth(firebaseApp);
     const currentUser = auth.currentUser;
     
     try {

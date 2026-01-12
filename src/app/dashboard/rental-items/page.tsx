@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
+import { useMemoFirebase } from '@/firebase/provider';
 
 type RentalItem = {
   id: string;
@@ -37,7 +38,7 @@ const rentalItemSchema = z.object({
 type RentalItemFormData = z.infer<typeof rentalItemSchema>;
 
 function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: RentalItem, onFinished: () => void }) {
-  const { db } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<RentalItemFormData>({
@@ -46,14 +47,14 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
   });
 
   const onSubmit = async (data: RentalItemFormData) => {
-    if (!db) return;
+    if (!firestore) return;
     setIsSubmitting(true);
     
-    const collectionRef = collection(db, 'tents', tentId, 'rentalItems');
+    const collectionRef = collection(firestore, 'tents', tentId, 'rentalItems');
     
     try {
       if (item) {
-        const docRef = doc(db, 'tents', tentId, 'rentalItems', item.id);
+        const docRef = doc(firestore, 'tents', tentId, 'rentalItems', item.id);
         await updateDoc(docRef, data);
         toast({ title: "Item de aluguel atualizado com sucesso!" });
       } else {
@@ -102,8 +103,8 @@ function RentalItemForm({ tentId, item, onFinished }: { tentId: string, item?: R
 }
 
 export default function RentalItemsPage() {
-  const { user, loading: userLoading } = useUser();
-  const { db } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
@@ -111,10 +112,10 @@ export default function RentalItemsPage() {
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
 
   useEffect(() => {
-    if (db && user) {
+    if (firestore && user) {
       setLoadingTent(true);
       const getTentId = async () => {
-        const tentsRef = collection(db, 'tents');
+        const tentsRef = collection(firestore, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -123,23 +124,23 @@ export default function RentalItemsPage() {
         setLoadingTent(false);
       };
       getTentId();
-    } else if (!userLoading) {
+    } else if (!isUserLoading) {
         setLoadingTent(false);
     }
-  }, [db, user, userLoading]);
+  }, [firestore, user, isUserLoading]);
 
-  const rentalsQuery = useMemo(() => {
-    if (!db || !tentId) return null;
-    return collection(db, 'tents', tentId, 'rentalItems');
-  }, [db, tentId]);
+  const rentalsQuery = useMemoFirebase(() => {
+    if (!firestore || !tentId) return null;
+    return collection(firestore, 'tents', tentId, 'rentalItems');
+  }, [firestore, tentId]);
 
-  const { data: rentalItems, loading: rentalsLoading, error } = useCollection<RentalItem>(rentalsQuery);
+  const { data: rentalItems, isLoading: rentalsLoading, error } = useCollection<RentalItem>(rentalsQuery);
   
   const deleteItem = async (itemId: string) => {
-    if (!db || !tentId) return;
+    if (!firestore || !tentId) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
-    const docRef = doc(db, 'tents', tentId, 'rentalItems', itemId);
+    const docRef = doc(firestore, 'tents', tentId, 'rentalItems', itemId);
     try {
         await deleteDoc(docRef);
         toast({ title: 'Item apagado com sucesso!' });
@@ -164,7 +165,7 @@ export default function RentalItemsPage() {
   }
 
 
-  if (userLoading || loadingTent) {
+  if (isUserLoading || loadingTent) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

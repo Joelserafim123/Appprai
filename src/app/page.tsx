@@ -9,6 +9,7 @@ import { useFirebase } from '@/firebase/provider';
 import { Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { Logo } from '@/components/icons';
+import { useMemoFirebase } from '@/firebase/provider';
 
 export interface Tent {
   id: string;
@@ -24,14 +25,14 @@ export interface Tent {
 }
 
 export default function Home() {
-  const { db } = useFirebase();
+  const { firestore } = useFirebase();
   
-  const tentsQuery = useMemo(() => {
-    if (!db) return null;
-    return collection(db, 'tents');
-  }, [db]);
+  const tentsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'tents');
+  }, [firestore]);
 
-  const { data: tents, loading } = useCollection<Tent>(tentsQuery);
+  const { data: tents, isLoading: loading } = useCollection<Tent>(tentsQuery);
 
   if (loading || !tents) {
     return (

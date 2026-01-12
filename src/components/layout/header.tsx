@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
 import { LogOut, LayoutGrid } from 'lucide-react';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { getAuth, signOut } from 'firebase/auth';
 import { useFirebase } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
@@ -22,13 +22,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
 export function Header() {
   const { user } = useUser();
-  const { app } = useFirebase();
+  const { firebaseApp } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
 
   const handleLogout = async () => {
-    if (!app) return;
-    const auth = getAuth(app);
+    if (!firebaseApp) return;
+    const auth = getAuth(firebaseApp);
     try {
       await signOut(auth);
       toast({

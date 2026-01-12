@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { UserProvider } from '@/firebase/provider';
 
 export const metadata: Metadata = {
   title: 'BeachPal',
@@ -31,8 +31,9 @@ export default function RootLayout({
         )}
       >
         <FirebaseClientProvider>
-          {children}
-          <FirebaseErrorListener />
+          <UserProvider>
+            {children}
+          </UserProvider>
         </FirebaseClientProvider>
         <Toaster />
       </body>

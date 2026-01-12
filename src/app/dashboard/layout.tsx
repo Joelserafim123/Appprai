@@ -1,7 +1,7 @@
 'use client';
 
 import { Header } from '@/components/layout/header';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import {
   SidebarProvider,
   Sidebar,

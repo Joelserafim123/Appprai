@@ -1,18 +1,19 @@
 
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, orderBy, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User as UserIcon, Calendar, Hash } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useMemoFirebase } from '@/firebase/provider';
 
 type ReservationItem = {
   name: string;
@@ -32,15 +33,15 @@ type Reservation = {
 };
 
 export default function OwnerReservationsPage() {
-  const { user, loading: userLoading } = useUser();
-  const { db } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [tentId, setTentId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (db && user) {
+    if (firestore && user) {
       const getTentId = async () => {
-        const tentsRef = collection(db, 'tents');
+        const tentsRef = collection(firestore, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -49,17 +50,17 @@ export default function OwnerReservationsPage() {
       };
       getTentId();
     }
-  }, [db, user]);
+  }, [firestore, user]);
 
-  const reservationsQuery = useMemo(() => {
-    if (!db || !tentId) return null;
+  const reservationsQuery = useMemoFirebase(() => {
+    if (!firestore || !tentId) return null;
     return query(
-      collection(db, 'reservations'),
+      collection(firestore, 'reservations'),
       where('tentId', '==', tentId)
     );
-  }, [db, tentId]);
+  }, [firestore, tentId]);
 
-  const { data: reservations, loading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+  const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
   const sortedReservations = useMemo(() => {
     if (!reservations) return [];
@@ -68,8 +69,8 @@ export default function OwnerReservationsPage() {
 
 
   const handleUpdateStatus = (reservationId: string, status: 'confirmed' | 'cancelled' | 'completed') => {
-    if (!db) return;
-    const resDocRef = doc(db, 'reservations', reservationId);
+    if (!firestore) return;
+    const resDocRef = doc(firestore, 'reservations', reservationId);
     
     updateDoc(resDocRef, { status })
       .then(() => {
@@ -86,7 +87,7 @@ export default function OwnerReservationsPage() {
       });
   };
 
-  if (userLoading || (reservationsLoading && !reservations)) {
+  if (isUserLoading || (reservationsLoading && !reservations)) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

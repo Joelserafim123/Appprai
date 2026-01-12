@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { collection, query, where, getDocs, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import type { Tent } from '@/app/page';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { useMemoFirebase } from '@/firebase/provider';
 
 const mapContainerStyle = {
   width: '100%',
@@ -67,7 +68,7 @@ interface TentMedia {
 }
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
-  const { db } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -120,7 +121,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   }
 
   const onSubmit = async (data: TentFormData) => {
-    if (!db || !user) return;
+    if (!firestore || !user) return;
     setIsSubmitting(true);
     
     // The document ID for a user's tent is their UID.
@@ -133,7 +134,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     };
 
     try {
-      const docRef = doc(db, 'tents', tentId);
+      const docRef = doc(firestore, 'tents', tentId);
       // Use setDoc to create or overwrite. This ensures nested objects are updated.
       await setDoc(docRef, tentData);
       
@@ -224,7 +225,7 @@ const mediaSchema = z.object({
 type MediaFormData = z.infer<typeof mediaSchema>;
 
 function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: () => void }) {
-    const { db } = useFirebase();
+    const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { register, handleSubmit, formState: { errors }, watch } = useForm<MediaFormData>({
@@ -236,7 +237,7 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     const isVideo = file?.type.startsWith('video/');
 
     const onSubmit = async (data: MediaFormData) => {
-        if (!db || !data.media[0]) return;
+        if (!firestore || !data.media[0]) return;
         setIsSubmitting(true);
     
         const file = data.media[0];
@@ -258,7 +259,7 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
                 type: mediaType,
             };
     
-            const collectionRef = collection(db, 'tents', tentId, 'media');
+            const collectionRef = collection(firestore, 'tents', tentId, 'media');
             await addDoc(collectionRef, mediaData);
             
             toast({ title: "Mídia adicionada com sucesso!" });
@@ -318,23 +319,23 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
 }
 
 function MediaManager({ tentId }: { tentId: string | null }) {
-    const { db } = useFirebase();
+    const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isFormOpen, setIsFormOpen] = useState(false);
     
-    const mediaQuery = useMemo(() => {
-        if (!db || !tentId) return null;
-        return query(collection(db, 'tents', tentId, 'media'));
-    }, [db, tentId]);
+    const mediaQuery = useMemoFirebase(() => {
+        if (!firestore || !tentId) return null;
+        return query(collection(firestore, 'tents', tentId, 'media'));
+    }, [firestore, tentId]);
 
-    const { data: tentMedia, loading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
+    const { data: tentMedia, isLoading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
 
     const handleDeleteMedia = async (mediaId: string) => {
-        if (!db || !tentId || !confirm("Tem certeza que quer apagar este item da galeria?")) return;
+        if (!firestore || !tentId || !confirm("Tem certeza que quer apagar este item da galeria?")) return;
         
         setIsSubmitting(true);
-        const docRef = doc(db, 'tents', tentId, 'media', mediaId);
+        const docRef = doc(firestore, 'tents', tentId, 'media', mediaId);
         try {
             await deleteDoc(docRef);
             toast({ title: "Mídia apagada com sucesso!" });
@@ -413,19 +414,19 @@ function MediaManager({ tentId }: { tentId: string | null }) {
 }
 
 export default function MyTentPage() {
-  const { user, loading: userLoading } = useUser();
-  const { db } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   const [tent, setTent] = useState<Tent | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
   const { toast } = useToast();
 
   const fetchTentData = useCallback(async () => {
-    if (!db || !user) return;
+    if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        const tentsRef = collection(db, 'tents');
-        const q = query(tentsRef, where('ownerId', '==', user.uid));
-        const docSnap = await getDocs(q);
+        const tentDocRef = doc(firestore, 'tents', user.uid);
+        const docSnap = await getDocs(query(collection(firestore, 'tents'), where('ownerId', '==', user.uid)));
+
         if (!docSnap.empty) {
             const doc = docSnap.docs[0];
             const tentData = { id: doc.id, ...doc.data() } as Tent;
@@ -439,18 +440,18 @@ export default function MyTentPage() {
     } finally {
         setLoadingTent(false);
     }
-  }, [db, user, toast]);
+  }, [firestore, user, toast]);
 
   useEffect(() => {
-    if(db && user) {
+    if(firestore && user) {
         fetchTentData();
-    } else if (!userLoading) {
+    } else if (!isUserLoading) {
         setLoadingTent(false);
     }
-  }, [db, user, userLoading, fetchTentData]);
+  }, [firestore, user, isUserLoading, fetchTentData]);
 
 
-  if (userLoading || loadingTent) {
+  if (isUserLoading || loadingTent) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

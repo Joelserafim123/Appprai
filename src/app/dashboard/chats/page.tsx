@@ -1,31 +1,32 @@
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, getDocs, doc, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, MessageSquare, Tent, User as UserIcon } from 'lucide-react';
+import { Loader2, MessageSquare } from 'lucide-react';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
 import { getInitials } from '@/lib/utils';
+import { useMemoFirebase } from '@/firebase/provider';
 
 export default function ChatsPage() {
-  const { user, loading: userLoading } = useUser();
-  const { db } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   const [tentId, setTentId] = useState<string | null>(null);
   const [loadingTentId, setLoadingTentId] = useState(true);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   // Se o usuário for um dono, busca o ID da sua barraca
   useEffect(() => {
-    if (db && user?.role === 'owner') {
+    if (firestore && user?.role === 'owner') {
       setLoadingTentId(true);
       const getTentId = async () => {
-        const tentsRef = collection(db, 'tents');
+        const tentsRef = collection(firestore, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -37,15 +38,15 @@ export default function ChatsPage() {
     } else {
       setLoadingTentId(false);
     }
-  }, [db, user]);
+  }, [firestore, user]);
 
   // Monta a query de chats baseada na função do usuário
-  const chatsQuery = useMemo(() => {
-    if (!db || !user || loadingTentId) return null;
+  const chatsQuery = useMemoFirebase(() => {
+    if (!firestore || !user || loadingTentId) return null;
 
     if (user.role === 'owner' && !tentId) {
         // Se for dono e não tiver barraca (após o carregamento ter terminado), retorna uma query vazia.
-        return query(collection(db, 'chats'), where('tentId', '==', 'nonexistent-id-to-return-empty'));
+        return query(collection(firestore, 'chats'), where('tentId', '==', 'nonexistent-id-to-return-empty'));
     }
 
     const fieldToQuery = user.role === 'owner' ? 'tentId' : 'userId';
@@ -54,19 +55,19 @@ export default function ChatsPage() {
     if (!valueToQuery) return null;
 
     return query(
-      collection(db, 'chats'),
+      collection(firestore, 'chats'),
       where(fieldToQuery, '==', valueToQuery),
       orderBy('lastMessageTimestamp', 'desc')
     );
-  }, [db, user, tentId, loadingTentId]);
+  }, [firestore, user, tentId, loadingTentId]);
   
-  const { data: chats, loading: chatsLoading, error } = useCollection<Chat>(chatsQuery);
+  const { data: chats, isLoading: chatsLoading, error } = useCollection<Chat>(chatsQuery);
 
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);
   }, []);
 
-  if (userLoading || chatsLoading || loadingTentId) {
+  if (isUserLoading || chatsLoading || loadingTentId) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

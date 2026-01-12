@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info, Loader2, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import type { Tent } from '@/app/page';
 import { cn } from '@/lib/utils';
 import type { TentMedia, MenuItem, RentalItem } from '@/lib/types';
+import { useMemoFirebase } from '@/firebase/provider';
 
 
 type CartItem = { 
@@ -32,7 +33,7 @@ type CartItem = {
 
 
 export default function TentPage({ params }: { params: { slug: string } }) {
-  const { db } = useFirebase();
+  const { firestore } = useFirebase();
   const router = useRouter();
   const { user } = useUser();
   const { toast } = useToast();
@@ -43,30 +44,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const tentQuery = useMemo(() => {
-    if (!db) return null;
-    return query(collection(db, 'tents'), where('slug', '==', params.slug));
-  }, [db, params.slug]);
-
-  const menuQuery = useMemo(() => {
-    if (!tent) return null;
-    return collection(db!, 'tents', tent.id, 'menuItems');
-  }, [tent]);
-
-  const rentalsQuery = useMemo(() => {
-    if (!tent) return null;
-    return collection(db!, 'tents', tent.id, 'rentalItems');
-  }, [tent]);
-  
-  const mediaQuery = useMemo(() => {
-    if (!tent) return null;
-    return collection(db!, 'tents', tent.id, 'media');
-  }, [tent]);
-
-  const { data: menuItems, loading: loadingMenu } = useCollection<MenuItem>(menuQuery);
-  const { data: rentalItems, loading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
-  const { data: tentMedia, loading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
-
+  const tentQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'tents'), where('slug', '==', params.slug));
+  }, [firestore, params.slug]);
 
   useEffect(() => {
     const fetchTent = async () => {
@@ -89,15 +70,36 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     fetchTent();
   }, [tentQuery]);
 
+
+  const menuQuery = useMemoFirebase(() => {
+    if (!tent) return null;
+    return collection(firestore!, 'tents', tent.id, 'menuItems');
+  }, [tent]);
+
+  const rentalsQuery = useMemoFirebase(() => {
+    if (!tent) return null;
+    return collection(firestore!, 'tents', tent.id, 'rentalItems');
+  }, [tent]);
+  
+  const mediaQuery = useMemoFirebase(() => {
+    if (!tent) return null;
+    return collection(firestore!, 'tents', tent.id, 'media');
+  }, [tent]);
+
+  const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuQuery);
+  const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
+  const { data: tentMedia, isLoading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
+
+
   const handleStartChat = async () => {
-    if (!user || !db || !tent) {
+    if (!user || !firestore || !tent) {
         toast({ variant: 'destructive', title: 'Você precisa estar logado para iniciar uma conversa.' });
         router.push(`/login?redirect=/tents/${params.slug}`);
         return;
     }
 
     const chatId = `${user.uid}_${tent.id}`;
-    const chatDocRef = doc(db, 'chats', chatId);
+    const chatDocRef = doc(firestore, 'chats', chatId);
 
     try {
         await setDoc(chatDocRef, {
@@ -106,7 +108,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             userPhotoURL: user.photoURL,
             tentId: tent.id,
             tentName: tent.name,
-            tentLogoUrl: tent.media?.[0]?.mediaUrl || '', // Use the first media item as logo
+            tentLogoUrl: tentMedia?.[0]?.mediaUrl || '', // Use the first media item as logo
             lastMessage: 'Conversa iniciada!',
             lastMessageTimestamp: serverTimestamp()
         }, { merge: true });
@@ -178,7 +180,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const isCartEmpty = Object.keys(cart).length === 0;
 
   const handleCreateReservation = async () => {
-    if (!user || !db || isCartEmpty) {
+    if (!user || !firestore || isCartEmpty) {
       if(!user) {
         toast({
           variant: "destructive",
@@ -208,7 +210,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     };
 
     try {
-      const reservationsColRef = collection(db, 'reservations');
+      const reservationsColRef = collection(firestore, 'reservations');
       await addDoc(reservationsColRef, reservationData);
 
       toast({

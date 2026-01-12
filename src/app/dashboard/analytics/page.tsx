@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, getDocs } from 'firebase/firestore';
@@ -22,6 +21,7 @@ import { ChartTooltipContent, ChartContainer, ChartConfig } from '@/components/u
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
+import { useMemoFirebase } from '@/firebase/provider';
 
 type Reservation = {
   id: string;
@@ -38,16 +38,16 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function AnalyticsPage() {
-  const { user, loading: userLoading } = useUser();
-  const { db } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   const [tentId, setTentId] = useState<string | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
 
   useEffect(() => {
-    if (db && user) {
+    if (firestore && user) {
       setLoadingTent(true);
       const getTentId = async () => {
-        const tentsRef = collection(db, 'tents');
+        const tentsRef = collection(firestore, 'tents');
         const q = query(tentsRef, where('ownerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -56,17 +56,17 @@ export default function AnalyticsPage() {
         setLoadingTent(false);
       };
       getTentId();
-    } else if (!userLoading) {
+    } else if (!isUserLoading) {
       setLoadingTent(false);
     }
-  }, [db, user, userLoading]);
+  }, [firestore, user, isUserLoading]);
 
-  const reservationsQuery = useMemo(() => {
-    if (!db || !tentId || loadingTent) return null;
-    return query(collection(db, 'reservations'), where('tentId', '==', tentId));
-  }, [db, tentId, loadingTent]);
+  const reservationsQuery = useMemoFirebase(() => {
+    if (!firestore || !tentId || loadingTent) return null;
+    return query(collection(firestore, 'reservations'), where('tentId', '==', tentId));
+  }, [firestore, tentId, loadingTent]);
 
-  const { data: reservations, loading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+  const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
   const analyticsData = useMemo(() => {
     if (!reservations) return null;
@@ -99,7 +99,7 @@ export default function AnalyticsPage() {
     };
   }, [reservations]);
 
-  if (userLoading || loadingTent) {
+  if (isUserLoading || loadingTent) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
@@ -11,6 +11,7 @@ import { Loader2, Star, Tent } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useMemoFirebase } from '@/firebase/provider';
 
 type ReservationItem = {
   name: string;
@@ -28,25 +29,25 @@ type Reservation = {
 };
 
 export default function MyReservationsPage() {
-  const { user, loading: userLoading } = useUser();
-  const { db } = useFirebase();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
 
-  const reservationsQuery = useMemo(() => {
-    if (!db || !user) return null;
+  const reservationsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
     return query(
-      collection(db, 'reservations'),
+      collection(firestore, 'reservations'),
       where('userId', '==', user.uid)
     );
-  }, [db, user]);
+  }, [firestore, user]);
 
-  const { data: reservations, loading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+  const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
   const sortedReservations = useMemo(() => {
     if (!reservations) return [];
     return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
   }, [reservations]);
 
-  if (userLoading || (reservationsLoading && !reservations)) {
+  if (isUserLoading || (reservationsLoading && !reservations)) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
