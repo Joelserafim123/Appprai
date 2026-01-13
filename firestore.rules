@@ -15,19 +15,22 @@ service cloud.firestore {
     match /users/{userId} {
       // Allow user to read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
-      
-      // Allow user to create their own document with basic fields.
-      allow create: if request.auth != null 
-                    && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.email is string
-                    && request.resource.data.displayName is string
-                    && request.resource.data.role in ['customer', 'owner'];
-      
-      // Allow user to update their own document.
-      // The CPF and role cannot be changed once set.
-      allow update: if request.auth != null && request.auth.uid == userId 
-                    && (request.resource.data.cpf == resource.data.cpf || resource.data.cpf == null)
-                    && (request.resource.data.role == resource.data.role || resource.data.role == null);
+
+      // Allow user to create their document with required fields,
+      // and update it, but not change their role or CPF once set.
+      allow write: if request.auth != null && request.auth.uid == userId
+                    // Create: check required fields
+                    && (!exists(/databases/$(database)/documents/users/$(userId))
+                        && request.resource.data.uid == userId
+                        && request.resource.data.email is string
+                        && request.resource.data.displayName is string
+                        && request.resource.data.role in ['customer', 'owner']
+                    )
+                    // Update: check immutable fields
+                    || (exists(/databases/$(database)/documents/users/$(userId))
+                        && request.resource.data.role == resource.data.role
+                        && (request.resource.data.cpf == resource.data.cpf || resource.data.cpf == null)
+                    );
       
       // Disallow deleting user documents and listing all users.
       allow delete, list: if false;
@@ -40,7 +43,7 @@ service cloud.firestore {
       // Anyone can read tent information.
       allow read: if true;
       // The tent owner is the only one who can modify the tent.
-      // Now we enforce one tent per owner by making the doc id the owner's uid.
+      // We enforce one tent per owner by making the doc id the owner's uid.
       allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;

@@ -63,7 +63,7 @@ export function SignUpForm() {
         displayName: values.displayName,
       });
 
-      const userProfileData: Partial<UserProfile> = {
+      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
         uid: user.uid,
         email: values.email,
         displayName: values.displayName,
