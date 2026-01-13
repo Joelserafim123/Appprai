@@ -30,6 +30,7 @@ const profileSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   photo: z.any().optional(),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -51,6 +52,7 @@ export default function SettingsPage() {
           neighborhood: user?.neighborhood || '',
           city: user?.city || '',
           state: user?.state || '',
+          cpf: user?.cpf || '',
       }
   });
 
@@ -71,9 +73,20 @@ export default function SettingsPage() {
         neighborhood: user.neighborhood || '',
         city: user.city || '',
         state: user.state || '',
+        cpf: user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : ''
       });
     }
   }, [user, reset]);
+
+   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    value = value.replace(/\D/g, "");
+    if (value.length > 11) value = value.slice(0, 11);
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    setValue('cpf', value, { shouldValidate: true });
+  }, [setValue]);
 
 
    const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,7 +222,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
             <CardDescription>
-                Atualize as informações da sua conta. O CPF e a sua função não podem ser alterados após o cadastro inicial.
+                Atualize as informações da sua conta. A sua função não pode ser alterada após o cadastro inicial.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -228,7 +241,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <p className="font-medium">{user.displayName?.split(' ')[0]}</p>
+                    <p className="text-lg font-semibold">{user.displayName?.split(' ')[0]}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                     <p className="text-xs font-semibold text-primary capitalize py-1 px-2 bg-primary/10 rounded-full inline-block">{user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</p>
                 </div>
@@ -247,13 +260,14 @@ export default function SettingsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="cpf">CPF</Label>
-              <Input
+               <Input
                 id="cpf"
-                value={user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : ''}
-                disabled
-                readOnly
+                {...register('cpf')}
+                onChange={handleCpfChange}
+                disabled={isSubmitting || !!user.cpf}
                 placeholder="000.000.000-00"
               />
+               {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
             </div>
             
             <div className="space-y-2">

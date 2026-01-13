@@ -328,10 +328,11 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
               onClick={() => handleTentSelect(tent)}
               icon={getMarkerIcon(tent)}
               label={{
-                text: tent.name.charAt(0),
-                color: 'white',
-                fontSize: '10px',
+                text: tent.name,
+                color: 'black',
+                fontSize: '12px',
                 fontWeight: 'bold',
+                className: 'map-marker-label'
               }}
             />
           )
@@ -363,6 +364,11 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   return (
     <div className="h-full w-full">
+       <style jsx global>{`
+        .map-marker-label {
+          transform: translateY(20px);
+        }
+      `}</style>
       <div className="md:grid h-full grid-cols-1 md:grid-cols-[350px_1fr]">
         <div className="hidden md:flex flex-col border-r">
           <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} />
@@ -398,5 +404,3 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
-
-    
