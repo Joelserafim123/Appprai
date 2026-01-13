@@ -13,15 +13,15 @@ service cloud.firestore {
     // Users
     //--------------------------------
     match /users/{userId} {
-      // Allow user to read their own document.
+      // A user can read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
 
-      // Allow user to create and update their document.
+      // A user can create and update their own document, with protections.
       allow write: if request.auth != null && request.auth.uid == userId
-                   // On Update, ensure role is not changed.
-                   && (!exists(path) || !('role' in request.resource.data) || request.resource.data.role == resource.data.role)
-                   // On Update, ensure CPF is not changed once set.
-                   && (!exists(path) || resource.data.cpf == null || !('cpf' in request.resource.data) || request.resource.data.cpf == resource.data.cpf);
+                   // Protect 'role': cannot be changed after creation.
+                   && (!exists(path) || request.resource.data.role == resource.data.role)
+                   // Protect 'cpf': cannot be changed once it has been set.
+                   && (!exists(path) || resource.data.cpf == null || request.resource.data.cpf == resource.data.cpf);
       
       // Disallow deleting user documents and listing all users.
       allow delete, list: if false;

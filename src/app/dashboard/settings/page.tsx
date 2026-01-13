@@ -148,7 +148,7 @@ export default function SettingsPage() {
       if (data.city) firestoreData.city = data.city;
       if (data.state) firestoreData.state = data.state;
       
-      // Only allow setting CPF if it's not already set
+      // Only allow setting CPF if it's not already set, and remove formatting
       if (!user.cpf && data.cpf) {
         firestoreData.cpf = data.cpf.replace(/\D/g, "");
       }
