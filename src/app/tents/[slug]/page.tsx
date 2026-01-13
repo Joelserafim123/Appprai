@@ -278,7 +278,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <main>
         <div className="relative h-64 w-full md:h-96">
             <Image
-                src="https://picsum.photos/seed/whale/1600/600"
+                src="https://placehold.co/1600x600/40E0D0/000000?text=Whale"
                 alt={tent.name}
                 className="object-cover"
                 data-ai-hint="whale"
@@ -458,5 +458,3 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
-
-    
