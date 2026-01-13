@@ -137,6 +137,13 @@ export default function MyReservationsPage() {
                  </div>
               </CardHeader>
               <CardContent>
+                 {reservation.status === 'payment-pending' && (
+                    <div className="mb-4 rounded-lg border border-dashed border-amber-500 bg-amber-50 p-4 text-center">
+                        <Hourglass className="mx-auto h-8 w-8 text-amber-600 mb-2" />
+                        <h4 className="font-semibold text-amber-800">Aguardando Pagamento</h4>
+                        <p className="text-sm text-amber-700">O dono da barraca precisa confirmar o recebimento para finalizar o pedido.</p>
+                    </div>
+                )}
                 <ul className="space-y-2 text-sm text-muted-foreground">
                     {reservation.items.map((item, index) => {
                       const StatusIcon = item.status ? itemStatusConfig[item.status]?.icon : null;

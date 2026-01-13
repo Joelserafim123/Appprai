@@ -429,10 +429,10 @@ export default function OwnerReservationsPage() {
                             )}
                             {reservation.status === 'payment-pending' && (
                                 <div className="grid grid-cols-2 gap-2 w-full">
-                                    <Button size="sm" variant="secondary" onClick={() => setReservationForPayment(reservation)}>
+                                    <Button size="sm" onClick={() => setReservationForPayment(reservation)}>
                                         <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
                                     </Button>
-                                     <Button size="sm" onClick={() => handleCompleteReservation(reservation.id)}>
+                                     <Button size="sm" variant="secondary" onClick={() => handleCompleteReservation(reservation.id)}>
                                         <Check className="mr-2 h-4 w-4" /> Finalizar Pedido
                                     </Button>
                                 </div>
