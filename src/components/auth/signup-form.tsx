@@ -16,8 +16,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
-import { User, Mail, KeyRound, Briefcase, UserCircle, Loader2 } from "lucide-react"
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
+import { User, Mail, KeyRound, Briefcase, UserCircle, Loader2, Send } from "lucide-react"
+import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
@@ -38,6 +38,7 @@ export function SignUpForm() {
   const { firebaseApp: app, firestore } = useFirebase();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -63,17 +64,20 @@ export function SignUpForm() {
         displayName: values.displayName,
       });
 
-      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
+      // Send verification email
+      await sendEmailVerification(user);
+
+      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'cpf'> = {
         uid: user.uid,
         email: values.email,
         displayName: values.displayName,
         role: values.role,
         photoURL: user.photoURL || '',
       };
-
+      
       const userDocRef = doc(firestore, "users", user.uid);
       
-      setDoc(userDocRef, userProfileData).catch(e => {
+      await setDoc(userDocRef, userProfileData).catch(e => {
          const permissionError = new FirestorePermissionError({
           path: `users/${user.uid}`,
           operation: 'create',
@@ -84,10 +88,11 @@ export function SignUpForm() {
       });
 
       toast({
-        title: "Conta criada!",
-        description: "Bem-vindo ao BeachPal. Redirecionando...",
-      })
-      router.push('/dashboard');
+        title: "Verificação Necessária",
+        description: "Um e-mail de verificação foi enviado. Por favor, cheque sua caixa de entrada.",
+      });
+      setIsVerificationSent(true);
+
     } catch (error: any) {
       console.error("Error creating account:", error);
       if (error.code !== 'permission-denied') {
@@ -104,6 +109,20 @@ export function SignUpForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isVerificationSent) {
+    return (
+      <div className="text-center space-y-4">
+        <Send className="mx-auto h-12 w-12 text-primary" />
+        <h3 className="text-xl font-semibold">Verifique seu E-mail</h3>
+        <p className="text-muted-foreground">
+          Enviamos um link de verificação para <span className="font-bold">{form.getValues('email')}</span>. 
+          Por favor, clique no link para ativar sua conta.
+        </p>
+        <Button onClick={() => router.push('/login')}>Ir para o Login</Button>
+      </div>
+    );
   }
 
   return (
