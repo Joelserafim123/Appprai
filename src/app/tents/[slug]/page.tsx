@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -250,16 +250,17 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
     setIsSubmitting(true);
     try {
-      // Check if a chat already exists
       const chatsRef = collection(firestore, 'chats');
       const q = query(chatsRef, where('userId', '==', user.uid), where('tentId', '==', tent.id));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        // Chat exists, navigate to it
         router.push('/dashboard/chats');
       } else {
-        // Create a new chat
+        const initialMessage = "Olá! Como posso ajudar?";
+        const batch = writeBatch(firestore);
+        
+        const newChatRef = doc(chatsRef);
         const newChatData = {
           userId: user.uid,
           userName: user.displayName,
@@ -267,11 +268,21 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           tentId: tent.id,
           tentOwnerId: tent.ownerId,
           tentName: tent.name,
-          tentLogoUrl: tent.logoUrl || '',
-          lastMessage: "Conversa iniciada...",
+          tentLogoUrl: '', 
+          lastMessage: initialMessage,
           lastMessageTimestamp: serverTimestamp(),
         };
-        await addDoc(chatsRef, newChatData);
+        batch.set(newChatRef, newChatData);
+
+        const messagesRef = doc(collection(newChatRef, 'messages'));
+        const firstMessageData = {
+            senderId: tent.ownerId,
+            text: initialMessage,
+            timestamp: serverTimestamp(),
+        };
+        batch.set(messagesRef, firstMessageData);
+
+        await batch.commit();
         router.push('/dashboard/chats');
       }
     } catch (e) {
@@ -413,7 +424,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                         </TabsContent>
                     </Tabs>
             </div>
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 mt-8 lg:mt-0">
                 <Card className="sticky top-24">
                     <CardHeader>
                         <CardTitle>Sua Reserva Inicial</CardTitle>
