@@ -3,7 +3,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { getAuth, applyActionCode } from 'firebase/auth';
+import { getAuth, applyActionCode, checkActionCode } from 'firebase/auth';
 import { useFirebase } from '@/firebase/provider';
 import { Loader2, ShieldCheck, ShieldX } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,14 +17,25 @@ function VerificationHandler() {
   
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(5);
+  const [verifiedEmail, setVerifiedEmail] = useState('');
 
   useEffect(() => {
     const oobCode = searchParams.get('oobCode');
 
     if (oobCode && firebaseApp) {
       const auth = getAuth(firebaseApp);
-      applyActionCode(auth, oobCode)
+      
+      // First, check the code to get user info without applying it
+      checkActionCode(auth, oobCode)
+        .then((info) => {
+          const email = info.data.email;
+          if (email) {
+            setVerifiedEmail(email); // Store the email
+          }
+          // Now, apply the action code
+          return applyActionCode(auth, oobCode);
+        })
         .then(() => {
           setStatus('success');
         })
@@ -45,7 +56,7 @@ function VerificationHandler() {
       setStatus('error');
       setErrorMessage('Nenhum código de verificação fornecido. Rota inválida.');
     }
-  }, [searchParams, firebaseApp, router]);
+  }, [searchParams, firebaseApp]);
 
   useEffect(() => {
     if (status === 'success') {
@@ -53,10 +64,11 @@ function VerificationHandler() {
         const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
         return () => clearTimeout(timer);
       } else {
-        router.push('/login');
+        // Redirect with email as a query parameter
+        router.push(verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : '/login');
       }
     }
-  }, [status, countdown, router]);
+  }, [status, countdown, router, verifiedEmail]);
 
   if (status === 'loading') {
     return (
@@ -79,7 +91,7 @@ function VerificationHandler() {
         </CardHeader>
         <CardContent>
             <Button asChild className="w-full">
-                <Link href="/login">Ir para o Login Agora</Link>
+                <Link href={verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : '/login'}>Ir para o Login Agora</Link>
             </Button>
         </CardContent>
       </Card>

@@ -19,7 +19,7 @@ import { KeyRound, Loader2, User, Mail } from "lucide-react"
 import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -143,6 +143,14 @@ export function LoginForm() {
     },
   })
   
+  useEffect(() => {
+    const emailFromParams = searchParams.get('email');
+    if (emailFromParams) {
+        form.setValue('email', decodeURIComponent(emailFromParams));
+    }
+  }, [searchParams, form]);
+
+
   const handleAuthSuccess = () => {
       toast({
         title: "Login bem-sucedido",
