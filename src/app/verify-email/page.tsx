@@ -6,16 +6,22 @@ import { useRouter } from 'next/navigation';
 import { getAuth, sendEmailVerification } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, MailWarning, Send } from 'lucide-react';
+import { Loader2, MailWarning, Send, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function VerifyEmailPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, refresh } = useUser();
   const { firebaseApp } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    if (!isUserLoading && user?.emailVerified) {
+      router.push('/dashboard');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleResendVerification = async () => {
     if (!user || !firebaseApp) return;
@@ -40,6 +46,10 @@ export default function VerifyEmailPage() {
     }
   };
 
+  const handleAlreadyVerified = () => {
+    refresh(); // This will re-fetch user data and trigger the useEffect above
+  };
+
   if (isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -55,9 +65,12 @@ export default function VerifyEmailPage() {
   }
 
   if (user.emailVerified) {
-    // User is already verified, send them to the dashboard.
-    router.push('/dashboard');
-    return null;
+    // This will be briefly visible while the redirect happens via useEffect
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
   }
 
   return (
@@ -71,20 +84,26 @@ export default function VerifyEmailPage() {
             <span className="font-bold text-foreground">{user.email}</span>.
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-center">
+        <CardContent className="text-center space-y-4">
           <p className="text-sm text-muted-foreground">
-            Por favor, clique no link em seu e-mail para continuar. Se você não recebeu o e-mail, verifique sua pasta de spam ou clique abaixo para reenviar.
+            Por favor, clique no link em seu e-mail para continuar. Após verificar, clique no botão abaixo para prosseguir.
           </p>
-          <Button onClick={handleResendVerification} className="mt-6 w-full" disabled={isSending}>
-            {isSending ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Reenviar E-mail de Verificação
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button onClick={handleAlreadyVerified} className="w-full">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Já verifiquei, continuar
+            </Button>
+            <Button onClick={handleResendVerification} className="w-full" variant="outline" disabled={isSending}>
+                {isSending ? (
+                <Loader2 className="animate-spin" />
+                ) : (
+                <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Reenviar E-mail
+                </>
+                )}
+            </Button>
+          </div>
            <Button variant="link" onClick={() => router.push('/login')} className="mt-4">
              Voltar para o Login
            </Button>
