@@ -13,26 +13,6 @@ export default function DashboardPage() {
   const { user, isUserLoading: loading } = useUser();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && user) {
-      if (user.role === 'owner') {
-        router.replace('/dashboard/reservations');
-      } else {
-        router.replace('/dashboard/my-reservations');
-      }
-    }
-  }, [user, loading, router]);
-
-
-  // Mostra um loader enquanto o usuário está sendo carregado e o redirecionamento está sendo preparado.
-  if (loading || !user) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   // Este conteúdo não será mais exibido, mas é mantido como fallback.
   const welcomeMessage = () => {
     const firstName = user?.displayName?.split(' ')[0] || 'usuário';
@@ -41,6 +21,14 @@ export default function DashboardPage() {
     }
     return `Bem-vindo de volta, ${firstName}.`;
   };
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-2xl">
