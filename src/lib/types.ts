@@ -11,6 +11,7 @@ export interface Tent {
   ownerName: string;
   bannerUrl?: string;
   bannerStoragePath?: string;
+  logoUrl?: string;
   location: {
     latitude: number;
     longitude: number;
@@ -85,4 +86,25 @@ export interface Reservation {
   createdAt: Timestamp;
   status: ReservationStatus;
   paymentMethod?: PaymentMethod;
+}
+
+
+export interface Chat {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhotoURL: string;
+  tentId: string;
+  tentName: string;
+  tentOwnerId: string;
+  tentLogoUrl: string;
+  lastMessage: string;
+  lastMessageTimestamp: Timestamp;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: Timestamp;
 }

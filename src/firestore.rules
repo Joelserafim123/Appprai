@@ -14,9 +14,11 @@ service cloud.firestore {
     //--------------------------------
     match /users/{userId} {
       // Allow user to read and update their own document.
-      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
       // Allow user to create their own document.
       allow create: if request.auth != null;
+      // Allow user to update their own document, but not change their CPF
+      allow update: if request.auth != null && request.auth.uid == userId && !(request.resource.data.cpf != resource.data.cpf);
       // Disallow deleting user documents and listing all users.
       allow delete, list: if false;
     }
@@ -72,6 +74,31 @@ service cloud.firestore {
 
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
+    }
+    
+    //--------------------------------
+    // Chats & Messages
+    //--------------------------------
+    match /chats/{chatId} {
+      // Allow read/update if user is the customer or the tent owner.
+      allow read, update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+      // Allow create if the user is the one initiating the chat.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    match /chats/{chatId}/messages/{messageId} {
+      // Allow read if user is part of the parent chat.
+      allow read: if request.auth != null && (
+        get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+      );
+      // Allow create if user is part of the parent chat.
+      allow create: if request.auth != null && (
+        get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+      );
+      // Disallow updates and deletes for message integrity.
+      allow update, delete: if false;
     }
   }
 }

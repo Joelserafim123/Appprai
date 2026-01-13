@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -46,47 +46,45 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const tentQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'tents'), where('slug', '==', params.slug));
-  }, [firestore, params.slug]);
-
   useEffect(() => {
-    if (!firestore) return; // Aguarda o firestore estar pronto
+    if (!firestore) return;
 
     const fetchTent = async () => {
-      if (!tentQuery) {
         setLoadingTent(true);
-        return
-      };
+        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', params.slug));
+        try {
+            const querySnapshot = await getDocs(tentQuery);
+            if (querySnapshot.empty) {
+                notFound();
+            } else {
+                const tentDoc = querySnapshot.docs[0];
+                const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
 
-      try {
-        const querySnapshot = await getDocs(tentQuery);
-        if (querySnapshot.empty) {
-          notFound();
-        } else {
-          const tentDoc = querySnapshot.docs[0];
-          const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
+                // Set a fallback owner name
+                tentData.ownerName = tentData.ownerName || tentData.name;
+                
+                // Attempt to fetch the user document for a more accurate owner name
+                try {
+                    const userDocRef = doc(firestore, 'users', tentData.ownerId);
+                    const userDoc = await getDoc(userDocRef);
+                    if (userDoc.exists()) {
+                        tentData.ownerName = userDoc.data().displayName;
+                    }
+                } catch (userError) {
+                    console.warn(`Could not fetch owner's name for tent ${tentData.id}:`, userError);
+                }
 
-          const userDocRef = doc(firestore, 'users', tentData.ownerId);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-              tentData.ownerName = userDoc.data().displayName;
-          } else {
-              tentData.ownerName = tentData.name;
-          }
-
-          setTent(tentData);
+                setTent(tentData);
+            }
+        } catch (error) {
+            console.error("Error fetching tent:", error);
+            notFound();
+        } finally {
+            setLoadingTent(false);
         }
-      } catch (error) {
-        console.error("Error fetching tent:", error);
-        notFound();
-      } finally {
-        setLoadingTent(false);
-      }
     };
     fetchTent();
-  }, [tentQuery, firestore, params.slug]);
+  }, [firestore, params.slug]);
 
 
   const menuQuery = useMemoFirebase(() => {
@@ -235,6 +233,59 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         setIsSubmitting(false);
     });
   };
+  
+  const handleStartChat = async () => {
+    if (!user || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Login Necessário",
+        description: "Você precisa estar logado para iniciar uma conversa.",
+      });
+      router.push(`/login?redirect=/tents/${tent.slug}`);
+      return;
+    }
+
+    if (user.uid === tent.ownerId) {
+      toast({
+        title: "Ação não permitida",
+        description: "Você não pode iniciar uma conversa com sua própria barraca."
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Check if a chat already exists
+      const chatsRef = collection(firestore, 'chats');
+      const q = query(chatsRef, where('userId', '==', user.uid), where('tentId', '==', tent.id));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        // Chat exists, navigate to it
+        router.push('/dashboard/chats');
+      } else {
+        // Create a new chat
+        const newChatData = {
+          userId: user.uid,
+          userName: user.displayName,
+          userPhotoURL: user.photoURL || '',
+          tentId: tent.id,
+          tentOwnerId: tent.ownerId,
+          tentName: tent.name,
+          tentLogoUrl: tent.logoUrl || tent.bannerUrl || '',
+          lastMessage: "Conversa iniciada...",
+          lastMessageTimestamp: serverTimestamp(),
+        };
+        await addDoc(chatsRef, newChatData);
+        router.push('/dashboard/chats');
+      }
+    } catch (e) {
+      console.error("Error starting chat:", e);
+      toast({ variant: 'destructive', title: "Erro ao iniciar conversa." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
 
   return (
@@ -257,6 +308,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           <div className="absolute bottom-0 left-0 p-8 text-white">
             <h1 className="text-4xl font-extrabold drop-shadow-lg md:text-6xl">{tent.name}</h1>
             <p className="mt-2 max-w-2xl text-lg drop-shadow-md">{tent.description}</p>
+             <Button variant="secondary" onClick={handleStartChat} disabled={isSubmitting} className="mt-4">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                {isSubmitting ? 'Iniciando...' : 'Iniciar Conversa'}
+            </Button>
           </div>
         </div>
 

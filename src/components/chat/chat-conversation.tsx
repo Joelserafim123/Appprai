@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, cn } from '@/lib/utils';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { useMemoFirebase } from '@/firebase/provider';
 
 interface ChatConversationProps {
   chat: Chat;
@@ -22,26 +23,26 @@ interface ChatConversationProps {
 }
 
 export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
-  const { db } = useFirebase();
+  const { firestore } = useFirebase();
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollAreaViewport = useRef<HTMLDivElement>(null);
 
-  const messagesQuery = useMemo(() => {
-    if (!db) return null;
+  const messagesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
     return query(
-      collection(db, 'chats', chat.id, 'messages'),
+      collection(firestore, 'chats', chat.id, 'messages'),
       orderBy('timestamp', 'asc')
     );
-  }, [db, chat.id]);
+  }, [firestore, chat.id]);
 
-  const { data: messages, loading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
+  const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
+    if (scrollAreaViewport.current) {
+      scrollAreaViewport.current.scrollTo({
+        top: scrollAreaViewport.current.scrollHeight,
         behavior: 'smooth',
       });
     }
@@ -49,7 +50,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !db) return;
+    if (!newMessage.trim() || !firestore) return;
 
     setIsSending(true);
     const messageText = newMessage.trim();
@@ -60,12 +61,13 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       text: messageText,
     };
 
-    const chatDocRef = doc(db, 'chats', chat.id);
-    const messagesColRef = collection(db, 'chats', chat.id, 'messages');
+    const chatDocRef = doc(firestore, 'chats', chat.id);
+    const messagesColRef = collection(firestore, 'chats', chat.id, 'messages');
 
     try {
-      await addDoc(messagesColRef, { ...messageData, timestamp: serverTimestamp() });
-      await updateDoc(chatDocRef, {
+      // We are not awaiting these promises to provide optimistic updates
+      addDoc(messagesColRef, { ...messageData, timestamp: serverTimestamp() });
+      updateDoc(chatDocRef, {
         lastMessage: messageText,
         lastMessageTimestamp: serverTimestamp(),
       });
@@ -110,8 +112,8 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
             </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full" ref={scrollAreaRef}>
+      <CardContent className="flex-1 overflow-hidden p-0">
+        <ScrollArea className="h-full" viewportRef={scrollAreaViewport}>
           <div className="p-4 space-y-4">
             {messagesLoading ? (
               <div className="flex justify-center items-center h-full">

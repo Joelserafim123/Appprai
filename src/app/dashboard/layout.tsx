@@ -43,6 +43,14 @@ export default function DashboardLayout({
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
+          <Link href="/dashboard/chats">
+            <MessageSquare />
+            <span>Conversas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
         <SidebarMenuButton asChild tooltip={{ children: 'Configurações', side: 'right' }}>
           <Link href="/dashboard/settings">
             <Settings />
@@ -92,6 +100,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/reservations">
             <Star />
             <span>Reservas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
+          <Link href="/dashboard/chats">
+            <MessageSquare />
+            <span>Conversas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>

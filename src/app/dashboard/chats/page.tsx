@@ -54,8 +54,8 @@ export default function ChatsPage() {
         return query(collection(firestore, 'chats'), where('tentId', '==', 'nonexistent-id-to-return-empty'));
     }
 
-    const fieldToQuery = user.role === 'owner' ? 'tentId' : 'userId';
-    const valueToQuery = user.role === 'owner' ? tentId : user.uid;
+    const fieldToQuery = user.role === 'owner' ? 'tentOwnerId' : 'userId';
+    const valueToQuery = user.role === 'owner' ? user.uid : user.uid;
 
     if (!valueToQuery) return null;
 

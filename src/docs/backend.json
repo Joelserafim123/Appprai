@@ -11,7 +11,7 @@
         "displayName": { "type": "string", "description": "User's full name." },
         "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
         "address": { "type": "string" },
-        "photoURL": { "type": "string", "format": "uri" },
+        "photoURL": { "type": "string", "format": "uri", "description": "Public URL of the user's profile picture from Firebase Storage." },
         "role": { "type": "string", "enum": ["customer", "owner"] }
       },
       "required": ["uid", "email", "displayName", "cpf", "address", "role"]
@@ -29,6 +29,7 @@
         "beachName": { "type": "string" },
         "bannerUrl": { "type": "string", "format": "uri", "description": "Public URL of the banner image from Firebase Storage." },
         "bannerStoragePath": { "type": "string", "description": "The path to the banner file in Firebase Storage, for deletion." },
+        "logoUrl": { "type": "string", "format": "uri", "description": "URL for the tent logo, could be same as owner's photo for simplicity." },
         "location": {
           "type": "object",
           "properties": {
@@ -117,6 +118,34 @@
         "tableNumber": { "type": "number" }
       },
       "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status"]
+    },
+    "Chat": {
+        "title": "Chat",
+        "description": "Represents a conversation between a user and a tent owner.",
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "userName": { "type": "string" },
+          "userPhotoURL": { "type": "string", "format": "uri" },
+          "tentId": { "type": "string" },
+          "tentName": { "type": "string" },
+          "tentOwnerId": { "type": "string" },
+          "tentLogoUrl": { "type": "string", "format": "uri" },
+          "lastMessage": { "type": "string" },
+          "lastMessageTimestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["userId", "userName", "tentId", "tentName", "tentOwnerId", "lastMessageTimestamp"]
+      },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "An individual message within a chat.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text", "timestamp"]
     }
   },
   "auth": {
@@ -146,6 +175,14 @@
     "/reservations/{reservationId}": {
       "schema": { "$ref": "#/entities/Reservation" },
       "description": "Stores all reservations from all users."
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Stores metadata for each chat conversation."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Stores the messages for a specific chat."
     }
   }
 }
