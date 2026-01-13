@@ -82,11 +82,19 @@ export default function DashboardPage() {
     );
   }
 
+  const welcomeMessage = () => {
+    const firstName = user?.displayName?.split(' ')[0] || 'usuário';
+    if (user?.role === 'owner') {
+      return `Olá de boas vendas, ${firstName}!`;
+    }
+    return `Bem-vindo(a) de volta, ${firstName}.`;
+  };
+
   return (
     <div className="w-full max-w-2xl">
         <header className="mb-8">
             <h1 className="text-3xl font-bold tracking-tight">Painel</h1>
-            <p className="text-muted-foreground">Bem-vindo(a) de volta, {user?.displayName || 'usuário'}.</p>
+            <p className="text-muted-foreground">{welcomeMessage()}</p>
         </header>
         {user?.role === 'owner' ? <OwnerDashboard /> : <CustomerDashboard />}
     </div>
