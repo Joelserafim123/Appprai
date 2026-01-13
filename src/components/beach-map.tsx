@@ -366,7 +366,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     <div className="h-full w-full">
        <style jsx global>{`
         .map-marker-label {
-          transform: translateY(20px);
+          transform: translateY(-20px);
         }
       `}</style>
       <div className="md:grid h-full grid-cols-1 md:grid-cols-[350px_1fr]">
