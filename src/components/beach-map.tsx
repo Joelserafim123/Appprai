@@ -11,6 +11,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const containerStyle = {
   width: '100%',
@@ -265,6 +266,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     <div className="p-2 max-w-xs">
                         <h3 className="font-bold">{selectedTent.name}</h3>
                         <p className="text-xs text-muted-foreground">{selectedTent.beachName}</p>
+                         <p className={cn(
+                            'text-xs font-semibold mt-1',
+                             selectedTent.hasAvailableKits ? 'text-green-600' : 'text-red-600'
+                         )}>
+                             {selectedTent.hasAvailableKits ? 'Aluguel Disponível' : 'Aluguel Indisponível'}
+                         </p>
                         <Button asChild size="sm" className="w-full mt-2">
                              <Link href={`/tents/${selectedTent.slug}`}>Ver Cardápio</Link>
                         </Button>
@@ -307,7 +314,15 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 }`}
               >
                 <CardHeader>
-                  <CardTitle className="text-base">{tent.name}</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    {tent.name}
+                    <span className={cn(
+                        'text-xs font-semibold',
+                        tent.hasAvailableKits ? 'text-green-600' : 'text-red-600'
+                    )}>
+                        {tent.hasAvailableKits ? '(Disponível)' : '(Aluguel Indisponível)'}
+                    </span>
+                  </CardTitle>
                    <CardDescription className="flex items-center pt-1 text-xs">
                     {tent.beachName}
                   </CardDescription>
