@@ -267,7 +267,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       fillOpacity: 1,
       strokeColor: '#fff',
       strokeWeight: 1,
-      scale: 1,
+      scale: 1.5,
       anchor: new google.maps.Point(12, 12),
     };
   }
