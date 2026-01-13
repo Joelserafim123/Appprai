@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -82,11 +83,14 @@ export default function AnalyticsPage() {
     const averageOrderValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
 
     const dailyRevenue = completedReservations.reduce((acc, res) => {
-      const date = format(res.createdAt.toDate(), 'yyyy-MM-dd');
-      if (!acc[date]) {
-        acc[date] = 0;
+      // Ensure createdAt is a valid Timestamp before calling toDate()
+      if (res.createdAt && typeof res.createdAt.toDate === 'function') {
+        const date = format(res.createdAt.toDate(), 'yyyy-MM-dd');
+        if (!acc[date]) {
+          acc[date] = 0;
+        }
+        acc[date] += res.total;
       }
-      acc[date] += res.total;
       return acc;
     }, {} as Record<string, number>);
 
@@ -199,7 +203,7 @@ export default function AnalyticsPage() {
                             tickLine={false}
                             tickMargin={10}
                             axisLine={false}
-                             tickFormatter={(value) => format(new Date(value), 'dd/MM', { locale: ptBR })}
+                             tickFormatter={(value) => format(new Date(`${value}T00:00:00`), 'dd/MM', { locale: ptBR })}
                         />
                         <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
                         <ChartTooltip
