@@ -19,7 +19,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { ChartTooltipContent, ChartContainer, ChartConfig } from '@/components/ui/chart';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -203,7 +203,13 @@ export default function AnalyticsPage() {
                             tickLine={false}
                             tickMargin={10}
                             axisLine={false}
-                             tickFormatter={(value) => format(new Date(`${value}T00:00:00`), 'dd/MM', { locale: ptBR })}
+                             tickFormatter={(value) => {
+                                const date = new Date(`${value}T00:00:00`);
+                                if (isValid(date)) {
+                                  return format(date, 'dd/MM', { locale: ptBR });
+                                }
+                                return '';
+                              }}
                         />
                         <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
                         <ChartTooltip
