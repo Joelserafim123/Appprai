@@ -423,17 +423,17 @@ export default function OwnerReservationsPage() {
                                 </div>
                             )}
                             {reservation.status === 'checked-in' && (
-                                <Button size="sm" variant="destructive" className="w-full" onClick={() => handleCancelReservation(reservation.id)}>
-                                    <X className="mr-2 h-4 w-4" /> Cancelar Pedido
+                                <Button size="sm" className="w-full" onClick={() => setReservationForPayment(reservation)}>
+                                    <CreditCard className="mr-2 h-4 w-4" /> Receber Pagamento
                                 </Button>
                             )}
                             {reservation.status === 'payment-pending' && (
                                 <div className="grid grid-cols-2 gap-2 w-full">
-                                    <Button size="sm" onClick={() => handleCompleteReservation(reservation.id)}>
-                                        <Check className="mr-2 h-4 w-4" /> Finalizar Pedido
-                                    </Button>
                                     <Button size="sm" variant="secondary" onClick={() => setReservationForPayment(reservation)}>
                                         <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
+                                    </Button>
+                                     <Button size="sm" onClick={() => handleCompleteReservation(reservation.id)}>
+                                        <Check className="mr-2 h-4 w-4" /> Finalizar Pedido
                                     </Button>
                                 </div>
                             )}
@@ -461,3 +461,5 @@ export default function OwnerReservationsPage() {
     </Dialog>
   );
 }
+
+    
