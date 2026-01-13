@@ -2,10 +2,10 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star, Building } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -13,13 +13,7 @@ export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isUserLoading && user?.role === 'owner') {
-      router.replace('/dashboard/reservations');
-    }
-  }, [user, isUserLoading, router]);
-
-  if (isUserLoading || (user && user.role === 'owner')) {
+  if (isUserLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -38,6 +32,33 @@ export default function DashboardPage() {
     );
   }
   
+  if (user.role === 'owner') {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Card className="w-full max-w-lg text-center">
+          <CardHeader>
+            <CardTitle>Bem-vindo(a), {user.displayName?.split(' ')[0]}!</CardTitle>
+            <CardDescription>Gerencie sua barraca, veja suas reservas e acompanhe seu negócio.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button asChild size="lg">
+                <Link href="/dashboard/reservations">
+                    <Star className="mr-2 h-4 w-4" />
+                    Ver Reservas
+                </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+                <Link href="/dashboard/my-tent">
+                    <Building className="mr-2 h-4 w-4" />
+                    Gerenciar Barraca
+                </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+  
   // This will be shown for customers
   return (
     <div className="flex h-full w-full items-center justify-center">
@@ -49,11 +70,11 @@ export default function DashboardPage() {
         <CardContent>
           <p>Use o menu ao lado para navegar, ver suas reservas ou encontrar novas barracas.</p>
         </CardContent>
-        <CardContent>
+        <CardFooter>
           <Button asChild>
               <Link href="/dashboard/my-reservations">Ver Minhas Reservas</Link>
           </Button>
-        </CardContent>
+        </CardFooter>
       </Card>
     </div>
   );
