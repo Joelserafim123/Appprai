@@ -50,16 +50,16 @@ function RentalItemForm({ tentId, item, onFinished, hasKit }: { tentId: string, 
     if (!firestore) return;
     setIsSubmitting(true);
     
+    const operation = item ? 'update' : 'create';
+    const collectionRef = collection(firestore, 'tents', tentId, 'rentalItems');
+    const docRef = item ? doc(collectionRef, item.id) : doc(collectionRef);
+
     const batch = writeBatch(firestore);
     const tentRef = doc(firestore, 'tents', tentId);
     
-    // Update availability status on tent
     if (data.name === 'Kit Guarda-sol + 2 Cadeiras') {
         batch.update(tentRef, { hasAvailableKits: data.quantity > 0 });
     }
-
-    const operation = item ? 'update' : 'create';
-    const docRef = item ? doc(firestore, 'tents', tentId, 'rentalItems', item.id) : doc(collection(firestore, 'tents', tentId, 'rentalItems'));
 
     if (item) {
         batch.update(docRef, data);
@@ -67,19 +67,19 @@ function RentalItemForm({ tentId, item, onFinished, hasKit }: { tentId: string, 
         batch.set(docRef, data);
     }
     
-    try {
-        await batch.commit();
+    batch.commit().then(() => {
         toast({ title: `Item de aluguel ${item ? 'atualizado' : 'adicionado'} com sucesso!` });
         onFinished();
-    } catch (e: any) {
+    }).catch (e => {
          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: item ? docRef.path : `tents/${tentId}/rentalItems`,
+            path: docRef.path,
             operation: operation,
             requestResourceData: data,
         }));
-    } finally {
+        throw e;
+    }).finally(() => {
         setIsSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -167,25 +167,24 @@ export default function RentalItemsPage() {
     
     const docRef = doc(firestore, 'tents', tentId, 'rentalItems', itemToDelete.id);
     
-    try {
-        const batch = writeBatch(firestore);
-        batch.delete(docRef);
+    const batch = writeBatch(firestore);
+    batch.delete(docRef);
 
-        if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
-            const tentRef = doc(firestore, 'tents', tentId);
-            batch.update(tentRef, { hasAvailableKits: false });
-        }
-        
-        await batch.commit();
+    if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
+        const tentRef = doc(firestore, 'tents', tentId);
+        batch.update(tentRef, { hasAvailableKits: false });
+    }
+    
+    batch.commit().then(() => {
         toast({ title: 'Item apagado com sucesso!' });
-
-    } catch (e) {
+    }).catch (e => {
         const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
-    }
+        throw e;
+    });
   }
 
   const openEditForm = (item: RentalItem) => {

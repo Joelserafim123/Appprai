@@ -64,6 +64,7 @@ export default function MyReservationsPage() {
             requestResourceData: { status: 'payment-pending' },
         });
         errorEmitter.emit('permission-error', permissionError);
+        throw e;
     })
   }
   
@@ -77,6 +78,7 @@ export default function MyReservationsPage() {
             requestResourceData: { status: 'cancelled' }
         });
         errorEmitter.emit('permission-error', permissionError);
+        throw err;
     });
   }
 

@@ -57,29 +57,42 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     const messageText = newMessage.trim();
     setNewMessage('');
 
-    const messageData: Omit<ChatMessage, 'id' | 'timestamp'> = {
+    const messageData = {
       senderId: currentUser.uid,
       text: messageText,
+      timestamp: serverTimestamp(),
+    };
+    
+    const updateData = {
+        lastMessage: messageText,
+        lastMessageTimestamp: serverTimestamp(),
     };
 
     const chatDocRef = doc(firestore, 'chats', chat.id);
     const messagesColRef = collection(firestore, 'chats', chat.id, 'messages');
 
     try {
-      // We are not awaiting these promises to provide optimistic updates
-      addDoc(messagesColRef, { ...messageData, timestamp: serverTimestamp() });
-      updateDoc(chatDocRef, {
-        lastMessage: messageText,
-        lastMessageTimestamp: serverTimestamp(),
-      });
-    } catch (error) {
-        console.error('Error sending message:', error);
+      // Not awaiting to provide optimistic updates
+      addDoc(messagesColRef, messageData).catch(error => {
         const permissionError = new FirestorePermissionError({
             path: messagesColRef.path,
             operation: 'create',
             requestResourceData: messageData
         });
         errorEmitter.emit('permission-error', permissionError);
+        throw error;
+      });
+      updateDoc(chatDocRef, updateData).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: chatDocRef.path,
+            operation: 'update',
+            requestResourceData: updateData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw error;
+      });
+    } catch (error) {
+        console.error('Error sending message:', error);
     } finally {
       setIsSending(false);
     }

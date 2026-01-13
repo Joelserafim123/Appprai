@@ -119,10 +119,11 @@ export default function OrderPage() {
             status: 'pending', // Items added later are pending
         }));
     
-        // Only add items, total is updated by owner upon confirmation
-        updateDoc(reservationRef, {
+        const updateData = {
             items: arrayUnion(...newItems)
-        }).then(() => {
+        };
+
+        updateDoc(reservationRef, updateData).then(() => {
             toast({
                 title: "Pedido Enviado!",
                 description: `Sua solicitação foi enviada para a barraca. Aguarde a confirmação.`,
@@ -135,6 +136,7 @@ export default function OrderPage() {
                 requestResourceData: { items: newItems },
             });
             errorEmitter.emit('permission-error', permissionError);
+            throw error;
         }).finally(() => {
             setIsSubmitting(false);
         });
@@ -224,7 +226,4 @@ export default function OrderPage() {
              </div>
         </div>
     );
-
-    
-
-    
+}

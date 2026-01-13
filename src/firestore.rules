@@ -25,12 +25,19 @@ service cloud.firestore {
       // Allow user to read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
       
-      // Allow user to create their own document with basic fields.
+      // Allow user to create their own document with required fields.
       allow create: if request.auth != null 
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.email is string
                     && request.resource.data.displayName is string
-                    && request.resource.data.role in ['customer', 'owner'];
+                    && request.resource.data.role in ['customer', 'owner']
+                    && request.resource.data.cpf is string
+                    && request.resource.data.cep is string
+                    && request.resource.data.street is string
+                    && request.resource.data.number is string
+                    && request.resource.data.neighborhood is string
+                    && request.resource.data.city is string
+                    && request.resource.data.state is string;
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
@@ -49,13 +56,13 @@ service cloud.firestore {
       // Anyone can read tent information.
       allow read: if true;
       // The tent owner is the only one who can modify the tent.
-      // Now we enforce one tent per owner by making the doc id the owner's uid.
+      // Enforce one tent per owner by making the doc id the owner's uid.
       allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
 
-    // Media, MenuItems, RentalItems
+    // MenuItems and RentalItems subcollections
     match /tents/{tentId}/{collection}/{itemId} {
       // Anyone can read subcollection items.
       allow read: if true;

@@ -230,6 +230,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             requestResourceData: reservationData,
         });
         errorEmitter.emit('permission-error', permissionError);
+        throw error;
     }).finally(() => {
         setIsSubmitting(false);
     });

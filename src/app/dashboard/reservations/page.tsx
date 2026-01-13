@@ -66,6 +66,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                     requestResourceData: updates,
                 });
                 errorEmitter.emit('permission-error', permissionError);
+                throw e;
             })
             .finally(() => setIsSubmitting(false));
     };
@@ -114,7 +115,8 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
         setIsSubmitting(true);
         const docRef = doc(firestore, 'reservations', reservation.id);
         
-        updateDoc(docRef, { status: 'completed', paymentMethod })
+        const updateData = { status: 'completed' as ReservationStatus, paymentMethod };
+        updateDoc(docRef, updateData)
             .then(() => {
                 toast({ title: 'Pagamento Confirmado!' });
                 onFinished();
@@ -123,9 +125,10 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
                 const permissionError = new FirestorePermissionError({
                     path: docRef.path,
                     operation: 'update',
-                    requestResourceData: { status: 'completed', paymentMethod },
+                    requestResourceData: updateData,
                 });
                 errorEmitter.emit('permission-error', permissionError);
+                throw e;
             })
             .finally(() => setIsSubmitting(false));
     };
@@ -242,7 +245,8 @@ export default function OwnerReservationsPage() {
     if (!firestore || !confirm('Tem certeza que deseja cancelar esta reserva?')) return;
     const resDocRef = doc(firestore, 'reservations', reservationId);
     
-    updateDoc(resDocRef, { status: 'cancelled' })
+    const updateData = { status: 'cancelled' as ReservationStatus };
+    updateDoc(resDocRef, updateData)
       .then(() => {
         toast({ title: 'Reserva Cancelada!' });
       })
@@ -250,9 +254,10 @@ export default function OwnerReservationsPage() {
         const permissionError = new FirestorePermissionError({
           path: resDocRef.path,
           operation: 'update',
-          requestResourceData: { status: 'cancelled' },
+          requestResourceData: updateData,
         });
         errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
       });
   };
 
@@ -271,8 +276,9 @@ export default function OwnerReservationsPage() {
     if (newStatus === 'confirmed') {
         newTotal += itemToUpdate.price * itemToUpdate.quantity;
     }
-
-    updateDoc(resDocRef, { items: updatedItems, total: newTotal })
+    
+    const updateData = { items: updatedItems, total: newTotal };
+    updateDoc(resDocRef, updateData)
       .then(() => {
         toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
       })
@@ -280,9 +286,10 @@ export default function OwnerReservationsPage() {
         const permissionError = new FirestorePermissionError({
           path: resDocRef.path,
           operation: 'update',
-          requestResourceData: { items: updatedItems },
+          requestResourceData: updateData,
         });
         errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
       });
   }
 
@@ -430,8 +437,3 @@ export default function OwnerReservationsPage() {
     </Dialog>
   );
 }
-
-    
-
-    
-

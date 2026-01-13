@@ -152,18 +152,17 @@ export function SignUpForm() {
       setIsVerificationSent(true);
 
     } catch (error: any) {
-      console.error("Error creating account:", error);
-      if (error.code !== 'permission-denied') {
-        let description = "Ocorreu um erro desconhecido.";
-        if (error.code === 'auth/email-already-in-use') {
-            description = "Este endereço de e-mail já está em uso.";
-        }
-        toast({
-            variant: "destructive",
-            title: "Falha ao criar conta",
-            description,
-        })
+      if (error.code === 'permission-denied') return; // Handled by emitter
+
+      let description = "Ocorreu um erro desconhecido.";
+      if (error.code === 'auth/email-already-in-use') {
+          description = "Este endereço de e-mail já está em uso.";
       }
+      toast({
+          variant: "destructive",
+          title: "Falha ao criar conta",
+          description,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -381,5 +380,3 @@ export function SignUpForm() {
     </Form>
   )
 }
-
-    

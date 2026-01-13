@@ -63,6 +63,7 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
               requestResourceData: data,
           });
           errorEmitter.emit('permission-error', permissionError);
+          throw e;
         });
         toast({ title: "Item atualizado com sucesso!" });
       } else {
@@ -74,16 +75,19 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
               requestResourceData: data,
           });
           errorEmitter.emit('permission-error', permissionError);
+          throw e;
         });
         toast({ title: "Item adicionado com sucesso!" });
       }
       onFinished();
     } catch (e: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao salvar o item.',
-          description: 'Por favor, tente novamente.'
-        })
+        if (e.code !== 'permission-denied') {
+            toast({
+            variant: 'destructive',
+            title: 'Erro ao salvar o item.',
+            description: 'Por favor, tente novamente.'
+            });
+        }
     } finally {
         setIsSubmitting(false);
     }
@@ -181,10 +185,13 @@ export default function MenuPage() {
             operation: 'delete',
           });
           errorEmitter.emit('permission-error', permissionError);
+          throw e;
         });
         toast({ title: 'Item apagado com sucesso!' });
-    } catch(e) {
-        toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
+    } catch(e: any) {
+        if (e.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
+        }
     }
   }
 

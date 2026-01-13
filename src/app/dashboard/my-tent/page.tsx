@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -81,7 +80,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
     
-    // Tent ID is now the user's UID to enforce one tent per owner
     const docRef = doc(firestore, 'tents', user.uid);
     
     const tentData = {
@@ -101,6 +99,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             requestResourceData: tentData,
         });
         errorEmitter.emit('permission-error', permissionError);
+        throw e;
     }).finally(() => {
         setIsSubmitting(false);
     });
@@ -172,7 +171,6 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        // A barraca do dono tem o ID igual ao UID do dono.
         const docRef = doc(firestore, 'tents', user.uid);
         const docSnap = await getDoc(docRef);
         
