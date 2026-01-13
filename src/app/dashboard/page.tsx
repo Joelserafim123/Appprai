@@ -2,38 +2,71 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
-  const router = useRouter();
 
-  useEffect(() => {
-    if (isUserLoading) {
-      // Aguarde até que as informações do usuário estejam disponíveis
-      return;
-    }
+  if (isUserLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-    if (user) {
-      // Redireciona com base na função do usuário
-      if (user.role === 'owner') {
-        router.push('/dashboard/reservations');
-      } else {
-        router.push('/dashboard/my-reservations');
-      }
-    } else {
-        // Se por algum motivo não houver usuário, volta para o login
-        router.push('/login');
-    }
-  }, [user, isUserLoading, router]);
+  if (!user) {
+    return (
+        <div className="text-center">
+            <p className="text-lg">Você não está logado.</p>
+            <Button asChild className="mt-4">
+                <Link href="/login">Ir para o Login</Link>
+            </Button>
+        </div>
+    );
+  }
+
+  const CustomerWelcome = () => (
+    <Card className="w-full max-w-lg">
+      <CardHeader>
+        <CardTitle>Bem-vindo(a) ao BeachPal!</CardTitle>
+        <CardDescription>Gerencie suas reservas e aproveite a praia.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>Use o menu ao lado para navegar, ver suas reservas ou encontrar novas barracas.</p>
+      </CardContent>
+      <CardContent>
+         <Button asChild>
+            <Link href="/dashboard/my-reservations">Ver Minhas Reservas</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  const OwnerWelcome = () => (
+     <Card className="w-full max-w-lg">
+      <CardHeader>
+        <CardTitle>Bem-vindo(a), Dono(a) de Barraca!</CardTitle>
+        <CardDescription>Gerencie seu negócio na praia com facilidade.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>Use o menu ao lado para ver suas reservas, gerenciar seu cardápio e analisar suas vendas.</p>
+      </CardContent>
+       <CardContent>
+         <Button asChild>
+            <Link href="/dashboard/reservations">Ver Reservas</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
 
 
-  // Exibe um loader em tela cheia enquanto o redirecionamento está acontecendo
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      {user.role === 'owner' ? <OwnerWelcome /> : <CustomerWelcome />}
     </div>
   );
 }
