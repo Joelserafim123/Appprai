@@ -23,6 +23,7 @@ import type { Tent, Chat } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
+import { tentBannerUrl } from '@/lib/placeholder-images';
 
 
 type CartItem = { 
@@ -278,10 +279,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <main>
         <div className="relative h-64 w-full md:h-96">
             <Image
-                src="https://placehold.co/1600x600/40E0D0/000000?text=Whale"
+                src={tentBannerUrl}
                 alt={tent.name}
                 className="object-cover"
-                data-ai-hint="whale"
+                data-ai-hint="beach umbrella"
                 fill
                 priority
             />
