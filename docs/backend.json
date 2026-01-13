@@ -19,7 +19,7 @@
         "photoURL": { "type": "string", "format": "uri", "description": "Public URL of the user's profile picture from Firebase Storage." },
         "role": { "type": "string", "enum": ["customer", "owner"] }
       },
-      "required": ["uid", "email", "displayName", "role"]
+      "required": ["uid", "email", "role"]
     },
     "Tent": {
       "title": "Tent",
