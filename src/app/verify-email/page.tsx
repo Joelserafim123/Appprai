@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useFirebase, useUser } from '@/firebase/provider';
 import { useRouter } from 'next/navigation';
 import { getAuth, sendEmailVerification } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -12,16 +12,19 @@ import { useState } from 'react';
 
 export default function VerifyEmailPage() {
   const { user, isUserLoading } = useUser();
+  const { firebaseApp } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
 
   const handleResendVerification = async () => {
-    if (!user) return;
-    const auth = getAuth();
+    if (!user || !firebaseApp) return;
+    const auth = getAuth(firebaseApp);
+    if (!auth.currentUser) return;
+
     setIsSending(true);
     try {
-      await sendEmailVerification(auth.currentUser!);
+      await sendEmailVerification(auth.currentUser);
       toast({
         title: 'E-mail de verificação reenviado!',
         description: 'Verifique sua caixa de entrada.',
