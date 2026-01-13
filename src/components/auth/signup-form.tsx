@@ -16,14 +16,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
-import { User, Mail, KeyRound, Home, Briefcase, UserCircle, Loader2 } from "lucide-react"
+import { User, Mail, KeyRound, Briefcase, UserCircle, Loader2 } from "lucide-react"
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { getFirestore, doc, setDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore"
+import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { useState, useCallback } from "react"
+import { UserProfile } from "@/lib/types"
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
@@ -129,15 +130,13 @@ export function SignUpForm() {
         photoURL: '',
       });
 
-      const userProfileData = {
+      const userProfileData: UserProfile = {
         uid: user.uid,
         email: values.email,
         displayName: values.fullName,
         photoURL: '',
         cpf: values.cpf.replace(/\D/g, ""),
         role: values.role,
-        createdAt: serverTimestamp(),
-        // Address fields
         cep: values.cep,
         street: values.street,
         number: values.number,
@@ -365,3 +364,5 @@ export function SignUpForm() {
     </Form>
   )
 }
+
+    
