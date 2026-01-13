@@ -6,75 +6,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Loader2, Star, Settings, Briefcase, Building, Utensils, BarChart, Armchair } from 'lucide-react';
-
-function CustomerDashboard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Área do Cliente</CardTitle>
-        <CardDescription>Gerencie suas reservas, pedidos e configurações de conta.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Button asChild variant="outline" className="w-full justify-start text-left">
-          <Link href="/dashboard/my-reservations">
-            <Star className="mr-2" /> Minhas Reservas
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="w-full justify-start text-left">
-          <Link href="/dashboard/settings">
-            <Settings className="mr-2" /> Configurações da Conta
-          </Link>
-        </Button>
-        <Button asChild className="w-full mt-4">
-            <Link href="/">Encontrar uma Barraca</Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function OwnerDashboard() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Área do Dono da Barraca</CardTitle>
-        <CardDescription>Gerencie sua barraca, cardápio, reservas e veja suas vendas.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Button asChild variant="outline" className="w-full justify-start text-left">
-          <Link href="/dashboard/my-tent">
-            <Building className="mr-2" /> Gerenciar Minha Barraca
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="w-full justify-start text-left">
-          <Link href="/dashboard/menu">
-            <Utensils className="mr-2" /> Atualizar Cardápio
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="w-full justify-start text-left">
-          <Link href="/dashboard/rental-items">
-            <Armchair className="mr-2" /> Gerenciar Itens de Aluguel
-          </Link>
-        </Button>
-         <Button asChild variant="outline" className="w-full justify-start text-left">
-          <Link href="/dashboard/reservations">
-            <Star className="mr-2" /> Ver Reservas
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="w-full justify-start text-left">
-          <Link href="/dashboard/analytics">
-            <BarChart className="mr-2" /> Análise de Vendas
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user, isUserLoading: loading } = useUser();
+  const router = useRouter();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && user) {
+      if (user.role === 'owner') {
+        router.replace('/dashboard/reservations');
+      } else {
+        router.replace('/dashboard/my-reservations');
+      }
+    }
+  }, [user, loading, router]);
+
+
+  // Mostra um loader enquanto o usuário está sendo carregado e o redirecionamento está sendo preparado.
+  if (loading || !user) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -82,6 +33,7 @@ export default function DashboardPage() {
     );
   }
 
+  // Este conteúdo não será mais exibido, mas é mantido como fallback.
   const welcomeMessage = () => {
     const firstName = user?.displayName?.split(' ')[0] || 'usuário';
     if (user?.role === 'owner') {
@@ -96,7 +48,6 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight">Painel</h1>
             <p className="text-muted-foreground">{welcomeMessage()}</p>
         </header>
-        {user?.role === 'owner' ? <OwnerDashboard /> : <CustomerDashboard />}
     </div>
   );
 }
