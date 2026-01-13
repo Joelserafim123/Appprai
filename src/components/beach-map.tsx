@@ -262,12 +262,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     }
 
     return {
-      path: "M12 2C6.48 2 2 6.48 2 12h10V2zm10 10c0 5.52-4.48 10-10 10V12h10zM12 12V2c5.52 0 10 4.48 10 10H12z",
+      path: "M12,2A9,9 0 0,1 21,11H3A9,9 0 0,1 12,2M11,12V22A1,1 0 0,0 12,23A1,1 0 0,0 13,22V12H11Z",
       fillColor: color,
       fillOpacity: 1,
       strokeColor: '#fff',
-      strokeWeight: 1.5,
-      scale: 0.8,
+      strokeWeight: 1,
+      scale: 1,
       anchor: new google.maps.Point(12, 12),
     };
   }
