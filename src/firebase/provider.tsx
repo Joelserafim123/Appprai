@@ -78,7 +78,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchExtraData = useCallback(async (firebaseUser: User | null): Promise<UserData | null> => {
     if (!firebaseUser) return null;
-    if (!firestore) return firebaseUser;
+    if (!firestore) return firebaseUser as UserData;
 
     try {
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
@@ -89,11 +89,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
              // Document doesn't exist, so let's create a basic one.
             console.warn(`User document for ${firebaseUser.uid} not found. Recreating...`);
-            const newUserProfileData: Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL'> & { uid: string, email: string | null, displayName: string | null, photoURL: string | null, createdAt: any } = {
+            const newUserProfileData: UserProfile = {
                 uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                photoURL: firebaseUser.photoURL,
+                email: firebaseUser.email || '',
+                displayName: firebaseUser.displayName || '',
+                photoURL: firebaseUser.photoURL || '',
                 role: 'customer', // Default role
                 cpf: '',
                 cep: '',
@@ -102,9 +102,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 neighborhood: '',
                 city: '',
                 state: '',
-                createdAt: serverTimestamp(),
             };
-            await setDoc(userDocRef, newUserProfileData);
+            await setDoc(userDocRef, { ...newUserProfileData, createdAt: serverTimestamp()});
             return { ...firebaseUser, ...newUserProfileData } as UserData;
         }
     } catch (error) {
