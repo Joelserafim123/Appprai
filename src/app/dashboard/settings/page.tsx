@@ -145,13 +145,22 @@ export default function SettingsPage() {
         state: data.state,
       };
 
+      // Only allow setting CPF if it's not already set
       if (!user.cpf) {
         firestoreData.cpf = data.cpf.replace(/\D/g, "");
       }
   
       // Update Firestore document
       const userDocRef = doc(firestore, "users", user.uid);
-      await updateDoc(userDocRef, firestoreData);
+       updateDoc(userDocRef, firestoreData).catch(e => {
+         const permissionError = new FirestorePermissionError({
+          path: userDocRef.path,
+          operation: 'update',
+          requestResourceData: firestoreData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw e;
+      });
   
       // Prepare data for Auth profile update
       const authProfileUpdate: { displayName?: string, photoURL?: string } = {};
@@ -177,13 +186,12 @@ export default function SettingsPage() {
   
     } catch (error: any) {
       console.error("Error updating profile:", error);
-      if(error.code !== 'permission-denied') {
-        const permissionError = new FirestorePermissionError({
-            path: `users/${user.uid}`,
-            operation: 'update',
-            requestResourceData: { displayName: data.displayName },
-        });
-        errorEmitter.emit('permission-error', permissionError);
+      if (error.code !== 'permission-denied') {
+          toast({
+            variant: "destructive",
+            title: "Erro ao atualizar",
+            description: "Não foi possível salvar suas informações. Por favor, tente novamente."
+          })
       }
     } finally {
       setIsSubmitting(false);
@@ -268,7 +276,7 @@ export default function SettingsPage() {
                 {...register('cpf')}
                 onChange={(e) => {
                   const value = handleCpfChange(e);
-                  e.target.value = value;
+                  // The react-hook-form `register` function will handle the value change.
                 }}
                 disabled={isSubmitting || !!user.cpf}
                 placeholder="000.000.000-00"

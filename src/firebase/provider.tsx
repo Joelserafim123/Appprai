@@ -2,11 +2,12 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useCallback } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc } from 'firebase/firestore';
+import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
+import { UserProfile } from '@/lib/types';
 
-interface UserData extends User {
+interface UserData extends User, Partial<UserProfile> {
     [key: string]: any;
 }
 interface FirebaseProviderProps {
@@ -82,13 +83,33 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
+        
         if (userDoc.exists()) {
             return { ...firebaseUser, ...userDoc.data() } as UserData;
+        } else {
+             // Document doesn't exist, so let's create a basic one.
+            console.warn(`User document for ${firebaseUser.uid} not found. Recreating...`);
+            const newUserProfileData: Omit<UserProfile, 'uid' | 'email' | 'displayName' | 'photoURL'> & { uid: string, email: string | null, displayName: string | null, photoURL: string | null, createdAt: any } = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                role: 'customer', // Default role
+                cpf: '',
+                cep: '',
+                street: '',
+                number: '',
+                neighborhood: '',
+                city: '',
+                state: '',
+                createdAt: serverTimestamp(),
+            };
+            await setDoc(userDocRef, newUserProfileData);
+            return { ...firebaseUser, ...newUserProfileData } as UserData;
         }
-        return firebaseUser as UserData;
     } catch (error) {
-        console.error("Error fetching user data from Firestore:", error);
-        return firebaseUser as UserData;
+        console.error("Error fetching or creating user data from Firestore:", error);
+        return firebaseUser as UserData; // Return basic auth user on error
     }
   }, [firestore]);
   
