@@ -135,6 +135,7 @@ export default function SettingsPage() {
       if (data.neighborhood) firestoreData.neighborhood = data.neighborhood;
       if (data.city) firestoreData.city = data.city;
       if (data.state) firestoreData.state = data.state;
+      if (data.cpf) firestoreData.cpf = data.cpf.replace(/\D/g, '');
       
       // Update Firestore document
       const userDocRef = doc(firestore, "users", user.uid);
@@ -227,7 +228,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <p className="font-medium">{user.displayName}</p>
+                    <p className="font-medium">{user.displayName?.split(' ')[0]}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                     <p className="text-xs font-semibold text-primary capitalize py-1 px-2 bg-primary/10 rounded-full inline-block">{user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</p>
                 </div>
@@ -302,5 +303,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
