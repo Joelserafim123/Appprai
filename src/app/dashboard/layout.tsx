@@ -29,12 +29,21 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserLoading && user && !user.emailVerified) {
-      router.push('/verify-email');
+    // Only run checks once user loading is complete
+    if (!isUserLoading) {
+      // If no user, redirect to login
+      if (!user) {
+        router.push('/login');
+      } 
+      // If user exists but email is not verified, redirect to verify-email page
+      else if (!user.emailVerified) {
+        router.push('/verify-email');
+      }
     }
   }, [user, isUserLoading, router]);
 
-  if (isUserLoading) {
+  // While loading, or if user is null (and about to be redirected), show a loading spinner.
+  if (isUserLoading || !user || !user.emailVerified) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -42,23 +51,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (!user) {
-     router.push('/login');
-     return (
-        <div className="flex h-screen w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-    );
-  }
-  
-  if (user && !user.emailVerified) {
-    return (
-       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
+  // If we reach here, user is loaded, logged in, and verified.
   const CustomerMenu = () => (
     <>
       <SidebarMenuItem>
