@@ -11,7 +11,7 @@
         "displayName": { "type": "string", "description": "User's full name." },
         "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
         "address": { "type": "string" },
-        "photoURL": { "type": "string", "format": "uri" },
+        "photoURL": { "type": "string", "format": "uri", "description": "Public URL of the user's profile picture from Firebase Storage." },
         "role": { "type": "string", "enum": ["customer", "owner"] }
       },
       "required": ["uid", "email", "displayName", "cpf", "address", "role"]
@@ -27,6 +27,8 @@
         "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
         "description": { "type": "string" },
         "beachName": { "type": "string" },
+        "bannerUrl": { "type": "string", "format": "uri", "description": "Public URL of the banner image from Firebase Storage." },
+        "bannerStoragePath": { "type": "string", "description": "The path to the banner file in Firebase Storage, for deletion." },
         "location": {
           "type": "object",
           "properties": {
@@ -35,7 +37,8 @@
           },
           "required": ["latitude", "longitude"]
         },
-        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Minimum order value to waive rental fees." }
+        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Minimum order value to waive rental fees." },
+        "hasAvailableKits": { "type": "boolean", "description": "Indicates if there are rental kits available." }
       },
       "required": ["ownerId", "ownerName", "name", "slug", "description", "beachName", "location"]
     },

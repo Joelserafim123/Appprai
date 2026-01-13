@@ -85,37 +85,43 @@ export default function SettingsPage() {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("User not authenticated.");
       
-      let photoURL = user.photoURL;
+      let photoURL = user.photoURL; // Keep current photo URL by default
+      let storagePath: string | null = null;
       const file = data.photo?.[0];
 
+      // If a new file is uploaded, upload it to Storage and get the URL
       if (file) {
-        const storagePath = `users/${user.uid}/profile.jpg`;
+        storagePath = `users/${user.uid}/profile.jpg`;
         const fileRef = ref(storage, storagePath);
         await uploadBytes(fileRef, file);
         photoURL = await getDownloadURL(fileRef);
       }
   
+      // Prepare data for Firestore update
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
         address: data.address,
-        photoURL: photoURL
+        photoURL: photoURL // Explicitly save the new or existing photoURL
       };
 
       if (!user.cpf) {
         firestoreData.cpf = data.cpf.replace(/\D/g, "");
       }
   
+      // Update Firestore document
       const userDocRef = doc(firestore, "users", user.uid);
       await updateDoc(userDocRef, firestoreData);
   
+      // Prepare data for Auth profile update
       const authProfileUpdate: { displayName?: string, photoURL?: string } = {};
       if (currentUser.displayName !== data.displayName) {
         authProfileUpdate.displayName = data.displayName;
       }
-       if (photoURL && currentUser.photoURL !== photoURL) {
+      if (photoURL && currentUser.photoURL !== photoURL) {
         authProfileUpdate.photoURL = photoURL;
       }
       
+      // Update Auth profile if there are changes
       if (Object.keys(authProfileUpdate).length > 0) {
         await updateProfile(currentUser, authProfileUpdate);
       }
@@ -125,6 +131,7 @@ export default function SettingsPage() {
         description: 'Suas informações foram salvas com sucesso.',
       });
   
+      // Refresh user state to reflect changes in the UI
       refresh();
   
     } catch (error: any) {
