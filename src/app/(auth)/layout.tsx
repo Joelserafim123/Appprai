@@ -22,16 +22,12 @@ export default function AuthLayout({
       <div className="flex flex-col items-center justify-center py-12 px-4">
         <div className="mx-auto grid w-[350px] gap-6">
           <Link href="/" className="mx-auto">
-             <Logo />
+             <Logo userName={isUserLoading ? undefined : firstName} />
              <span className="sr-only">BeachPal Início</span>
           </Link>
-          {isUserLoading ? (
+          {isUserLoading && !firstName && (
             <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-          ) : firstName ? (
-             <div className="grid gap-2 text-center">
-                <h1 className="text-3xl font-bold">Olá, {firstName}</h1>
-             </div>
-          ) : null}
+          )}
           {children}
         </div>
       </div>
