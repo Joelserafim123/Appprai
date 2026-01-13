@@ -142,6 +142,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         if (rentalItem.quantity) {
           newQuantity = Math.min(newQuantity, rentalItem.quantity);
         }
+        // Apply limit for additional chairs
+        if (rentalItem.name === 'Cadeira Adicional') {
+            newQuantity = Math.min(newQuantity, 3);
+        }
       }
 
       if (newQuantity === 0) {
