@@ -18,21 +18,10 @@ service cloud.firestore {
 
       // Allow user to create and update their document.
       allow write: if request.auth != null && request.auth.uid == userId
-                   // On Create, check required fields.
-                   && (
-                     !exists(/databases/$(database)/documents/users/$(userId))
-                        && request.resource.data.uid == userId
-                        && request.resource.data.email is string
-                        && request.resource.data.displayName is string
-                        && request.resource.data.photoURL is string
-                        && request.resource.data.role in ['customer', 'owner']
-                   )
-                   // On Update, check immutable fields and allow others.
-                   || (
-                     exists(/databases/$(database)/documents/users/$(userId))
-                        && request.resource.data.role == resource.data.role
-                        && (request.resource.data.cpf == resource.data.cpf || resource.data.cpf == null)
-                   );
+                   // On Update, ensure role is not changed.
+                   && (!exists(path) || request.resource.data.role == resource.data.role)
+                   // On Update, ensure CPF is not changed once set.
+                   && (!exists(path) || resource.data.cpf == null || request.resource.data.cpf == resource.data.cpf);
       
       // Disallow deleting user documents and listing all users.
       allow delete, list: if false;
