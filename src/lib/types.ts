@@ -21,9 +21,9 @@ export interface Tent {
 export interface UserProfile {
     uid: string;
     email: string;
-    displayName: string;
+    displayName?: string;
     photoURL?: string;
-    cpf: string;
+    cpf?: string;
     cep?: string;
     street?: string;
     number?: string;

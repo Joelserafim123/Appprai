@@ -18,24 +18,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
 import { User, Mail, KeyRound, Briefcase, UserCircle, Loader2 } from "lucide-react"
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { doc, setDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
-import { useState, useCallback } from "react"
-import { UserProfile } from "@/lib/types"
+import { useState } from "react"
+import type { UserProfile } from "@/lib/types"
 
 const formSchema = z.object({
-  fullName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
+  displayName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos." }),
-  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.'),
-  street: z.string().min(1, 'A rua é obrigatória.'),
-  number: z.string().min(1, 'O número é obrigatório.'),
-  neighborhood: z.string().min(1, 'O bairro é obrigatório.'),
-  city: z.string().min(1, 'A cidade é obrigatória.'),
-  state: z.string().min(1, 'O estado é obrigatório.'),
   password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
   role: z.enum(["customer", "owner"], { required_error: "Você precisa selecionar um papel." }),
 })
@@ -49,56 +42,12 @@ export function SignUpForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      fullName: "",
+      displayName: "",
       email: "",
-      cpf: "",
-      cep: "",
-      street: "",
-      number: "",
-      neighborhood: "",
-      city: "",
-      state: "",
       password: "",
       role: "customer"
     },
   })
-
-  const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    value = value.replace(/\D/g, "");
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    e.target.value = value;
-    return e;
-  }, []);
-
-  const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 5) {
-      value = value.slice(0, 5) + '-' + value.slice(5, 8);
-    }
-    form.setValue('cep', value);
-
-    if (value.length === 9) { // CEP is complete
-      try {
-        const res = await fetch(`https://viacep.com.br/ws/${value.replace('-', '')}/json/`);
-        const data = await res.json();
-        if (!data.erro) {
-          form.setValue('street', data.logradouro);
-          form.setValue('neighborhood', data.bairro);
-          form.setValue('city', data.localidade);
-          form.setValue('state', data.uf);
-          toast({ title: "Endereço encontrado!" });
-        } else {
-          toast({ variant: 'destructive', title: "CEP não encontrado." });
-        }
-      } catch (error) {
-        toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
-      }
-    }
-  }, [form, toast]);
-
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!app || !firestore) return;
@@ -107,42 +56,20 @@ export function SignUpForm() {
     const auth = getAuth(app);
     
     try {
-      // Check for unique CPF
-      const usersRef = collection(firestore, "users");
-      const q = query(usersRef, where("cpf", "==", values.cpf.replace(/\D/g, "")));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        toast({
-          variant: "destructive",
-          title: "Falha no cadastro",
-          description: "O CPF informado já está em uso.",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
       await updateProfile(user, {
-        displayName: values.fullName,
+        displayName: values.displayName,
         photoURL: '',
       });
 
-      const userProfileData: UserProfile = {
+      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
         uid: user.uid,
         email: values.email,
-        displayName: values.fullName,
+        displayName: values.displayName,
         photoURL: '',
-        cpf: values.cpf.replace(/\D/g, ""),
         role: values.role,
-        cep: values.cep,
-        street: values.street,
-        number: values.number,
-        neighborhood: values.neighborhood,
-        city: values.city,
-        state: values.state,
       };
 
       const userDocRef = doc(firestore, "users", user.uid);
@@ -217,7 +144,7 @@ export function SignUpForm() {
 
         <FormField
           control={form.control}
-          name="fullName"
+          name="displayName"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Nome Completo</FormLabel>
@@ -247,100 +174,7 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
-         <FormField
-          control={form.control}
-          name="cpf"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>CPF</FormLabel>
-               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <FormControl>
-                    <Input 
-                    placeholder="000.000.000-00" 
-                    {...field} 
-                    onChange={(e) => field.onChange(handleCpfChange(e))}
-                    maxLength={14}
-                    disabled={isSubmitting} 
-                    className="pl-10"
-                    />
-                </FormControl>
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="cep"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>CEP</FormLabel>
-              <Input {...field} onChange={handleCepChange} maxLength={9} placeholder="00000-000" disabled={isSubmitting} />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-3 gap-4">
-            <FormField
-            control={form.control}
-            name="street"
-            render={({ field }) => (
-                <FormItem className="col-span-2">
-                <FormLabel>Rua</FormLabel>
-                <Input {...field} disabled={isSubmitting} />
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="number"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Número</FormLabel>
-                <Input {...field} disabled={isSubmitting} />
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
-        <FormField
-            control={form.control}
-            name="neighborhood"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Bairro</FormLabel>
-                <Input {...field} disabled={isSubmitting} />
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-        <div className="grid grid-cols-3 gap-4">
-            <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                    <FormItem className="col-span-2">
-                    <FormLabel>Cidade</FormLabel>
-                    <Input {...field} disabled={isSubmitting} />
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Estado</FormLabel>
-                    <Input {...field} disabled={isSubmitting} />
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-        </div>
-
+        
         <FormField
           control={form.control}
           name="password"
@@ -364,5 +198,3 @@ export function SignUpForm() {
     </Form>
   )
 }
-
-    
