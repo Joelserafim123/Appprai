@@ -55,9 +55,6 @@ const haversineDistance = (
   return R * c;
 };
 
-// SVG path for a beach umbrella
-const umbrellaPath = "M12 2C6.48 2 2 6.48 2 12h10zm10 10c0 5.52-4.48 10-10 10V12zM12 12V2c5.52 0 10 4.48 10 10z";
-
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
@@ -68,7 +65,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: googleMapsApiKey ? googleMapsApiKey : undefined,
+    googleMapsApiKey: googleMapsApiKey ? googleMapsApiKey : '',
     libraries: ['marker']
   });
   
@@ -117,8 +114,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     );
   };
 
-
   const sortedTents = useMemo(() => {
+    if (!tents) return [];
     return [...tents]
       .filter(tent => tent.location?.latitude && tent.location?.longitude)
       .map(tent => ({
@@ -348,3 +345,5 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     </div>
   );
 }
+
+    

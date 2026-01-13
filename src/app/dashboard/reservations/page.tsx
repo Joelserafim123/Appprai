@@ -8,7 +8,7 @@ import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'fi
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History } from 'lucide-react';
-import { useMemo, useState, useEffect, Fragment } from 'react';
+import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -171,6 +171,9 @@ export default function OwnerReservationsPage() {
   const [loadingTent, setLoadingTent] = useState(true);
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
+  
+  // Ref to track if it's the initial load
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
      if (isUserLoading) {
@@ -203,6 +206,31 @@ export default function OwnerReservationsPage() {
   }, [firestore, tentId]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+
+  // Real-time notification for new reservations
+  useEffect(() => {
+    if (reservationsLoading) return;
+    
+    // On initial load, just set the flag to false and exit
+    if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+        return;
+    }
+    
+    // Check for new confirmed reservations that just arrived
+    const newConfirmed = reservations?.find(r => 
+        r.status === 'confirmed' && 
+        (Timestamp.now().toMillis() - r.createdAt.toMillis() < 5000) // 5 seconds threshold
+    );
+
+    if (newConfirmed) {
+        toast({
+            title: "Nova reserva recebida!",
+            description: `Reserva de ${newConfirmed.userName} foi confirmada.`,
+        });
+    }
+  }, [reservations, reservationsLoading, toast]);
+
 
   const sortedReservations = useMemo(() => {
     if (!reservations) return [];
@@ -402,3 +430,5 @@ export default function OwnerReservationsPage() {
     </Dialog>
   );
 }
+
+    
