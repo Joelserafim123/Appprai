@@ -19,16 +19,19 @@ export default function DashboardPage() {
   const [isCheckingReservations, setIsCheckingReservations] = useState(true);
 
   useEffect(() => {
-    // Wait until user loading is finished and we have a user object.
-    if (isUserLoading || !user || !firestore) {
-      if (!isUserLoading) {
-        setIsCheckingReservations(false);
-      }
+    // We must wait for the user to be fully loaded before checking anything.
+    if (isUserLoading) {
+      return;
+    }
+    
+    // If there is no user or no firestore, we can stop checking.
+    if (!user || !firestore) {
+      setIsCheckingReservations(false);
       return;
     }
 
     const checkReservations = async () => {
-      setIsCheckingReservations(true);
+      // No need to set isCheckingReservations(true) here, it starts as true.
       let hasReservations = false;
 
       try {
@@ -57,14 +60,14 @@ export default function DashboardPage() {
           }
           // If the owner has no tent yet, hasReservations remains false.
         }
-
+        
         if (hasReservations) {
           setShouldRedirect(true);
         }
       } catch (error) {
         console.error("Error checking reservations:", error);
       } finally {
-        // Always stop checking, regardless of the outcome.
+        // This is the crucial part: always stop checking, regardless of the outcome.
         setIsCheckingReservations(false);
       }
     };
@@ -84,6 +87,7 @@ export default function DashboardPage() {
   }, [shouldRedirect, user, router]);
 
 
+  // Show loader while the initial user load OR the reservation check is happening.
   if (isUserLoading || isCheckingReservations || shouldRedirect) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -92,6 +96,7 @@ export default function DashboardPage() {
     );
   }
 
+  // If we're done loading/checking and not redirecting, show the welcome message.
   const welcomeMessage = () => {
     const firstName = user?.displayName?.split(' ')[0] || 'usuário';
     if (user?.role === 'owner') {
