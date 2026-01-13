@@ -10,11 +10,16 @@
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string", "description": "User's full name." },
         "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
-        "address": { "type": "string" },
+        "cep": { "type": "string", "description": "User's postal code." },
+        "street": { "type": "string" },
+        "number": { "type": "string" },
+        "neighborhood": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
         "photoURL": { "type": "string", "format": "uri", "description": "Public URL of the user's profile picture from Firebase Storage." },
         "role": { "type": "string", "enum": ["customer", "owner"] }
       },
-      "required": ["uid", "email", "displayName", "cpf", "address", "role"]
+      "required": ["uid", "email", "displayName", "cpf", "role", "cep", "street", "number", "neighborhood", "city", "state"]
     },
     "Tent": {
       "title": "Tent",

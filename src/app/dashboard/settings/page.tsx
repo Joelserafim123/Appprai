@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, User as UserIcon, Info, Upload, Trash } from 'lucide-react';
+import { Loader2, User as UserIcon, Info, Upload } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf) || /^\d{11}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
-  address: z.string().min(5, 'O endereço é obrigatório.'),
+  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.'),
+  street: z.string().min(1, 'A rua é obrigatória.'),
+  number: z.string().min(1, 'O número é obrigatório.'),
+  neighborhood: z.string().min(1, 'O bairro é obrigatório.'),
+  city: z.string().min(1, 'A cidade é obrigatória.'),
+  state: z.string().min(1, 'O estado é obrigatório.'),
   photo: z.any().optional(),
 });
 
@@ -42,7 +47,12 @@ export default function SettingsPage() {
       defaultValues: {
           displayName: user?.displayName || '',
           cpf: user?.cpf || '',
-          address: user?.address || '',
+          cep: user?.cep || '',
+          street: user?.street || '',
+          number: user?.number || '',
+          neighborhood: user?.neighborhood || '',
+          city: user?.city || '',
+          state: user?.state || '',
       }
   });
 
@@ -58,7 +68,12 @@ export default function SettingsPage() {
       reset({
         displayName: user.displayName || '',
         cpf: user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '',
-        address: user.address || '',
+        cep: user.cep || '',
+        street: user.street || '',
+        number: user.number || '',
+        neighborhood: user.neighborhood || '',
+        city: user.city || '',
+        state: user.state || '',
       });
     }
   }, [user, reset]);
@@ -72,6 +87,32 @@ export default function SettingsPage() {
     setValue('cpf', value);
     return value;
   }, [setValue]);
+
+   const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 5) {
+      value = value.slice(0, 5) + '-' + value.slice(5, 8);
+    }
+    setValue('cep', value);
+
+    if (value.length === 9) { // CEP is complete
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${value.replace('-', '')}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setValue('street', data.logradouro);
+          setValue('neighborhood', data.bairro);
+          setValue('city', data.localidade);
+          setValue('state', data.uf);
+          toast({ title: "Endereço encontrado!" });
+        } else {
+          toast({ variant: 'destructive', title: "CEP não encontrado." });
+        }
+      } catch (error) {
+        toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
+      }
+    }
+  }, [setValue, toast]);
   
   
   const onSubmit = async (data: ProfileFormData) => {
@@ -95,8 +136,13 @@ export default function SettingsPage() {
       // Prepare data for Firestore update
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
-        address: data.address,
         photoURL: photoURL,
+        cep: data.cep,
+        street: data.street,
+        number: data.number,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
       };
 
       if (!user.cpf) {
@@ -156,7 +202,7 @@ export default function SettingsPage() {
     return <p>Por favor, faça login para ver suas configurações.</p>;
   }
   
-  const isProfileIncomplete = !user.cpf || !user.address;
+  const isProfileIncomplete = !user.cpf || !user.street;
 
   return (
     <div className="w-full max-w-2xl space-y-8">
@@ -180,7 +226,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
             <CardDescription>
-                Atualize as informações da sua conta. O CPF não pode ser alterado.
+                Atualize as informações da sua conta. O CPF não pode ser alterado após o cadastro inicial.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -230,10 +276,41 @@ export default function SettingsPage() {
               />
               {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="address">Endereço</Label>
-              <Input id="address" {...register('address')} disabled={isSubmitting} />
-              {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
+                <Label htmlFor="cep">CEP</Label>
+                <Input {...register('cep')} onChange={handleCepChange} maxLength={9} placeholder="00000-000" disabled={isSubmitting} />
+                {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 space-y-2">
+                    <Label htmlFor="street">Rua</Label>
+                    <Input id="street" {...register('street')} disabled={isSubmitting} />
+                    {errors.street && <p className="text-sm text-destructive">{errors.street.message}</p>}
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="number">Número</Label>
+                    <Input id="number" {...register('number')} disabled={isSubmitting} />
+                    {errors.number && <p className="text-sm text-destructive">{errors.number.message}</p>}
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="neighborhood">Bairro</Label>
+                <Input id="neighborhood" {...register('neighborhood')} disabled={isSubmitting} />
+                {errors.neighborhood && <p className="text-sm text-destructive">{errors.neighborhood.message}</p>}
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 space-y-2">
+                    <Label htmlFor="city">Cidade</Label>
+                    <Input id="city" {...register('city')} disabled={isSubmitting} />
+                    {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="state">Estado</Label>
+                    <Input id="state" {...register('state')} disabled={isSubmitting} />
+                    {errors.state && <p className="text-sm text-destructive">{errors.state.message}</p>}
+                </div>
             </div>
 
           </CardContent>
