@@ -20,42 +20,49 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (isUserLoading || !user || !firestore) {
-      if (!isUserLoading) setIsCheckingReservations(false);
+      if (!isUserLoading) {
+        setIsCheckingReservations(false);
+      }
       return;
     }
 
     const checkReservations = async () => {
       setIsCheckingReservations(true);
-      let reservationsQuery;
       let hasReservations = false;
 
-      if (user.role === 'customer') {
-        reservationsQuery = query(
-          collection(firestore, 'reservations'),
-          where('userId', '==', user.uid),
-          limit(1)
-        );
-        const reservationsSnapshot = await getDocs(reservationsQuery);
-        hasReservations = !reservationsSnapshot.empty;
-
-      } else if (user.role === 'owner') {
-        const tentQuery = query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1));
-        const tentSnapshot = await getDocs(tentQuery);
-        if (!tentSnapshot.empty) {
-          const tentId = tentSnapshot.docs[0].id;
-          reservationsQuery = query(
+      try {
+        if (user.role === 'customer') {
+          const reservationsQuery = query(
             collection(firestore, 'reservations'),
-            where('tentId', '==', tentId),
+            where('userId', '==', user.uid),
             limit(1)
           );
-           const reservationsSnapshot = await getDocs(reservationsQuery);
-           hasReservations = !reservationsSnapshot.empty;
-        }
-      }
+          const reservationsSnapshot = await getDocs(reservationsQuery);
+          hasReservations = !reservationsSnapshot.empty;
 
-      if (hasReservations) {
-        setShouldRedirect(true);
-      } else {
+        } else if (user.role === 'owner') {
+          const tentQuery = query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1));
+          const tentSnapshot = await getDocs(tentQuery);
+          
+          if (!tentSnapshot.empty) {
+            const tentId = tentSnapshot.docs[0].id;
+            const reservationsQuery = query(
+              collection(firestore, 'reservations'),
+              where('tentId', '==', tentId),
+              limit(1)
+            );
+            const reservationsSnapshot = await getDocs(reservationsQuery);
+            hasReservations = !reservationsSnapshot.empty;
+          }
+        }
+
+        if (hasReservations) {
+          setShouldRedirect(true);
+        } else {
+          setIsCheckingReservations(false);
+        }
+      } catch (error) {
+        console.error("Error checking reservations:", error);
         setIsCheckingReservations(false);
       }
     };
