@@ -34,8 +34,8 @@ import { Label } from "@/components/ui/label"
 
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Email inválido." }),
-  password: z.string().min(1, { message: "A senha é obrigatória." }),
+  email: z.string().email({ message: "Invalid email." }),
+  password: z.string().min(1, { message: "Password is required." }),
 })
 
 
@@ -53,18 +53,18 @@ function ForgotPasswordDialog() {
     try {
       await sendPasswordResetEmail(auth, email);
       toast({
-        title: "E-mail de recuperação enviado!",
-        description: "Verifique sua caixa de entrada para o link de redefinição de senha.",
+        title: "Recovery email sent!",
+        description: "Check your inbox for the password reset link.",
       });
       setIsSent(true);
     } catch (error: any) {
-      let description = "Ocorreu um erro. Tente novamente.";
+      let description = "An error occurred. Please try again.";
       if (error.code === 'auth/user-not-found') {
-        description = "Nenhum usuário encontrado com este e-mail.";
+        description = "No user found with this email.";
       }
        toast({
         variant: "destructive",
-        title: "Falha ao enviar e-mail",
+        title: "Failed to send email",
         description,
       });
     } finally {
@@ -76,14 +76,14 @@ function ForgotPasswordDialog() {
     return (
        <DialogContent>
         <DialogHeader>
-          <DialogTitle>Verifique seu E-mail</DialogTitle>
+          <DialogTitle>Check Your Email</DialogTitle>
           <DialogDescription>
-            Um link para redefinir sua senha foi enviado para <span className="font-semibold">{email}</span>. Siga as instruções no e-mail para continuar.
+            A link to reset your password has been sent to <span className="font-semibold">{email}</span>. Follow the instructions in the email to continue.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
-            <Button>Fechar</Button>
+            <Button>Close</Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
@@ -93,20 +93,20 @@ function ForgotPasswordDialog() {
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Recuperar Senha</DialogTitle>
+        <DialogTitle>Recover Password</DialogTitle>
         <DialogDescription>
-          Digite seu endereço de e-mail cadastrado e enviaremos um link para você redefinir sua senha.
+          Enter your registered email address and we'll send you a link to reset your password.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4 py-2">
         <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
+          <Label htmlFor="email">Email</Label>
           <div className="relative">
              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
              <Input
                 id="email"
                 type="email"
-                placeholder="seu@email.com"
+                placeholder="your@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isSending}
@@ -117,10 +117,10 @@ function ForgotPasswordDialog() {
       </div>
       <DialogFooter>
         <DialogClose asChild>
-          <Button variant="ghost" disabled={isSending}>Cancelar</Button>
+          <Button variant="ghost" disabled={isSending}>Cancel</Button>
         </DialogClose>
         <Button onClick={handlePasswordReset} disabled={isSending || !email}>
-          {isSending ? <Loader2 className="animate-spin" /> : "Enviar Link de Recuperação"}
+          {isSending ? <Loader2 className="animate-spin" /> : "Send Recovery Link"}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -153,8 +153,8 @@ export function LoginForm() {
 
   const handleAuthSuccess = () => {
       toast({
-        title: "Login bem-sucedido",
-        description: "Redirecionando...",
+        title: "Login successful",
+        description: "Redirecting...",
       })
       const redirectUrl = searchParams.get('redirect');
       router.push(redirectUrl || '/dashboard');
@@ -171,7 +171,7 @@ export function LoginForm() {
       handleAuthSuccess();
     } catch (error: any) {
       console.error(error);
-      let description = "Ocorreu um erro inesperado ao tentar fazer login.";
+      let description = "An unexpected error occurred while trying to log in.";
       
       const errorCode = error.code || error.message;
 
@@ -179,18 +179,18 @@ export function LoginForm() {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
         case 'auth/invalid-credential':
-          description = "Credenciais inválidas. Verifique seu e-mail e senha e tente novamente.";
+          description = "Invalid credentials. Please check your email and password and try again.";
           break;
         case 'auth/too-many-requests':
-          description = "Acesso bloqueado temporariamente devido a muitas tentativas. Tente novamente mais tarde.";
+          description = "Access temporarily blocked due to too many attempts. Please try again later.";
           break;
         default:
-          description = "Não foi possível fazer login. Verifique sua conexão e tente novamente.";
+          description = "Could not log in. Check your connection and try again.";
           break;
       }
       toast({
         variant: "destructive",
-        title: "Falha no login",
+        title: "Login Failed",
         description,
       })
     } finally {
@@ -211,7 +211,7 @@ export function LoginForm() {
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <FormControl>
-                    <Input placeholder="email@exemplo.com" {...field} className="pl-10" disabled={isSubmitting} />
+                    <Input placeholder="email@example.com" {...field} className="pl-10" disabled={isSubmitting} />
                   </FormControl>
                 </div>
                 <FormMessage />
@@ -224,9 +224,9 @@ export function LoginForm() {
             render={({ field }) => (
               <FormItem>
                 <div className="flex items-center justify-between">
-                  <FormLabel>Senha</FormLabel>
+                  <FormLabel>Password</FormLabel>
                   <DialogTrigger asChild>
-                    <Button variant="link" size="sm" type="button" className="text-xs h-auto p-0">Esqueceu a senha?</Button>
+                    <Button variant="link" size="sm" type="button" className="text-xs h-auto p-0">Forgot password?</Button>
                   </DialogTrigger>
                 </div>
                 <div className="relative">
@@ -240,7 +240,7 @@ export function LoginForm() {
             )}
           />
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Entrar'}
+            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Log In'}
           </Button>
         </form>
       </Form>

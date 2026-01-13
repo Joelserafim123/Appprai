@@ -27,17 +27,17 @@ import { useState, useCallback } from "react"
 import type { UserProfile } from "@/lib/types"
 
 const formSchema = z.object({
-  displayName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
-  email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
-  password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
-  role: z.enum(["customer", "owner"], { required_error: "Você precisa selecionar um papel." }),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
-  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.'),
-  street: z.string().min(1, 'A rua é obrigatória.'),
-  number: z.string().min(1, 'O número é obrigatório.'),
-  neighborhood: z.string().min(1, 'O bairro é obrigatório.'),
-  city: z.string().min(1, 'A cidade é obrigatória.'),
-  state: z.string().min(1, 'O estado é obrigatório.'),
+  displayName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
+  role: z.enum(["customer", "owner"], { required_error: "You must select a role." }),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "CPF must have 11 digits and is required." }),
+  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'Invalid CEP.'),
+  street: z.string().min(1, 'Street is required.'),
+  number: z.string().min(1, 'Number is required.'),
+  neighborhood: z.string().min(1, 'Neighborhood is required.'),
+  city: z.string().min(1, 'City is required.'),
+  state: z.string().min(1, 'State is required.'),
 })
 
 export function SignUpForm() {
@@ -91,12 +91,12 @@ export function SignUpForm() {
           form.setValue('neighborhood', data.bairro);
           form.setValue('city', data.localidade);
           form.setValue('state', data.uf);
-          toast({ title: "Endereço encontrado!" });
+          toast({ title: "Address found!" });
         } else {
-          toast({ variant: 'destructive', title: "CEP não encontrado." });
+          toast({ variant: 'destructive', title: "CEP not found." });
         }
       } catch (error) {
-        toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
+        toast({ variant: 'destructive', title: "Error fetching CEP." });
       }
     }
   }, [form, toast]);
@@ -146,21 +146,21 @@ export function SignUpForm() {
       });
 
       toast({
-        title: "Verificação Necessária",
-        description: "Um e-mail de verificação foi enviado. Por favor, cheque sua caixa de entrada.",
+        title: "Verification Required",
+        description: "A verification email has been sent. Please check your inbox.",
       });
       setIsVerificationSent(true);
 
     } catch (error: any) {
       if (error.code === 'permission-denied') return; // Handled by emitter
 
-      let description = "Ocorreu um erro desconhecido.";
+      let description = "An unknown error occurred.";
       if (error.code === 'auth/email-already-in-use') {
-          description = "Este endereço de e-mail já está em uso.";
+          description = "This email address is already in use.";
       }
       toast({
           variant: "destructive",
-          title: "Falha ao criar conta",
+          title: "Failed to create account",
           description,
       });
     } finally {
@@ -172,12 +172,12 @@ export function SignUpForm() {
     return (
       <div className="text-center space-y-4">
         <Send className="mx-auto h-12 w-12 text-primary" />
-        <h3 className="text-xl font-semibold">Verifique seu E-mail</h3>
+        <h3 className="text-xl font-semibold">Verify Your Email</h3>
         <p className="text-muted-foreground">
-          Enviamos um link de verificação para <span className="font-bold">{form.getValues('email')}</span>. 
-          Por favor, clique no link para ativar sua conta.
+          We've sent a verification link to <span className="font-bold">{form.getValues('email')}</span>. 
+          Please click the link to activate your account.
         </p>
-        <Button onClick={() => router.push('/login')}>Ir para o Login</Button>
+        <Button onClick={() => router.push('/login')}>Go to Login</Button>
       </div>
     );
   }
@@ -190,7 +190,7 @@ export function SignUpForm() {
           name="role"
           render={({ field }) => (
             <FormItem className="space-y-3">
-              <FormLabel>Eu sou...</FormLabel>
+              <FormLabel>I am a...</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
@@ -202,13 +202,13 @@ export function SignUpForm() {
                     <FormControl>
                       <RadioGroupItem value="customer" />
                     </FormControl>
-                    <FormLabel className="font-normal flex items-center gap-2"><UserCircle className="w-4 h-4" /> Cliente</FormLabel>
+                    <FormLabel className="font-normal flex items-center gap-2"><UserCircle className="w-4 h-4" /> Customer</FormLabel>
                   </FormItem>
                   <FormItem className="flex items-center space-x-2 space-y-0">
                     <FormControl>
                       <RadioGroupItem value="owner" />
                     </FormControl>
-                    <FormLabel className="font-normal flex items-center gap-2"><Briefcase className="w-4 h-4" /> Dono de Barraca</FormLabel>
+                    <FormLabel className="font-normal flex items-center gap-2"><Briefcase className="w-4 h-4" /> Tent Owner</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>
@@ -222,11 +222,11 @@ export function SignUpForm() {
           name="displayName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nome Completo</FormLabel>
+              <FormLabel>Full Name</FormLabel>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="Seu nome completo" {...field} className="pl-10" disabled={isSubmitting} />
+                  <Input placeholder="Your full name" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -242,7 +242,7 @@ export function SignUpForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="seu@email.com" {...field} className="pl-10" disabled={isSubmitting} />
+                  <Input placeholder="your@email.com" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -255,7 +255,7 @@ export function SignUpForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Senha</FormLabel>
+              <FormLabel>Password</FormLabel>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
@@ -286,7 +286,7 @@ export function SignUpForm() {
             name="cep"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>CEP</FormLabel>
+                <FormLabel>CEP / Postal Code</FormLabel>
                 <FormControl>
                     <Input {...field} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} />
                 </FormControl>
@@ -302,7 +302,7 @@ export function SignUpForm() {
                     name="street"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Rua</FormLabel>
+                        <FormLabel>Street</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -317,7 +317,7 @@ export function SignUpForm() {
                     name="number"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Número</FormLabel>
+                        <FormLabel>Number</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -332,7 +332,7 @@ export function SignUpForm() {
             name="neighborhood"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Bairro</FormLabel>
+                <FormLabel>Neighborhood</FormLabel>
                 <FormControl>
                     <Input {...field} disabled={isSubmitting} />
                 </FormControl>
@@ -347,7 +347,7 @@ export function SignUpForm() {
                     name="city"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Cidade</FormLabel>
+                        <FormLabel>City</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -362,7 +362,7 @@ export function SignUpForm() {
                     name="state"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Estado</FormLabel>
+                        <FormLabel>State</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -374,7 +374,7 @@ export function SignUpForm() {
         </div>
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
+           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Create Account'}
         </Button>
       </form>
     </Form>

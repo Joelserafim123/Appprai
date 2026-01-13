@@ -22,12 +22,12 @@ export default function GlobalError({
           <Card className="w-full max-w-lg">
             <CardHeader>
               <CardTitle className="text-destructive">
-                {isPermissionError ? 'Permissão Negada no Firestore' : 'Ocorreu um Erro'}
+                {isPermissionError ? 'Firestore Permission Denied' : 'An Error Occurred'}
               </CardTitle>
               <CardDescription>
                 {isPermissionError
-                  ? 'Uma operação foi bloqueada pelas regras de segurança do Firestore.'
-                  : 'Algo deu errado no aplicativo.'}
+                  ? 'An operation was blocked by Firestore security rules.'
+                  : 'Something went wrong in the application.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -36,16 +36,16 @@ export default function GlobalError({
               </div>
               {permissionError && (
                  <div className="border-l-2 border-orange-400 pl-4 text-sm text-muted-foreground">
-                    <b>Dica:</b> As regras de segurança estão no arquivo <code>firestore.rules</code>. Verifique se as regras permitem a operação ({permissionError.request.method}) no caminho "{permissionError.request.path}".
+                    <b>Hint:</b> Security rules are in the <code>firestore.rules</code> file. Check if the rules allow the operation ({permissionError.request.method}) on the path "{permissionError.request.path}".
                  </div>
               )}
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
-              <Button onClick={() => reset()} variant="outline">Tentar Novamente</Button>
+              <Button onClick={() => reset()} variant="outline">Try Again</Button>
               <Button asChild>
                 <a href="https://console.firebase.google.com/project/cadastro-3c63f/firestore/rules" target="_blank">
                     <FileQuestion className="mr-2"/>
-                    Ver Regras
+                    View Rules
                 </a>
               </Button>
             </CardFooter>

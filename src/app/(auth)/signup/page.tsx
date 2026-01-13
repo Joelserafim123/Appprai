@@ -12,17 +12,17 @@ export default function SignUpPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Crie uma conta</CardTitle>
+        <CardTitle className="text-2xl">Create an Account</CardTitle>
         <CardDescription>
-          Junte-se ao BeachPal e encontre o seu lugar ao sol.
+          Join BeachPal and find your spot in the sun.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <SignUpForm />
         <div className="mt-4 text-center text-sm">
-          Já tem uma conta?{" "}
+          Already have an account?{" "}
           <Link href="/login" className="underline text-primary font-medium">
-            Entrar
+            Log in
           </Link>
         </div>
       </CardContent>

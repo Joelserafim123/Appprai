@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import { ChartTooltipContent, ChartContainer, ChartConfig } from '@/components/ui/chart';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
 
@@ -31,8 +31,8 @@ type Reservation = {
 };
 
 const chartConfig = {
-  receita: {
-    label: 'Receita',
+  revenue: {
+    label: 'Revenue',
     color: 'hsl(var(--primary))',
   },
 } satisfies ChartConfig;
@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
     }, {} as Record<string, number>);
 
     const chartData = Object.entries(dailyRevenue)
-      .map(([date, receita]) => ({ date, receita }))
+      .map(([date, revenue]) => ({ date, revenue }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
 
@@ -112,24 +112,24 @@ export default function AnalyticsPage() {
   }
 
   if (!user || user.role !== 'owner') {
-    return <p>Acesso negado. Esta página é apenas para donos de barracas.</p>;
+    return <p>Access denied. This page is for tent owners only.</p>;
   }
 
   if (!tentId && !loadingTent) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
               <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Você precisa ter uma barraca para ver suas análises.</p>
+              <h3 className="mt-4 text-lg font-medium">Register your tent first</h3>
+              <p className="mt-2 text-sm text-muted-foreground">You need to have a tent to see your analytics.</p>
               <Button asChild className="mt-6">
-                  <Link href="/dashboard/my-tent">Ir para Minha Barraca</Link>
+                  <Link href="/dashboard/my-tent">Go to My Tent</Link>
               </Button>
           </div>
       )
   }
 
   if (error) {
-    return <p className="text-destructive">Erro ao carregar análises: {error.message}</p>;
+    return <p className="text-destructive">Error loading analytics: {error.message}</p>;
   }
   
   if (reservationsLoading) {
@@ -143,8 +143,8 @@ export default function AnalyticsPage() {
   return (
     <div className="w-full max-w-6xl">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Análise de Vendas</h1>
-        <p className="text-muted-foreground">Veja o desempenho da sua barraca.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Sales Analytics</h1>
+        <p className="text-muted-foreground">See how your tent is performing.</p>
       </header>
 
       {analyticsData && reservations ? (
@@ -152,41 +152,41 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {analyticsData.totalRevenue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">de {analyticsData.totalReservations} reservas completas</p>
+                <div className="text-2xl font-bold">$ {analyticsData.totalRevenue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">from {analyticsData.totalReservations} completed reservations</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Reservas Completas</CardTitle>
+                <CardTitle className="text-sm font-medium">Completed Reservations</CardTitle>
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{analyticsData.totalReservations}</div>
-                <p className="text-xs text-muted-foreground">Total de reservas finalizadas</p>
+                <p className="text-xs text-muted-foreground">Total finalized reservations</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+                <CardTitle className="text-sm font-medium">Average Ticket</CardTitle>
                 <BarChart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">R$ {analyticsData.averageOrderValue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">Valor médio por reserva</p>
+                <div className="text-2xl font-bold">$ {analyticsData.averageOrderValue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Average value per reservation</p>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Receita por Dia</CardTitle>
+              <CardTitle>Revenue by Day</CardTitle>
               <CardDescription>
-                Acompanhe a evolução das suas vendas diárias. Apenas reservas com status "Completa" são contabilizadas.
+                Track the evolution of your daily sales. Only reservations with "Completed" status are counted.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -199,19 +199,19 @@ export default function AnalyticsPage() {
                             tickLine={false}
                             tickMargin={10}
                             axisLine={false}
-                             tickFormatter={(value) => format(new Date(value), 'dd/MM', { locale: ptBR })}
+                             tickFormatter={(value) => format(new Date(value), 'MM/dd', { locale: enUS })}
                         />
-                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$ ${value}`} />
+                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
                         <ChartTooltip
                             cursor={false}
                             content={<ChartTooltipContent indicator="dot" />}
                         />
-                        <Bar dataKey="receita" fill="var(--color-receita)" radius={4} />
+                        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
                         </RechartsBarChart>
                     </ChartContainer>
                 ) : (
                     <div className="flex h-[250px] w-full items-center justify-center text-center">
-                        <p className="text-muted-foreground">Nenhum dado de receita para exibir no gráfico ainda.</p>
+                        <p className="text-muted-foreground">No revenue data to display in the chart yet.</p>
                     </div>
                 )}
             </CardContent>
@@ -220,9 +220,9 @@ export default function AnalyticsPage() {
       ) : (
         <div className="rounded-lg border-2 border-dashed py-16 text-center">
           <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-medium">Nenhuma análise para mostrar</h3>
+          <h3 className="mt-4 text-lg font-medium">No analytics to show</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Complete algumas reservas para começar a ver suas análises de vendas.
+            Complete some reservations to start seeing your sales analytics.
           </p>
         </div>
       )}

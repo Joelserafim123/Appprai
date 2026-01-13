@@ -11,22 +11,22 @@ function CustomerDashboard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Área do Cliente</CardTitle>
-        <CardDescription>Gerencie suas reservas, pedidos e configurações da sua conta.</CardDescription>
+        <CardTitle>Customer Area</CardTitle>
+        <CardDescription>Manage your reservations, orders, and account settings.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/my-reservations">
-            <Star className="mr-2" /> Minhas Reservas
+            <Star className="mr-2" /> My Reservations
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/settings">
-            <Settings className="mr-2" /> Configurações da Conta
+            <Settings className="mr-2" /> Account Settings
           </Link>
         </Button>
         <Button asChild className="w-full mt-4">
-            <Link href="/">Encontrar uma Barraca</Link>
+            <Link href="/">Find a Tent</Link>
         </Button>
       </CardContent>
     </Card>
@@ -37,33 +37,33 @@ function OwnerDashboard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Área do Dono de Barraca</CardTitle>
-        <CardDescription>Gerencie sua barraca, cardápio, reservas e veja suas vendas.</CardDescription>
+        <CardTitle>Tent Owner Area</CardTitle>
+        <CardDescription>Manage your tent, menu, reservations, and view your sales.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/my-tent">
-            <Building className="mr-2" /> Gerenciar Minha Barraca
+            <Building className="mr-2" /> Manage My Tent
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/menu">
-            <Utensils className="mr-2" /> Atualizar Cardápio
+            <Utensils className="mr-2" /> Update Menu
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/rental-items">
-            <Armchair className="mr-2" /> Gerenciar Itens de Aluguel
+            <Armchair className="mr-2" /> Manage Rental Items
           </Link>
         </Button>
          <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/reservations">
-            <Star className="mr-2" /> Ver Reservas
+            <Star className="mr-2" /> View Reservations
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/analytics">
-            <BarChart className="mr-2" /> Análise de Vendas
+            <BarChart className="mr-2" /> Sales Analytics
           </Link>
         </Button>
       </CardContent>
@@ -83,17 +83,17 @@ export default function DashboardPage() {
   }
 
   const welcomeMessage = () => {
-    const firstName = user?.displayName?.split(' ')[0] || 'usuário';
+    const firstName = user?.displayName?.split(' ')[0] || 'user';
     if (user?.role === 'owner') {
-      return `Olá de boas vendas, ${firstName}!`;
+      return `Hello and happy sales, ${firstName}!`;
     }
-    return `Bem-vindo(a) de volta, ${firstName}.`;
+    return `Welcome back, ${firstName}.`;
   };
 
   return (
     <div className="w-full max-w-2xl">
         <header className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Painel</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">{welcomeMessage()}</p>
         </header>
         {user?.role === 'owner' ? <OwnerDashboard /> : <CustomerDashboard />}

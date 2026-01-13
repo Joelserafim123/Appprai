@@ -23,7 +23,7 @@ export default function AuthLayout({
         <div className="mx-auto grid w-[350px] gap-6">
           <Link href="/" className="mx-auto">
              <Logo userName={isUserLoading ? undefined : firstName} />
-             <span className="sr-only">BeachPal Início</span>
+             <span className="sr-only">BeachPal Home</span>
           </Link>
           {isUserLoading && !firstName && (
             <Loader2 className="mx-auto h-6 w-6 animate-spin" />
@@ -35,7 +35,7 @@ export default function AuthLayout({
         <Image
           src={authImageUrl}
           data-ai-hint="sunny beach"
-          alt="Uma bela praia ensolarada"
+          alt="A beautiful sunny beach"
           fill
           className="object-cover dark:brightness-[0.2] dark:grayscale"
         />

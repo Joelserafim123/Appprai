@@ -47,12 +47,12 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
+  category: 'Drinks' | 'Snacks' | 'Main Courses';
 }
 
 export interface RentalItem {
   id: string;
-  name: 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional';
+  name: 'Umbrella Kit + 2 Chairs' | 'Additional Chair';
   price: number;
   quantity: number;
 }
