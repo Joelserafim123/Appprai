@@ -23,7 +23,7 @@ import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import type { UserProfile } from "@/lib/types"
 
 const formSchema = z.object({
@@ -31,6 +31,13 @@ const formSchema = z.object({
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
   password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
   role: z.enum(["customer", "owner"], { required_error: "Você precisa selecionar um papel." }),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
+  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.'),
+  street: z.string().min(1, 'A rua é obrigatória.'),
+  number: z.string().min(1, 'O número é obrigatório.'),
+  neighborhood: z.string().min(1, 'O bairro é obrigatório.'),
+  city: z.string().min(1, 'A cidade é obrigatória.'),
+  state: z.string().min(1, 'O estado é obrigatório.'),
 })
 
 export function SignUpForm() {
@@ -46,9 +53,54 @@ export function SignUpForm() {
       displayName: "",
       email: "",
       password: "",
-      role: "customer"
+      role: "customer",
+      cpf: "",
+      cep: "",
+      street: "",
+      number: "",
+      neighborhood: "",
+      city: "",
+      state: "",
     },
   })
+
+  const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    value = value.replace(/\D/g, "");
+    if (value.length > 11) value = value.slice(0, 11);
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    form.setValue('cpf', value, { shouldValidate: true });
+  }, [form]);
+
+   const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    if (value.length > 5) {
+      value = value.slice(0, 5) + '-' + value.slice(5);
+    }
+    form.setValue('cep', value, { shouldValidate: true });
+
+    if (value.length === 9) { // CEP is complete
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${value.replace('-', '')}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          form.setValue('street', data.logradouro);
+          form.setValue('neighborhood', data.bairro);
+          form.setValue('city', data.localidade);
+          form.setValue('state', data.uf);
+          toast({ title: "Endereço encontrado!" });
+        } else {
+          toast({ variant: 'destructive', title: "CEP não encontrado." });
+        }
+      } catch (error) {
+        toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
+      }
+    }
+  }, [form, toast]);
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!app || !firestore) return;
@@ -64,20 +116,26 @@ export function SignUpForm() {
         displayName: values.displayName,
       });
 
-      // Send verification email
       await sendEmailVerification(user);
 
-      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'cpf'> = {
+      const userProfileData: UserProfile = {
         uid: user.uid,
         email: values.email,
         displayName: values.displayName,
         role: values.role,
         photoURL: user.photoURL || '',
+        cpf: values.cpf.replace(/\D/g, ""), // Save CPF without formatting
+        cep: values.cep,
+        street: values.street,
+        number: values.number,
+        neighborhood: values.neighborhood,
+        city: values.city,
+        state: values.state,
       };
       
       const userDocRef = doc(firestore, "users", user.uid);
       
-      await setDoc(userDocRef, userProfileData).catch(e => {
+      setDoc(userDocRef, userProfileData).catch(e => {
          const permissionError = new FirestorePermissionError({
           path: `users/${user.uid}`,
           operation: 'create',
@@ -209,6 +267,113 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
+        
+        <FormField
+            control={form.control}
+            name="cpf"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>CPF</FormLabel>
+                <FormControl>
+                    <Input {...field} onChange={handleCpfChange} placeholder="000.000.000-00" disabled={isSubmitting} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+
+        <FormField
+            control={form.control}
+            name="cep"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>CEP</FormLabel>
+                <FormControl>
+                    <Input {...field} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+        />
+
+        <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+                <FormField
+                    control={form.control}
+                    name="street"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Rua</FormLabel>
+                        <FormControl>
+                            <Input {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <div>
+                 <FormField
+                    control={form.control}
+                    name="number"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Número</FormLabel>
+                        <FormControl>
+                            <Input {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+         <FormField
+            control={form.control}
+            name="neighborhood"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Bairro</FormLabel>
+                <FormControl>
+                    <Input {...field} disabled={isSubmitting} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+        />
+        <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+                 <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Cidade</FormLabel>
+                        <FormControl>
+                            <Input {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <div>
+                 <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Estado</FormLabel>
+                        <FormControl>
+                            <Input {...field} disabled={isSubmitting} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+
         <Button type="submit" className="w-full" disabled={isSubmitting}>
            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
         </Button>
@@ -216,3 +381,5 @@ export function SignUpForm() {
     </Form>
   )
 }
+
+    

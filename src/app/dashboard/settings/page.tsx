@@ -23,7 +23,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }).optional().or(z.literal('')),
   cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
   street: z.string().optional(),
   number: z.string().optional(),
@@ -46,7 +45,6 @@ export default function SettingsPage() {
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
-          cpf: user?.cpf || '',
           cep: user?.cep || '',
           street: user?.street || '',
           number: user?.number || '',
@@ -67,7 +65,6 @@ export default function SettingsPage() {
     if (user) {
       reset({
         displayName: user.displayName || '',
-        cpf: user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '',
         cep: user.cep || '',
         street: user.street || '',
         number: user.number || '',
@@ -78,15 +75,6 @@ export default function SettingsPage() {
     }
   }, [user, reset]);
 
-  const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    value = value.replace(/\D/g, "");
-    if (value.length > 11) value = value.slice(0, 11);
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    setValue('cpf', value, { shouldValidate: true });
-  }, [setValue]);
 
    const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -148,11 +136,6 @@ export default function SettingsPage() {
       if (data.city) firestoreData.city = data.city;
       if (data.state) firestoreData.state = data.state;
       
-      // Only allow setting CPF if it's not already set, and remove formatting
-      if (!user.cpf && data.cpf) {
-        firestoreData.cpf = data.cpf.replace(/\D/g, "");
-      }
-  
       // Update Firestore document
       const userDocRef = doc(firestore, "users", user.uid);
        updateDoc(userDocRef, firestoreData).catch(e => {
@@ -212,8 +195,6 @@ export default function SettingsPage() {
   if (!user) {
     return <p>Por favor, faça login para ver suas configurações.</p>;
   }
-  
-  const isProfileIncomplete = !user.cpf || !user.street;
 
   return (
     <div className="w-full max-w-2xl space-y-8">
@@ -221,16 +202,6 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Configurações da Conta</h1>
         <p className="text-muted-foreground">Gerencie as informações da sua conta.</p>
       </header>
-
-      {isProfileIncomplete && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Complete seu Perfil</AlertTitle>
-          <AlertDescription>
-            Por favor, preencha seu CPF e endereço para completar seu cadastro e utilizar todas as funcionalidades.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
@@ -277,12 +248,11 @@ export default function SettingsPage() {
               <Label htmlFor="cpf">CPF</Label>
               <Input
                 id="cpf"
-                {...register('cpf')}
-                onChange={handleCpfChange}
-                disabled={isSubmitting || !!user.cpf}
+                value={user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : ''}
+                disabled
+                readOnly
                 placeholder="000.000.000-00"
               />
-              {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
             </div>
             
             <div className="space-y-2">
@@ -332,3 +302,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
