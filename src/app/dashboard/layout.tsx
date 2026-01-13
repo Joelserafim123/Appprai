@@ -29,20 +29,17 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Only run checks once user loading is complete
-    if (!isUserLoading) {
-      // If no user, redirect to login
-      if (!user) {
-        router.push('/login');
-      } 
-      // If user exists but email is not verified, redirect to verify-email page
-      else if (!user.emailVerified) {
-        router.push('/verify-email');
-      }
+    if (isUserLoading) {
+      return; 
+    }
+
+    if (!user) {
+      router.push('/login');
+    } else if (!user.emailVerified) {
+      router.push('/verify-email');
     }
   }, [user, isUserLoading, router]);
 
-  // While loading, or if user is null (and about to be redirected), show a loading spinner.
   if (isUserLoading || !user || !user.emailVerified) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -51,7 +48,6 @@ export default function DashboardLayout({
     );
   }
 
-  // If we reach here, user is loaded, logged in, and verified.
   const CustomerMenu = () => (
     <>
       <SidebarMenuItem>
@@ -92,10 +88,10 @@ export default function DashboardLayout({
   const OwnerMenu = () => (
     <>
        <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Início', side: 'right' }}>
-          <Link href="/dashboard">
-            <Home />
-            <span>Início</span>
+        <SidebarMenuButton asChild tooltip={{ children: 'Reservas', side: 'right' }}>
+          <Link href="/dashboard/reservations">
+            <Star />
+            <span>Reservas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -123,14 +119,6 @@ export default function DashboardLayout({
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
-       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Reservas', side: 'right' }}>
-          <Link href="/dashboard/reservations">
-            <Star />
-            <span>Reservas</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
       <SidebarMenuItem>
         <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
           <Link href="/dashboard/chats">
@@ -144,6 +132,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/analytics">
             <BarChart />
             <span>Análises</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+       <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Configurações', side: 'right' }}>
+          <Link href="/dashboard/settings">
+            <Settings />
+            <span>Configurações</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
