@@ -13,12 +13,21 @@ service cloud.firestore {
     // Users
     //--------------------------------
     match /users/{userId} {
-      // Allow user to read and update their own document.
+      // Allow user to read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
-      // Allow user to create their own document.
-      allow create: if request.auth != null;
-      // Allow user to update their own document, but not change their CPF
-      allow update: if request.auth != null && request.auth.uid == userId && !(request.resource.data.cpf != resource.data.cpf);
+      
+      // Allow user to create their own document if basic fields are present.
+      // Address and other details can be added later.
+      allow create: if request.auth != null 
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.email is string
+                    && request.resource.data.role in ['customer', 'owner'];
+      
+      // Allow user to update their own document, but not change their CPF or role.
+      allow update: if request.auth != null && request.auth.uid == userId 
+                    && request.resource.data.cpf == resource.data.cpf
+                    && request.resource.data.role == resource.data.role;
+      
       // Disallow deleting user documents and listing all users.
       allow delete, list: if false;
     }
@@ -31,11 +40,7 @@ service cloud.firestore {
       allow read: if true;
       // The tent owner is the only one who can modify the tent.
       // Now we enforce one tent per owner by making the doc id the owner's uid.
-      allow create: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
-
-      // Allow owner to update most fields, including the new hasAvailableKits
-      allow update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
-      
+      allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
