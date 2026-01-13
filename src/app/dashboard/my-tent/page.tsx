@@ -3,13 +3,12 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
+import { useFirebase, uploadFile, deleteFileByUrl } from '@/firebase';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, Image as ImageIcon, Trash, Plus, MapPin, CheckCircle2, Upload } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +23,6 @@ import type { Tent, TentMedia } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import Image from 'next/image';
 import { useMemoFirebase } from '@/firebase/provider';
-import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
 import { addDoc } from 'firebase/firestore';
 
@@ -193,21 +191,16 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
         setIsSubmitting(true);
     
         const file = data.media[0];
-        const fileId = uuidv4();
-        const storagePath = `tents/${tentId}/media/${fileId}`;
-        const fileRef = storageRef(storage, storagePath);
+        const mediaPath = `tents/${tentId}/media`;
         
         try {
-            // 1. Upload to Storage
-            await uploadBytes(fileRef, file);
-            
-            // 2. Get Download URL
-            const mediaUrl = await getDownloadURL(fileRef);
+            // 1. Upload to Storage using the centralized function
+            const { downloadURL, storagePath } = await uploadFile(storage, file, mediaPath);
 
             const mediaType = file.type.startsWith('video') ? 'video' : 'image';
             
             const mediaData = {
-                mediaUrl,
+                mediaUrl: downloadURL,
                 storagePath,
                 description: data.description,
                 mediaHint: "beach tent", // Default hint
@@ -216,12 +209,12 @@ function MediaUploadForm({ tentId, onFinished }: { tentId: string, onFinished: (
     
             const collectionRef = collection(firestore, 'tents', tentId, 'media');
             
-            // 3. Save reference in Firestore
+            // 2. Save reference in Firestore
             addDoc(collectionRef, mediaData).catch((e) => {
                  const permissionError = new FirestorePermissionError({
                     path: collectionRef.path,
                     operation: 'create',
-                    requestResourceData: { description: data.description },
+                    requestResourceData: mediaData,
                 });
                 errorEmitter.emit('permission-error', permissionError);
                 throw e; // re-throw to be caught by outer catch
@@ -287,13 +280,12 @@ function MediaManager({ tentId }: { tentId: string | null }) {
         
         setIsSubmitting(true);
         const docRef = doc(firestore, 'tents', tentId, 'media', media.id);
-        const fileRef = storageRef(storage, media.storagePath);
 
         try {
             // Delete from Firestore first
             await deleteDoc(docRef);
-            // Then delete from Storage
-            await deleteObject(fileRef);
+            // Then delete from Storage using the centralized function
+            await deleteFileByUrl(storage, media.storagePath);
 
             toast({ title: "Mídia apagada com sucesso!" });
         } catch (e: any) {
@@ -392,15 +384,13 @@ function BannerManager({ tent, onFinished }: { tent: Tent | null, onFinished: ()
         if (!firestore || !storage || !tent || !bannerFile) return;
         setIsSubmitting(true);
 
-        const storagePath = `tents/${tent.id}/banner.jpg`;
-        const fileRef = storageRef(storage, storagePath);
+        const bannerPath = `tents/${tent.id}`;
 
         try {
-            await uploadBytes(fileRef, bannerFile);
-            const bannerUrl = await getDownloadURL(fileRef);
+            const { downloadURL, storagePath } = await uploadFile(storage, bannerFile, bannerPath);
 
             const docRef = doc(firestore, 'tents', tent.id);
-            await updateDoc(docRef, { bannerUrl, bannerStoragePath: storagePath });
+            await updateDoc(docRef, { bannerUrl: downloadURL, bannerStoragePath: storagePath });
             
             toast({ title: "Banner atualizado com sucesso!" });
             onFinished();
@@ -417,11 +407,9 @@ function BannerManager({ tent, onFinished }: { tent: Tent | null, onFinished: ()
     const handleDeleteBanner = async () => {
          if (!firestore || !storage || !tent?.bannerStoragePath || !confirm("Tem certeza que quer remover o banner?")) return;
         setIsSubmitting(true);
-
-        const fileRef = storageRef(storage, tent.bannerStoragePath);
         
         try {
-            await deleteObject(fileRef);
+            await deleteFileByUrl(storage, tent.bannerStoragePath);
             const docRef = doc(firestore, 'tents', tent.id);
             await updateDoc(docRef, { bannerUrl: null, bannerStoragePath: null });
             

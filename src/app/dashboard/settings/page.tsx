@@ -12,16 +12,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase/provider';
+import { useFirebase, uploadFile } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import Image from 'next/image';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -86,22 +84,19 @@ export default function SettingsPage() {
       if (!currentUser) throw new Error("User not authenticated.");
       
       let photoURL = user.photoURL; // Keep current photo URL by default
-      let storagePath: string | null = null;
       const file = data.photo?.[0];
 
       // If a new file is uploaded, upload it to Storage and get the URL
       if (file) {
-        storagePath = `users/${user.uid}/profile.jpg`;
-        const fileRef = ref(storage, storagePath);
-        await uploadBytes(fileRef, file);
-        photoURL = await getDownloadURL(fileRef);
+        const { downloadURL } = await uploadFile(storage, file, `users/${user.uid}`);
+        photoURL = downloadURL;
       }
   
       // Prepare data for Firestore update
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
         address: data.address,
-        photoURL: photoURL // Explicitly save the new or existing photoURL
+        photoURL: photoURL, // Explicitly save the new or existing photoURL
       };
 
       if (!user.cpf) {
