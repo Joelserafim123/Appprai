@@ -13,9 +13,9 @@ export default function LoginPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Bem-vindo de volta!</CardTitle>
+        <CardTitle className="text-2xl">Acesse sua conta</CardTitle>
         <CardDescription>
-          Digite seu e-mail abaixo para fazer login em sua conta
+          Que bom ver você de novo! Faça login para continuar.
         </CardDescription>
       </CardHeader>
       <CardContent>
