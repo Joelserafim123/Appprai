@@ -89,21 +89,14 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
              // Document doesn't exist, so let's create a basic one.
             console.warn(`User document for ${firebaseUser.uid} not found. Recreating...`);
-            const newUserProfileData: UserProfile = {
+            const newUserProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
-                displayName: firebaseUser.displayName || '',
+                displayName: firebaseUser.displayName || 'Usuário',
                 photoURL: firebaseUser.photoURL || '',
                 role: 'customer', // Default role
-                cpf: '',
-                cep: '',
-                street: '',
-                number: '',
-                neighborhood: '',
-                city: '',
-                state: '',
             };
-            await setDoc(userDocRef, { ...newUserProfileData, createdAt: serverTimestamp()});
+            await setDoc(userDocRef, { ...newUserProfileData });
             return { ...firebaseUser, ...newUserProfileData } as UserData;
         }
     } catch (error) {
