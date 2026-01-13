@@ -54,7 +54,7 @@ export default function MyReservationsPage() {
   }, [reservations]);
   
   const handleCloseBill = (reservationId: string) => {
-    if (!firestore || !confirm("Tem certeza que deseja fechar a conta? Você não poderá adicionar mais itens.")) return;
+    if (!firestore) return;
     const docRef = doc(firestore, 'reservations', reservationId);
     updateDoc(docRef, { status: 'payment-pending' })
     .catch(e => {
@@ -69,7 +69,7 @@ export default function MyReservationsPage() {
   }
   
   const handleCancelReservation = (reservationId: string) => {
-    if (!firestore || !confirm("Tem certeza que deseja cancelar esta reserva? Essa ação não pode ser desfeita.")) return;
+    if (!firestore) return;
     const resDocRef = doc(firestore, 'reservations', reservationId);
     updateDoc(resDocRef, { status: 'cancelled' }).catch(err => {
         const permissionError = new FirestorePermissionError({

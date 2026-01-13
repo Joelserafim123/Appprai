@@ -242,13 +242,32 @@ export default function OwnerReservationsPage() {
 
 
   const handleCancelReservation = (reservationId: string) => {
-    if (!firestore || !confirm('Tem certeza que deseja cancelar esta reserva?')) return;
+    if (!firestore) return;
     const resDocRef = doc(firestore, 'reservations', reservationId);
     
     const updateData = { status: 'cancelled' as ReservationStatus };
     updateDoc(resDocRef, updateData)
       .then(() => {
         toast({ title: 'Reserva Cancelada!' });
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: resDocRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw serverError;
+      });
+  };
+
+  const handleCompleteReservation = (reservationId: string) => {
+    if (!firestore) return;
+    const resDocRef = doc(firestore, 'reservations', reservationId);
+    const updateData = { status: 'completed' as ReservationStatus };
+    updateDoc(resDocRef, updateData)
+      .then(() => {
+        toast({ title: 'Reserva Finalizada!' });
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -409,9 +428,14 @@ export default function OwnerReservationsPage() {
                                 </Button>
                             )}
                             {reservation.status === 'payment-pending' && (
-                                <Button className="w-full" onClick={() => setReservationForPayment(reservation)}>
-                                    <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
-                                </Button>
+                                <div className="grid grid-cols-2 gap-2 w-full">
+                                    <Button size="sm" onClick={() => handleCompleteReservation(reservation.id)}>
+                                        <Check className="mr-2 h-4 w-4" /> Finalizar Pedido
+                                    </Button>
+                                    <Button size="sm" variant="secondary" onClick={() => setReservationForPayment(reservation)}>
+                                        <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
+                                    </Button>
+                                </div>
                             )}
                         </CardFooter>
                     </Card>
