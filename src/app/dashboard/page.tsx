@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [isCheckingReservations, setIsCheckingReservations] = useState(true);
 
   useEffect(() => {
+    // Wait until user loading is finished and we have a user object.
     if (isUserLoading || !user || !firestore) {
       if (!isUserLoading) {
         setIsCheckingReservations(false);
@@ -54,15 +55,16 @@ export default function DashboardPage() {
             const reservationsSnapshot = await getDocs(reservationsQuery);
             hasReservations = !reservationsSnapshot.empty;
           }
+          // If the owner has no tent yet, hasReservations remains false.
         }
 
         if (hasReservations) {
           setShouldRedirect(true);
-        } else {
-          setIsCheckingReservations(false);
         }
       } catch (error) {
         console.error("Error checking reservations:", error);
+      } finally {
+        // Always stop checking, regardless of the outcome.
         setIsCheckingReservations(false);
       }
     };
