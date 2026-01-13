@@ -27,8 +27,6 @@
         "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
         "description": { "type": "string" },
         "beachName": { "type": "string" },
-        "bannerUrl": { "type": "string", "format": "uri", "description": "Public URL of the banner image from Firebase Storage." },
-        "bannerStoragePath": { "type": "string", "description": "The path to the banner file in Firebase Storage, for deletion." },
         "logoUrl": { "type": "string", "format": "uri", "description": "URL for the tent logo, could be same as owner's photo for simplicity." },
         "location": {
           "type": "object",
@@ -42,19 +40,6 @@
         "hasAvailableKits": { "type": "boolean", "description": "Indicates if there are rental kits available." }
       },
       "required": ["ownerId", "ownerName", "name", "slug", "description", "beachName", "location"]
-    },
-    "TentMedia": {
-      "title": "Tent Media",
-      "description": "A media item (image or video) for a tent, stored in Firebase Storage.",
-      "type": "object",
-      "properties": {
-        "mediaUrl": { "type": "string", "format": "uri", "description": "Public URL of the media file from Firebase Storage." },
-        "storagePath": { "type": "string", "description": "The path to the file in Firebase Storage, for deletion." },
-        "mediaHint": { "type": "string", "description": "A hint for AI processing, e.g., 'beach sunset'." },
-        "description": { "type": "string", "description": "A description of the media." },
-        "type": { "type": "string", "enum": ["image", "video"], "description": "The type of the media." }
-      },
-      "required": ["mediaUrl", "storagePath", "description", "type"]
     },
     "MenuItem": {
       "title": "Menu Item",
@@ -159,10 +144,6 @@
     "/tents/{tentId}": {
       "schema": { "$ref": "#/entities/Tent" },
       "description": "Stores information about each beach tent."
-    },
-    "/tents/{tentId}/media/{mediaId}": {
-      "schema": { "$ref": "#/entities/TentMedia" },
-      "description": "Media items (photos/videos) for a specific tent."
     },
     "/tents/{tentId}/menuItems/{menuItemId}": {
       "schema": { "$ref": "#/entities/MenuItem" },

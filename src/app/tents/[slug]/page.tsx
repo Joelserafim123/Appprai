@@ -5,17 +5,16 @@
 import { notFound, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import Image from 'next/image';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, ShoppingCart, Umbrella, Info, Loader2, MessageSquare } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -23,7 +22,7 @@ import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import type { Tent } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import type { TentMedia, MenuItem, RentalItem, ReservationItem } from '@/lib/types';
+import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
 
 
@@ -64,14 +63,16 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                 tentData.ownerName = tentData.ownerName || tentData.name;
                 
                 // Attempt to fetch the user document for a more accurate owner name
-                try {
-                    const userDocRef = doc(firestore, 'users', tentData.ownerId);
-                    const userDoc = await getDoc(userDocRef);
-                    if (userDoc.exists()) {
-                        tentData.ownerName = userDoc.data().displayName;
+                if (tentData.ownerId) {
+                    try {
+                        const userDocRef = doc(firestore, 'users', tentData.ownerId);
+                        const userDoc = await getDoc(userDocRef);
+                        if (userDoc.exists()) {
+                            tentData.ownerName = userDoc.data().displayName;
+                        }
+                    } catch (userError) {
+                        console.warn(`Could not fetch owner's name for tent ${tentData.id}:`, userError);
                     }
-                } catch (userError) {
-                    console.warn(`Could not fetch owner's name for tent ${tentData.id}:`, userError);
                 }
 
                 setTent(tentData);
@@ -97,14 +98,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     return collection(firestore, 'tents', tent.id, 'rentalItems');
   }, [tent, firestore]);
   
-  const mediaQuery = useMemoFirebase(() => {
-    if (!tent || !firestore) return null;
-    return collection(firestore, 'tents', tent.id, 'media');
-  }, [tent, firestore]);
-
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuQuery);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
-  const { data: tentMedia, isLoading: loadingMedia } = useCollection<TentMedia>(mediaQuery);
   
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
@@ -201,7 +196,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       userName: user.displayName,
       tentId: tent.id,
       tentName: tent.name,
-      tentOwnerName: tent.ownerName,
+      tentOwnerName: tent.ownerName || tent.name,
       tentLocation: tent.location,
       items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
@@ -272,7 +267,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           tentId: tent.id,
           tentOwnerId: tent.ownerId,
           tentName: tent.name,
-          tentLogoUrl: tent.logoUrl || tent.bannerUrl || '',
+          tentLogoUrl: tent.logoUrl || '',
           lastMessage: "Conversa iniciada...",
           lastMessageTimestamp: serverTimestamp(),
         };
@@ -293,17 +288,14 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <Header />
       <main>
         <div className="relative h-64 w-full md:h-96">
-         {tent.bannerUrl ? (
             <Image
-                src={tent.bannerUrl}
+                src="https://picsum.photos/seed/beach-banner/1600/600"
                 alt={tent.name}
                 className="object-cover"
+                data-ai-hint="beach landscape"
                 fill
                 priority
             />
-         ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Nenhuma imagem de banner</div>
-         )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 text-white">
             <h1 className="text-4xl font-extrabold drop-shadow-lg md:text-6xl">{tent.name}</h1>
@@ -319,10 +311,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
                  <Tabs defaultValue="reserve" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 md:w-[400px]">
+                    <TabsList className="grid w-full grid-cols-2 md:w-[300px]">
                         <TabsTrigger value="reserve">Aluguel</TabsTrigger>
                         <TabsTrigger value="menu">Cardápio</TabsTrigger>
-                        <TabsTrigger value="gallery">Galeria</TabsTrigger>
                     </TabsList>
                      <TabsContent value="menu" className="mt-6">
                         <Card>
@@ -383,7 +374,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                             <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
                                                 <div>
                                                     <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                        <Umbrella className="h-5 w-5"/> + <Armchair className="h-5 w-5"/>
+                                                        <Armchair className="h-5 w-5"/>
                                                         {rentalKit.name}
                                                     </h3>
                                                     <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
@@ -417,42 +408,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                     ) : (
                                         <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
                                     )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="gallery" className="mt-6">
-                        <Card>
-                                <CardHeader>
-                                    <CardTitle>Galeria de Fotos</CardTitle>
-                                    <CardDescription>Um pouco do nosso paraíso.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                {loadingMedia ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : tentMedia && tentMedia.length > 0 ? (
-                                    <Carousel className="w-full">
-                                        <CarouselContent>
-                                            {tentMedia.map((media, index) => (
-                                            <CarouselItem key={index}>
-                                                <div className="p-1">
-                                                <Card>
-                                                    <CardContent className="relative flex aspect-video items-center justify-center overflow-hidden rounded-lg p-0">
-                                                        {media.type === 'video' ? (
-                                                            <video src={media.mediaUrl} controls className="h-full w-full object-cover" />
-                                                        ) : (
-                                                            <Image src={media.mediaUrl} alt={media.description || tent.name} fill data-ai-hint={media.mediaHint} className="object-cover"/>
-                                                        )}
-                                                    </CardContent>
-                                                </Card>
-                                                </div>
-                                            </CarouselItem>
-                                            ))}
-                                        </CarouselContent>
-                                        <CarouselPrevious />
-                                        <CarouselNext />
-                                    </Carousel>
-                                ) : (
-                                    <p className="text-muted-foreground text-center py-8">Nenhum item na galeria.</p>
-                                )}
                                 </CardContent>
                             </Card>
                         </TabsContent>

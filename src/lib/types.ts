@@ -9,8 +9,6 @@ export interface Tent {
   beachName: string;
   ownerId: string;
   ownerName: string;
-  bannerUrl?: string;
-  bannerStoragePath?: string;
   logoUrl?: string;
   location: {
     latitude: number;
@@ -18,7 +16,6 @@ export interface Tent {
   };
   minimumOrderForFeeWaiver?: number;
   hasAvailableKits?: boolean;
-  media?: TentMedia[];
 }
 
 export interface UserProfile {
