@@ -8,6 +8,15 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if false;
     }
+    
+    function hasActiveReservation(userId) {
+      // Check if a user has any reservation that is not 'completed' or 'cancelled'.
+      return exists(
+        /databases/$(database)/documents/reservations/
+          .where("userId", "==", userId)
+          .where("status", "in", ["confirmed", "checked-in", "payment-pending"])
+      );
+    }
 
     //--------------------------------
     // Users
@@ -58,8 +67,10 @@ service cloud.firestore {
     // Reservations
     //--------------------------------
     match /reservations/{reservationId} {
-      // A user can only create a reservation for themselves.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // A user can only create a reservation for themselves and only if they don't have an active one.
+      allow create: if request.auth != null 
+                    && request.resource.data.userId == request.auth.uid
+                    && !hasActiveReservation(request.auth.uid);
       
       // Anyone involved (customer or owner) can read the reservation.
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
@@ -71,10 +82,19 @@ service cloud.firestore {
         (
           get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
         ) ||
-        // Case 2: Customer who made the reservation can add items (new items are 'pending') or request payment.
+        // Case 2: Customer can update.
         (
           resource.data.userId == request.auth.uid &&
-          (request.resource.data.status == 'payment-pending' || request.resource.data.items.size() > resource.data.items.size())
+          (
+            // They can request payment.
+            request.resource.data.status == 'payment-pending' ||
+            // They can add new items.
+            request.resource.data.items.size() > resource.data.items.size() ||
+            // They can cancel ONLY if not yet checked-in.
+            (
+              request.resource.data.status == 'cancelled' && resource.data.status == 'confirmed'
+            )
+          )
         )
       );
 

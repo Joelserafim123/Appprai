@@ -66,6 +66,20 @@ export default function MyReservationsPage() {
         errorEmitter.emit('permission-error', permissionError);
     })
   }
+  
+  const handleCancelReservation = (reservationId: string) => {
+    if (!firestore || !confirm("Tem certeza que deseja cancelar esta reserva? Essa ação não pode ser desfeita.")) return;
+    const resDocRef = doc(firestore, 'reservations', reservationId);
+    updateDoc(resDocRef, { status: 'cancelled' }).catch(err => {
+        const permissionError = new FirestorePermissionError({
+            path: resDocRef.path,
+            operation: 'update',
+            requestResourceData: { status: 'cancelled' }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    });
+  }
+
 
   if (isUserLoading || (reservationsLoading && !reservations)) {
     return (
@@ -162,19 +176,7 @@ export default function MyReservationsPage() {
                         </>
                     )}
                     {reservation.status === 'confirmed' && (
-                       <Button variant="destructive" onClick={() => {
-                            if (!firestore) return;
-                            if (!confirm("Tem certeza que deseja cancelar esta reserva?")) return;
-                            const resDocRef = doc(firestore, 'reservations', reservation.id);
-                            updateDoc(resDocRef, { status: 'cancelled' }).catch(err => {
-                                const permissionError = new FirestorePermissionError({
-                                    path: resDocRef.path,
-                                    operation: 'update',
-                                    requestResourceData: { status: 'cancelled' }
-                                });
-                                errorEmitter.emit('permission-error', permissionError);
-                            });
-                       }}>
+                       <Button variant="destructive" onClick={() => handleCancelReservation(reservation.id)}>
                            <X className="mr-2 h-4 w-4"/> Cancelar Reserva
                        </Button>
                     )}

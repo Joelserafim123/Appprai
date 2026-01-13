@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, MessageSquare } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, MessageSquare, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
@@ -19,7 +19,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Tent } from '@/lib/types';
+import type { Tent, Reservation } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -36,7 +36,7 @@ type CartItem = {
 export default function TentPage({ params }: { params: { slug: string } }) {
   const { firestore } = useFirebase();
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const [tent, setTent] = useState<Tent | null>(null);
@@ -44,6 +44,20 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Check for active reservations
+  const userReservationsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
+  }, [firestore, user]);
+
+  const { data: userReservations, isLoading: loadingReservations } = useCollection<Reservation>(userReservationsQuery);
+
+  const activeReservation = useMemo(() => {
+    if (!userReservations) return null;
+    return userReservations.find(r => r.status !== 'completed' && r.status !== 'cancelled');
+  }, [userReservations]);
+
 
   useEffect(() => {
     if (!firestore) return;
@@ -96,7 +110,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   };
 
 
-  if (loadingTent || !tent) {
+  if (loadingTent || isUserLoading || loadingReservations || !tent) {
     return (
        <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -389,15 +403,27 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                             <p className="text-sm text-muted-foreground">Total</p>
                             <p className="text-2xl font-bold">R$ {finalTotal.toFixed(2)}</p>
                         </div>
-                        <div className="flex flex-col gap-2">
-                            <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
-                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
-                            </Button>
-                            <Button size="lg" className="w-full" variant="outline" onClick={handleStartChat}>
-                                <MessageSquare className="mr-2 h-4 w-4" />
-                                Iniciar Conversa
-                            </Button>
-                        </div>
+                        
+                        {activeReservation ? (
+                            <div className="p-3 bg-destructive/10 rounded-md text-center text-sm text-destructive-foreground">
+                                <AlertTriangle className="mx-auto mb-2 h-5 w-5 text-destructive" />
+                                <p className="font-semibold">Você já tem uma reserva ativa.</p>
+                                <p>Finalize sua reserva atual para poder criar uma nova.</p>
+                                <Button asChild variant="link" className="text-destructive p-0 h-auto mt-1">
+                                    <Link href="/dashboard/my-reservations">Ver Minhas Reservas</Link>
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
+                                {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
+                                </Button>
+                                <Button size="lg" className="w-full" variant="outline" onClick={handleStartChat}>
+                                    <MessageSquare className="mr-2 h-4 w-4" />
+                                    Iniciar Conversa
+                                </Button>
+                            </div>
+                        )}
                     </CardFooter>
                 </Card>
             </div>
