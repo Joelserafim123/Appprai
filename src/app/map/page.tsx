@@ -14,8 +14,7 @@ import { useEffect } from 'react';
 
 export default function MapPage() {
   const { firestore } = useFirebase();
-  const { filteredTents, setFilteredTents } = useSearchStore();
-
+  
   const tentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'tents'));
@@ -23,11 +22,6 @@ export default function MapPage() {
 
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 
-  useEffect(() => {
-    if (tents) {
-        setFilteredTents(tents);
-    }
-  }, [tents, setFilteredTents]);
 
   if (loadingTents || !tents) {
     return (
@@ -44,7 +38,7 @@ export default function MapPage() {
     <div className="flex h-screen flex-col bg-background text-foreground">
       <Header />
       <main className="flex-1 overflow-hidden">
-        <BeachMap tents={filteredTents} />
+        <BeachMap tents={tents} />
       </main>
     </div>
   );

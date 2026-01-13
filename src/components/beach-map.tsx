@@ -14,7 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useSearchStore } from "@/hooks/use-search";
 import { Input } from "./ui/input";
 
 
@@ -61,9 +60,7 @@ const haversineDistance = (
   return R * c;
 };
 
-function TentList({ tents, selectedTent, onTentSelect, onLocate, isLocating }: { tents: Tent[], selectedTent: Tent | null, onTentSelect: (tent: Tent) => void, onLocate: () => void, isLocating: boolean }) {
-  
-  const { searchTerm, setSearchTerm } = useSearchStore();
+function TentList({ tents, selectedTent, onTentSelect, onLocate, isLocating, searchTerm, setSearchTerm }: { tents: Tent[], selectedTent: Tent | null, onTentSelect: (tent: Tent) => void, onLocate: () => void, isLocating: boolean, searchTerm: string, setSearchTerm: (term: string) => void }) {
 
   return (
     <>
@@ -146,7 +143,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { searchTerm, setSearchTerm } = useSearchStore();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -174,7 +171,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     }
   };
 
-  const handleGetCurrentLocation = () => {
+  const handleGetCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       toast({ variant: "destructive", title: "Geolocalização não suportada." });
       return;
@@ -199,7 +196,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         setIsLocating(false);
       }
     );
-  };
+  }, [map, toast]);
 
   const sortedTents = useMemo(() => {
     if (!tents) return [];
@@ -221,9 +218,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
 
   useEffect(() => {
-    if (map && sortedTents.length > 0) {
+    if (map && tents.length > 0) {
       const bounds = new window.google.maps.LatLngBounds();
-      sortedTents.forEach(tent => {
+      tents.forEach(tent => {
         if (tent.location?.latitude && tent.location?.longitude) {
           bounds.extend(new window.google.maps.LatLng(tent.location.latitude, tent.location.longitude));
         }
@@ -232,22 +229,21 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         map.setCenter(defaultCenter);
         map.setZoom(12);
       } else {
-        if (sortedTents.length > 1) {
-          map.fitBounds(bounds);
           const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
-            if (map.getZoom()! > 16) map.setZoom(16);
-            window.google.maps.event.removeListener(listener);
+             if (map.getZoom()! > 16) map.setZoom(16);
+              if (tents.length > 1) {
+                map.fitBounds(bounds);
+              } else {
+                map.setCenter(bounds.getCenter());
+              }
+             window.google.maps.event.removeListener(listener);
           });
-        } else {
-          map.setCenter(bounds.getCenter());
-          map.setZoom(15);
-        }
       }
     } else if (map) {
         // Se não houver barracas, centralize na localização do usuário ou padrão
         handleGetCurrentLocation();
     }
-  }, [map, tents]); // Depende apenas do 'tents' original para ajustar o zoom inicial
+  }, [map, tents, handleGetCurrentLocation]);
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
@@ -378,7 +374,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       `}</style>
       <div className="md:grid h-full grid-cols-1 md:grid-cols-[350px_1fr]">
         <div className="hidden md:flex flex-col border-r">
-          <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} />
+          <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} searchTerm={searchTerm} setSearchTerm={setSearchTerm}/>
         </div>
 
         <div className="relative h-full w-full bg-muted">
@@ -392,7 +388,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="h-[80%] flex flex-col p-0">
-                    <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} />
+                    <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} searchTerm={searchTerm} setSearchTerm={setSearchTerm}/>
                 </SheetContent>
             </Sheet>
           </div>
