@@ -30,7 +30,7 @@ const statusConfig: Record<ReservationStatus, { text: string; variant: "default"
 };
 
 const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: string }> = {
-  'pending': { text: 'Pendente', color: 'text-amber-600' },
+  'pending': { text: 'Pendente', color: 'text-amber-800' },
   'confirmed': { text: 'Confirmado', color: 'text-green-600' },
   'cancelled': { text: 'Cancelado', color: 'text-red-600' },
 }
@@ -396,7 +396,7 @@ export default function OwnerReservationsPage() {
                                     </Button>
                                 </div>
                             )}
-                            {reservation.status === 'checked-in' && pendingItems.length === 0 && (
+                            {reservation.status === 'checked-in' && (
                                 <Button size="sm" variant="destructive" className="w-full" onClick={() => handleCancelReservation(reservation.id)}>
                                     <X className="mr-2 h-4 w-4" /> Cancelar Pedido
                                 </Button>
@@ -430,5 +430,7 @@ export default function OwnerReservationsPage() {
     </Dialog>
   );
 }
+
+    
 
     
