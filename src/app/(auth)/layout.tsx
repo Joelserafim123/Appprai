@@ -1,15 +1,21 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Logo } from '@/components/icons';
 import Image from 'next/image';
 import { authImageUrl } from '@/lib/placeholder-images';
+import { useUser } from '@/firebase/provider';
+import { Loader2 } from 'lucide-react';
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, isUserLoading } = useUser();
+
+  const firstName = user?.displayName?.split(' ')[0];
 
   return (
     <main className="min-h-screen w-full lg:grid lg:grid-cols-2">
@@ -19,6 +25,13 @@ export default function AuthLayout({
              <Logo />
              <span className="sr-only">BeachPal Início</span>
           </Link>
+          {isUserLoading ? (
+            <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+          ) : firstName ? (
+             <div className="grid gap-2 text-center">
+                <h1 className="text-3xl font-bold">Olá, {firstName}</h1>
+             </div>
+          ) : null}
           {children}
         </div>
       </div>
