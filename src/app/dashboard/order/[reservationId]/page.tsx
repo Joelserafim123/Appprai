@@ -116,7 +116,7 @@ export default function OrderPage() {
             name: item.name,
             price: item.price,
             quantity: quantity,
-            status: 'pending', // Items added later are pending
+            status: 'pending',
         }));
     
         const updateData = {

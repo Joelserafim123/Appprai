@@ -34,16 +34,16 @@ export function Header() {
     try {
       await signOut(auth);
       toast({
-        title: 'Logout successful',
-        description: 'You have been successfully logged out.',
+        title: 'Logout bem-sucedido',
+        description: 'Você foi desconectado com sucesso.',
       });
       router.push('/');
     } catch (error) {
       console.error("Error signing out:", error);
       toast({
         variant: 'destructive',
-        title: 'Logout Error',
-        description: 'Could not log you out. Please try again.',
+        title: 'Erro no Logout',
+        description: 'Não foi possível desconectá-lo. Por favor, tente novamente.',
       });
     }
   };
@@ -58,7 +58,7 @@ export function Header() {
           {user ? (
             <>
               <span className="font-medium text-sm hidden sm:inline">
-                Hello, {user.displayName?.split(' ')[0]}
+                Olá, {user.displayName?.split(' ')[0]}
               </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -69,7 +69,7 @@ export function Header() {
                             <User className="h-4 w-4" />
                         </AvatarFallback>
                     </Avatar>
-                    <span className="sr-only">Open user menu</span>
+                    <span className="sr-only">Abrir menu do usuário</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -85,19 +85,19 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard">
                         <LayoutGrid className="mr-2 h-4 w-4" />
-                        <span>Dashboard</span>
+                        <span>Painel</span>
                     </Link>
                   </DropdownMenuItem>
                    <DropdownMenuItem asChild>
                      <Link href="/dashboard/settings">
                         <LayoutGrid className="mr-2 h-4 w-4" />
-                        <span>Edit Profile</span>
+                        <span>Editar Perfil</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log Out</span>
+                    <span>Sair</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -105,10 +105,10 @@ export function Header() {
           ) : (
             <>
               <Button asChild variant="ghost">
-                <Link href="/login">Log In</Link>
+                <Link href="/login">Entrar</Link>
               </Button>
               <Button asChild>
-                <Link href="/signup">Sign Up</Link>
+                <Link href="/signup">Cadastrar</Link>
               </Button>
             </>
           )}

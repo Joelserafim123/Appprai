@@ -4,7 +4,7 @@
 import { Header } from '@/components/layout/header';
 import { BeachMap } from '@/components/beach-map';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection } from 'firebase/firestore';
+import { collection, query } from 'firebase/firestore';
 import { useFirebase, useUser } from '@/firebase/provider';
 import { Loader2 } from 'lucide-react';
 import { useMemo, useEffect } from 'react';
@@ -17,10 +17,10 @@ export default function Home() {
   const { firestore } = useFirebase();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-  
+
   const tentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return collection(firestore, 'tents');
+    return query(collection(firestore, 'tents'));
   }, [firestore]);
 
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
@@ -37,7 +37,7 @@ export default function Home() {
         <Logo />
         <div className="flex items-center gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Carregando...</p>
         </div>
       </div>
     );

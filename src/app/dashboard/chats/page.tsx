@@ -22,7 +22,6 @@ export default function ChatsPage() {
   const [loadingTentId, setLoadingTentId] = useState(true);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
-  // Se o usuário for um dono, busca o ID da sua barraca
   useEffect(() => {
     if (isUserLoading) {
       setLoadingTentId(true);
@@ -45,12 +44,10 @@ export default function ChatsPage() {
     }
   }, [firestore, user, isUserLoading]);
 
-  // Monta a query de chats baseada na função do usuário
   const chatsQuery = useMemoFirebase(() => {
     if (!firestore || !user || loadingTentId) return null;
 
     if (user.role === 'owner' && !tentId) {
-        // Se for dono e não tiver barraca (após o carregamento ter terminado), retorna uma query vazia.
         return query(collection(firestore, 'chats'), where('tentId', '==', 'nonexistent-id-to-return-empty'));
     }
 

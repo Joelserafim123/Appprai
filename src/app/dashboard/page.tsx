@@ -11,22 +11,22 @@ function CustomerDashboard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Customer Area</CardTitle>
-        <CardDescription>Manage your reservations, orders, and account settings.</CardDescription>
+        <CardTitle>Área do Cliente</CardTitle>
+        <CardDescription>Gerencie suas reservas, pedidos e configurações de conta.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/my-reservations">
-            <Star className="mr-2" /> My Reservations
+            <Star className="mr-2" /> Minhas Reservas
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/settings">
-            <Settings className="mr-2" /> Account Settings
+            <Settings className="mr-2" /> Configurações da Conta
           </Link>
         </Button>
         <Button asChild className="w-full mt-4">
-            <Link href="/">Find a Tent</Link>
+            <Link href="/">Encontrar uma Barraca</Link>
         </Button>
       </CardContent>
     </Card>
@@ -37,33 +37,33 @@ function OwnerDashboard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tent Owner Area</CardTitle>
-        <CardDescription>Manage your tent, menu, reservations, and view your sales.</CardDescription>
+        <CardTitle>Área do Dono da Barraca</CardTitle>
+        <CardDescription>Gerencie sua barraca, cardápio, reservas e veja suas vendas.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/my-tent">
-            <Building className="mr-2" /> Manage My Tent
+            <Building className="mr-2" /> Gerenciar Minha Barraca
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/menu">
-            <Utensils className="mr-2" /> Update Menu
+            <Utensils className="mr-2" /> Atualizar Cardápio
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/rental-items">
-            <Armchair className="mr-2" /> Manage Rental Items
+            <Armchair className="mr-2" /> Gerenciar Itens de Aluguel
           </Link>
         </Button>
          <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/reservations">
-            <Star className="mr-2" /> View Reservations
+            <Star className="mr-2" /> Ver Reservas
           </Link>
         </Button>
         <Button asChild variant="outline" className="w-full justify-start text-left">
           <Link href="/dashboard/analytics">
-            <BarChart className="mr-2" /> Sales Analytics
+            <BarChart className="mr-2" /> Análise de Vendas
           </Link>
         </Button>
       </CardContent>
@@ -83,17 +83,17 @@ export default function DashboardPage() {
   }
 
   const welcomeMessage = () => {
-    const firstName = user?.displayName?.split(' ')[0] || 'user';
+    const firstName = user?.displayName?.split(' ')[0] || 'usuário';
     if (user?.role === 'owner') {
-      return `Hello and happy sales, ${firstName}!`;
+      return `Olá e boas vendas, ${firstName}!`;
     }
-    return `Welcome back, ${firstName}.`;
+    return `Bem-vindo de volta, ${firstName}.`;
   };
 
   return (
     <div className="w-full max-w-2xl">
         <header className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Painel</h1>
             <p className="text-muted-foreground">{welcomeMessage()}</p>
         </header>
         {user?.role === 'owner' ? <OwnerDashboard /> : <CustomerDashboard />}

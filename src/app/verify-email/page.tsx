@@ -32,14 +32,14 @@ export default function VerifyEmailPage() {
     try {
       await sendEmailVerification(auth.currentUser);
       toast({
-        title: 'Verification email resent!',
-        description: 'Please check your inbox.',
+        title: 'E-mail de verificação reenviado!',
+        description: 'Por favor, verifique sua caixa de entrada.',
       });
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Error resending email',
-        description: 'Please try again in a few minutes.',
+        title: 'Erro ao reenviar e-mail',
+        description: 'Por favor, tente novamente em alguns minutos.',
       });
     } finally {
       setIsSending(false);
@@ -47,7 +47,7 @@ export default function VerifyEmailPage() {
   };
 
   const handleAlreadyVerified = () => {
-    refresh(); // This will re-fetch user data and trigger the useEffect above
+    refresh();
   };
 
   if (isUserLoading) {
@@ -59,13 +59,11 @@ export default function VerifyEmailPage() {
   }
 
   if (!user) {
-    // User is not logged in, they shouldn't be here.
     router.push('/login');
     return null;
   }
 
   if (user.emailVerified) {
-    // This will be briefly visible while the redirect happens via useEffect
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -78,20 +76,20 @@ export default function VerifyEmailPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <MailWarning className="mx-auto h-12 w-12 text-primary" />
-          <CardTitle className="mt-4 text-2xl">Verify Your Email Address</CardTitle>
+          <CardTitle className="mt-4 text-2xl">Verifique seu Endereço de E-mail</CardTitle>
           <CardDescription>
-            Your account has not been activated yet. We've sent a verification link to{' '}
+            Sua conta ainda não foi ativada. Enviamos um link de verificação para{' '}
             <span className="font-bold text-foreground">{user.email}</span>.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center space-y-4">
           <p className="text-sm text-muted-foreground">
-            Please click the link in your email to continue. After verifying, click the button below to proceed.
+            Por favor, clique no link em seu e-mail para continuar. Após verificar, clique no botão abaixo para prosseguir.
           </p>
           <div className="flex flex-col gap-2">
             <Button onClick={handleAlreadyVerified} className="w-full">
                 <RefreshCw className="mr-2 h-4 w-4" />
-                I've verified, continue
+                Já verifiquei, continuar
             </Button>
             <Button onClick={handleResendVerification} className="w-full" variant="outline" disabled={isSending}>
                 {isSending ? (
@@ -99,13 +97,13 @@ export default function VerifyEmailPage() {
                 ) : (
                 <>
                     <Send className="mr-2 h-4 w-4" />
-                    Resend Email
+                    Reenviar E-mail
                 </>
                 )}
             </Button>
           </div>
            <Button variant="link" onClick={() => router.push('/login')} className="mt-4">
-             Back to Login
+             Voltar para o Login
            </Button>
         </CardContent>
       </Card>

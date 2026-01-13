@@ -26,14 +26,12 @@ function VerificationHandler() {
     if (oobCode && firebaseApp) {
       const auth = getAuth(firebaseApp);
       
-      // First, check the code to get user info without applying it
       checkActionCode(auth, oobCode)
         .then((info) => {
           const email = info.data.email;
           if (email) {
-            setVerifiedEmail(email); // Store the email
+            setVerifiedEmail(email);
           }
-          // Now, apply the action code
           return applyActionCode(auth, oobCode);
         })
         .then(() => {
@@ -43,18 +41,18 @@ function VerificationHandler() {
           setStatus('error');
           switch (error.code) {
             case 'auth/expired-action-code':
-              setErrorMessage('The verification link has expired. Please request a new one.');
+              setErrorMessage('O link de verificação expirou. Por favor, solicite um novo.');
               break;
             case 'auth/invalid-action-code':
-              setErrorMessage('The verification link is invalid. It may have already been used.');
+              setErrorMessage('O link de verificação é inválido. Ele pode já ter sido usado.');
               break;
             default:
-              setErrorMessage('An error occurred while verifying your email. Please try again.');
+              setErrorMessage('Ocorreu um erro ao verificar seu e-mail. Por favor, tente novamente.');
           }
         });
     } else if (!oobCode) {
       setStatus('error');
-      setErrorMessage('No verification code provided. Invalid route.');
+      setErrorMessage('Nenhum código de verificação fornecido. Rota inválida.');
     }
   }, [searchParams, firebaseApp]);
 
@@ -64,7 +62,6 @@ function VerificationHandler() {
         const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
         return () => clearTimeout(timer);
       } else {
-        // Redirect with email as a query parameter
         router.push(verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : '/login');
       }
     }
@@ -74,7 +71,7 @@ function VerificationHandler() {
     return (
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground">Verifying your email...</p>
+        <p className="text-muted-foreground">Verificando seu e-mail...</p>
       </div>
     );
   }
@@ -84,14 +81,14 @@ function VerificationHandler() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
             <ShieldCheck className="mx-auto h-12 w-12 text-green-500" />
-            <CardTitle className="mt-4 text-2xl">Email Verified Successfully!</CardTitle>
+            <CardTitle className="mt-4 text-2xl">E-mail Verificado com Sucesso!</CardTitle>
             <CardDescription>
-                Your account has been activated. You will be redirected to the login page in {countdown} seconds...
+                Sua conta foi ativada. Você será redirecionado para a página de login em {countdown} segundos...
             </CardDescription>
         </CardHeader>
         <CardContent>
             <Button asChild className="w-full">
-                <Link href={verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : '/login'}>Go to Login Now</Link>
+                <Link href={verifiedEmail ? `/login?email=${encodeURIComponent(verifiedEmail)}` : '/login'}>Ir para o Login Agora</Link>
             </Button>
         </CardContent>
       </Card>
@@ -102,14 +99,14 @@ function VerificationHandler() {
      <Card className="w-full max-w-md border-destructive">
         <CardHeader className="text-center">
             <ShieldX className="mx-auto h-12 w-12 text-destructive" />
-            <CardTitle className="mt-4 text-2xl">Verification Failed</CardTitle>
+            <CardTitle className="mt-4 text-2xl">Falha na Verificação</CardTitle>
             <CardDescription>
                 {errorMessage}
             </CardDescription>
         </CardHeader>
         <CardContent>
             <Button asChild className="w-full" variant="secondary">
-                <Link href="/login">Back to Login</Link>
+                <Link href="/login">Voltar para o Login</Link>
             </Button>
         </CardContent>
       </Card>

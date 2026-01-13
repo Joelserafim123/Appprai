@@ -35,8 +35,8 @@ export interface UserProfile {
 
 export interface TentMedia {
   id: string;
-  mediaUrl: string; // Public URL from Firebase Storage
-  storagePath: string; // Path to the file in Firebase Storage
+  mediaUrl: string;
+  storagePath: string;
   mediaHint?: string;
   description?: string;
   type: 'image' | 'video';
@@ -47,12 +47,12 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  category: 'Drinks' | 'Snacks' | 'Main Courses';
+  category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
 }
 
 export interface RentalItem {
   id: string;
-  name: 'Umbrella Kit + 2 Chairs' | 'Additional Chair';
+  name: 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional';
   price: number;
   quantity: number;
 }

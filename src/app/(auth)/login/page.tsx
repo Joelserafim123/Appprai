@@ -13,17 +13,17 @@ export default function LoginPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Access Your Account</CardTitle>
+        <CardTitle className="text-2xl">Acesse Sua Conta</CardTitle>
         <CardDescription>
-          Welcome back! Please log in to continue.
+          Bem-vindo de volta! Faça login para continuar.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <LoginForm />
         <div className="mt-4 text-center text-sm">
-          Don't have an account?{" "}
+          Não tem uma conta?{" "}
           <Link href="/signup" className="underline text-primary font-medium">
-            Sign up
+            Cadastre-se
           </Link>
         </div>
       </CardContent>

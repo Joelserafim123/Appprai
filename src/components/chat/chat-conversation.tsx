@@ -39,7 +39,6 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
 
   const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
 
-  // Auto-scroll para o final
   useEffect(() => {
     if (scrollAreaViewport.current) {
       scrollAreaViewport.current.scrollTo({
@@ -72,7 +71,6 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     const messagesColRef = collection(firestore, 'chats', chat.id, 'messages');
 
     try {
-      // Não aguardar para fornecer atualizações otimistas
       addDoc(messagesColRef, messageData).catch(error => {
         const permissionError = new FirestorePermissionError({
             path: messagesColRef.path,

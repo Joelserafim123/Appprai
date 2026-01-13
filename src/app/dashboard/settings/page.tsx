@@ -97,7 +97,7 @@ export default function SettingsPage() {
     }
     setValue('cep', value, { shouldValidate: true });
 
-    if (value.length === 9) { // CEP is complete
+    if (value.length === 9) {
       try {
         const res = await fetch(`https://viacep.com.br/ws/${value.replace('-', '')}/json/`);
         const data = await res.json();
@@ -124,24 +124,21 @@ export default function SettingsPage() {
     try {
       const auth = getAuth(firebaseApp);
       const currentUser = auth.currentUser;
-      if (!currentUser) throw new Error("User not authenticated.");
+      if (!currentUser) throw new Error("Usuário não autenticado.");
       
-      let photoURL = user.photoURL; // Keep current photo URL by default
+      let photoURL = user.photoURL;
       const file = data.photo?.[0];
 
-      // If a new file is uploaded, upload it to Storage and get the URL
       if (file) {
         const { downloadURL } = await uploadFile(storage, file, `users/${user.uid}`);
         photoURL = downloadURL;
       }
   
-      // Prepare data for Firestore update
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
         photoURL: photoURL,
       };
 
-      // Conditionally add address fields if they are provided
       if (data.cep) firestoreData.cep = data.cep;
       if (data.street) firestoreData.street = data.street;
       if (data.number) firestoreData.number = data.number;
@@ -150,7 +147,6 @@ export default function SettingsPage() {
       if (data.state) firestoreData.state = data.state;
       if (data.cpf) firestoreData.cpf = data.cpf.replace(/\D/g, '');
       
-      // Update Firestore document
       const userDocRef = doc(firestore, "users", user.uid);
        updateDoc(userDocRef, firestoreData).catch(e => {
          const permissionError = new FirestorePermissionError({
@@ -162,7 +158,6 @@ export default function SettingsPage() {
         throw e;
       });
   
-      // Prepare data for Auth profile update
       const authProfileUpdate: { displayName?: string, photoURL?: string } = {};
       if (currentUser.displayName !== data.displayName) {
         authProfileUpdate.displayName = data.displayName;
@@ -171,7 +166,6 @@ export default function SettingsPage() {
         authProfileUpdate.photoURL = photoURL;
       }
       
-      // Update Auth profile if there are changes
       if (Object.keys(authProfileUpdate).length > 0) {
         await updateProfile(currentUser, authProfileUpdate);
       }
@@ -181,7 +175,6 @@ export default function SettingsPage() {
         description: 'Suas informações foram salvas com sucesso.',
       });
   
-      // Refresh user state to reflect changes in the UI
       refresh();
   
     } catch (error: any) {

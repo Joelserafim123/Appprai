@@ -27,17 +27,17 @@ import { useState, useCallback } from "react"
 import type { UserProfile } from "@/lib/types"
 
 const formSchema = z.object({
-  displayName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
-  role: z.enum(["customer", "owner"], { required_error: "You must select a role." }),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "CPF must have 11 digits and is required." }),
-  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'Invalid CEP.'),
-  street: z.string().min(1, 'Street is required.'),
-  number: z.string().min(1, 'Number is required.'),
-  neighborhood: z.string().min(1, 'Neighborhood is required.'),
-  city: z.string().min(1, 'City is required.'),
-  state: z.string().min(1, 'State is required.'),
+  displayName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
+  email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
+  password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
+  role: z.enum(["customer", "owner"], { required_error: "Você deve selecionar uma função." }),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
+  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.'),
+  street: z.string().min(1, 'A rua é obrigatória.'),
+  number: z.string().min(1, 'O número é obrigatório.'),
+  neighborhood: z.string().min(1, 'O bairro é obrigatório.'),
+  city: z.string().min(1, 'A cidade é obrigatória.'),
+  state: z.string().min(1, 'O estado é obrigatório.'),
 })
 
 export function SignUpForm() {
@@ -82,7 +82,7 @@ export function SignUpForm() {
     }
     form.setValue('cep', value, { shouldValidate: true });
 
-    if (value.length === 9) { // CEP is complete
+    if (value.length === 9) {
       try {
         const res = await fetch(`https://viacep.com.br/ws/${value.replace('-', '')}/json/`);
         const data = await res.json();
@@ -91,12 +91,12 @@ export function SignUpForm() {
           form.setValue('neighborhood', data.bairro);
           form.setValue('city', data.localidade);
           form.setValue('state', data.uf);
-          toast({ title: "Address found!" });
+          toast({ title: "Endereço encontrado!" });
         } else {
-          toast({ variant: 'destructive', title: "CEP not found." });
+          toast({ variant: 'destructive', title: "CEP não encontrado." });
         }
       } catch (error) {
-        toast({ variant: 'destructive', title: "Error fetching CEP." });
+        toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
       }
     }
   }, [form, toast]);
@@ -124,7 +124,7 @@ export function SignUpForm() {
         displayName: values.displayName,
         role: values.role,
         photoURL: user.photoURL || '',
-        cpf: values.cpf.replace(/\D/g, ""), // Save CPF without formatting
+        cpf: values.cpf.replace(/\D/g, ""),
         cep: values.cep,
         street: values.street,
         number: values.number,
@@ -146,21 +146,21 @@ export function SignUpForm() {
       });
 
       toast({
-        title: "Verification Required",
-        description: "A verification email has been sent. Please check your inbox.",
+        title: "Verificação Necessária",
+        description: "Um e-mail de verificação foi enviado. Por favor, verifique sua caixa de entrada.",
       });
       setIsVerificationSent(true);
 
     } catch (error: any) {
-      if (error.code === 'permission-denied') return; // Handled by emitter
+      if (error.code === 'permission-denied') return;
 
-      let description = "An unknown error occurred.";
+      let description = "Ocorreu um erro desconhecido.";
       if (error.code === 'auth/email-already-in-use') {
-          description = "This email address is already in use.";
+          description = "Este endereço de e-mail já está em uso.";
       }
       toast({
           variant: "destructive",
-          title: "Failed to create account",
+          title: "Falha ao criar conta",
           description,
       });
     } finally {
@@ -172,12 +172,12 @@ export function SignUpForm() {
     return (
       <div className="text-center space-y-4">
         <Send className="mx-auto h-12 w-12 text-primary" />
-        <h3 className="text-xl font-semibold">Verify Your Email</h3>
+        <h3 className="text-xl font-semibold">Verifique seu E-mail</h3>
         <p className="text-muted-foreground">
-          We've sent a verification link to <span className="font-bold">{form.getValues('email')}</span>. 
-          Please click the link to activate your account.
+          Enviamos um link de verificação para <span className="font-bold">{form.getValues('email')}</span>. 
+          Por favor, clique no link para ativar sua conta.
         </p>
-        <Button onClick={() => router.push('/login')}>Go to Login</Button>
+        <Button onClick={() => router.push('/login')}>Ir para o Login</Button>
       </div>
     );
   }
@@ -190,7 +190,7 @@ export function SignUpForm() {
           name="role"
           render={({ field }) => (
             <FormItem className="space-y-3">
-              <FormLabel>I am a...</FormLabel>
+              <FormLabel>Eu sou...</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
@@ -202,13 +202,13 @@ export function SignUpForm() {
                     <FormControl>
                       <RadioGroupItem value="customer" />
                     </FormControl>
-                    <FormLabel className="font-normal flex items-center gap-2"><UserCircle className="w-4 h-4" /> Customer</FormLabel>
+                    <FormLabel className="font-normal flex items-center gap-2"><UserCircle className="w-4 h-4" /> Cliente</FormLabel>
                   </FormItem>
                   <FormItem className="flex items-center space-x-2 space-y-0">
                     <FormControl>
                       <RadioGroupItem value="owner" />
                     </FormControl>
-                    <FormLabel className="font-normal flex items-center gap-2"><Briefcase className="w-4 h-4" /> Tent Owner</FormLabel>
+                    <FormLabel className="font-normal flex items-center gap-2"><Briefcase className="w-4 h-4" /> Dono de Barraca</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>
@@ -222,11 +222,11 @@ export function SignUpForm() {
           name="displayName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nome Completo</FormLabel>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="Your full name" {...field} className="pl-10" disabled={isSubmitting} />
+                  <Input placeholder="Seu nome completo" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -242,7 +242,7 @@ export function SignUpForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input placeholder="your@email.com" {...field} className="pl-10" disabled={isSubmitting} />
+                  <Input placeholder="seu@email.com" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
@@ -255,7 +255,7 @@ export function SignUpForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Senha</FormLabel>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
@@ -286,7 +286,7 @@ export function SignUpForm() {
             name="cep"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>CEP / Postal Code</FormLabel>
+                <FormLabel>CEP</FormLabel>
                 <FormControl>
                     <Input {...field} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} />
                 </FormControl>
@@ -302,7 +302,7 @@ export function SignUpForm() {
                     name="street"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Street</FormLabel>
+                        <FormLabel>Rua</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -317,7 +317,7 @@ export function SignUpForm() {
                     name="number"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Number</FormLabel>
+                        <FormLabel>Número</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -332,7 +332,7 @@ export function SignUpForm() {
             name="neighborhood"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Neighborhood</FormLabel>
+                <FormLabel>Bairro</FormLabel>
                 <FormControl>
                     <Input {...field} disabled={isSubmitting} />
                 </FormControl>
@@ -347,7 +347,7 @@ export function SignUpForm() {
                     name="city"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>City</FormLabel>
+                        <FormLabel>Cidade</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -362,7 +362,7 @@ export function SignUpForm() {
                     name="state"
                     render={({ field }) => (
                         <FormItem>
-                        <FormLabel>State</FormLabel>
+                        <FormLabel>Estado</FormLabel>
                         <FormControl>
                             <Input {...field} disabled={isSubmitting} />
                         </FormControl>
@@ -374,7 +374,7 @@ export function SignUpForm() {
         </div>
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Create Account'}
+           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
         </Button>
       </form>
     </Form>

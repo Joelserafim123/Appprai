@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import { ChartTooltipContent, ChartContainer, ChartConfig } from '@/components/ui/chart';
 import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
 
@@ -32,7 +32,7 @@ type Reservation = {
 
 const chartConfig = {
   revenue: {
-    label: 'Revenue',
+    label: 'Receita',
     color: 'hsl(var(--primary))',
   },
 } satisfies ChartConfig;
@@ -112,24 +112,24 @@ export default function AnalyticsPage() {
   }
 
   if (!user || user.role !== 'owner') {
-    return <p>Access denied. This page is for tent owners only.</p>;
+    return <p>Acesso negado. Esta página é apenas para donos de barracas.</p>;
   }
 
   if (!tentId && !loadingTent) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
               <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-medium">Register your tent first</h3>
-              <p className="mt-2 text-sm text-muted-foreground">You need to have a tent to see your analytics.</p>
+              <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Você precisa ter uma barraca para ver suas análises.</p>
               <Button asChild className="mt-6">
-                  <Link href="/dashboard/my-tent">Go to My Tent</Link>
+                  <Link href="/dashboard/my-tent">Ir para Minha Barraca</Link>
               </Button>
           </div>
       )
   }
 
   if (error) {
-    return <p className="text-destructive">Error loading analytics: {error.message}</p>;
+    return <p className="text-destructive">Erro ao carregar análises: {error.message}</p>;
   }
   
   if (reservationsLoading) {
@@ -143,8 +143,8 @@ export default function AnalyticsPage() {
   return (
     <div className="w-full max-w-6xl">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Sales Analytics</h1>
-        <p className="text-muted-foreground">See how your tent is performing.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Análise de Vendas</h1>
+        <p className="text-muted-foreground">Veja o desempenho da sua barraca.</p>
       </header>
 
       {analyticsData && reservations ? (
@@ -152,41 +152,41 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$ {analyticsData.totalRevenue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">from {analyticsData.totalReservations} completed reservations</p>
+                <div className="text-2xl font-bold">R$ {analyticsData.totalRevenue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">de {analyticsData.totalReservations} reservas completas</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed Reservations</CardTitle>
+                <CardTitle className="text-sm font-medium">Reservas Completas</CardTitle>
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{analyticsData.totalReservations}</div>
-                <p className="text-xs text-muted-foreground">Total finalized reservations</p>
+                <p className="text-xs text-muted-foreground">Total de reservas finalizadas</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Average Ticket</CardTitle>
+                <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
                 <BarChart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$ {analyticsData.averageOrderValue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">Average value per reservation</p>
+                <div className="text-2xl font-bold">R$ {analyticsData.averageOrderValue.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Valor médio por reserva</p>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Revenue by Day</CardTitle>
+              <CardTitle>Receita por Dia</CardTitle>
               <CardDescription>
-                Track the evolution of your daily sales. Only reservations with "Completed" status are counted.
+                Acompanhe a evolução de suas vendas diárias. Apenas reservas com status "Completa" são contabilizadas.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -199,9 +199,9 @@ export default function AnalyticsPage() {
                             tickLine={false}
                             tickMargin={10}
                             axisLine={false}
-                             tickFormatter={(value) => format(new Date(value), 'MM/dd', { locale: enUS })}
+                             tickFormatter={(value) => format(new Date(value), 'dd/MM', { locale: ptBR })}
                         />
-                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
                         <ChartTooltip
                             cursor={false}
                             content={<ChartTooltipContent indicator="dot" />}
@@ -211,7 +211,7 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 ) : (
                     <div className="flex h-[250px] w-full items-center justify-center text-center">
-                        <p className="text-muted-foreground">No revenue data to display in the chart yet.</p>
+                        <p className="text-muted-foreground">Ainda não há dados de receita para exibir no gráfico.</p>
                     </div>
                 )}
             </CardContent>
@@ -220,9 +220,9 @@ export default function AnalyticsPage() {
       ) : (
         <div className="rounded-lg border-2 border-dashed py-16 text-center">
           <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-medium">No analytics to show</h3>
+          <h3 className="mt-4 text-lg font-medium">Nenhuma análise para mostrar</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Complete some reservations to start seeing your sales analytics.
+            Conclua algumas reservas para começar a ver suas análises de vendas.
           </p>
         </div>
       )}

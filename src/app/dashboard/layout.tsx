@@ -43,7 +43,6 @@ export default function DashboardLayout({
   }
   
   if (user && !user.emailVerified) {
-    // This will be briefly visible while the redirect happens
     return (
        <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -54,34 +53,34 @@ export default function DashboardLayout({
   const CustomerMenu = () => (
     <>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Home', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Início', side: 'right' }}>
           <Link href="/dashboard">
             <Home />
-            <span>Home</span>
+            <span>Início</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'My Reservations', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Minhas Reservas', side: 'right' }}>
           <Link href="/dashboard/my-reservations">
             <Star />
-            <span>My Reservations</span>
+            <span>Minhas Reservas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Chats', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
           <Link href="/dashboard/chats">
             <MessageSquare />
-            <span>Chats</span>
+            <span>Conversas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Settings', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Configurações', side: 'right' }}>
           <Link href="/dashboard/settings">
             <Settings />
-            <span>Settings</span>
+            <span>Configurações</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -91,58 +90,58 @@ export default function DashboardLayout({
   const OwnerMenu = () => (
     <>
        <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Home', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Início', side: 'right' }}>
           <Link href="/dashboard">
             <Home />
-            <span>Home</span>
+            <span>Início</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'My Tent', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Minha Barraca', side: 'right' }}>
           <Link href="/dashboard/my-tent">
             <Building />
-            <span>My Tent</span>
+            <span>Minha Barraca</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Menu', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Cardápio', side: 'right' }}>
           <Link href="/dashboard/menu">
             <Utensils />
-            <span>Menu</span>
+            <span>Cardápio</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
        <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Rentals', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Aluguéis', side: 'right' }}>
           <Link href="/dashboard/rental-items">
             <Armchair />
-            <span>Rentals</span>
+            <span>Aluguéis</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
        <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Reservations', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Reservas', side: 'right' }}>
           <Link href="/dashboard/reservations">
             <Star />
-            <span>Reservations</span>
+            <span>Reservas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Chats', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
           <Link href="/dashboard/chats">
             <MessageSquare />
-            <span>Chats</span>
+            <span>Conversas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
        <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Analytics', side: 'right' }}>
+        <SidebarMenuButton asChild tooltip={{ children: 'Análises', side: 'right' }}>
           <Link href="/dashboard/analytics">
             <BarChart />
-            <span>Analytics</span>
+            <span>Análises</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -161,10 +160,10 @@ export default function DashboardLayout({
         <SidebarFooter>
            <SidebarMenu>
                <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip={{ children: 'Back to site', side: 'right' }}>
+                    <SidebarMenuButton asChild tooltip={{ children: 'Voltar ao site', side: 'right' }}>
                          <Link href="/">
                             <Briefcase />
-                            <span>Back to site</span>
+                            <span>Voltar ao site</span>
                          </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

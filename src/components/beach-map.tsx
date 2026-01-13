@@ -23,7 +23,7 @@ const containerStyle = {
 
 const defaultCenter = {
   lat: -22.9845,
-  lng: -43.2040 // Default to Copacabana
+  lng: -43.2040 // Padrão para Copacabana
 };
 
 const mapOptions = {
@@ -44,7 +44,7 @@ const haversineDistance = (
   coords2: { lat: number; lng: number }
 ): number => {
   const toRad = (x: number) => (x * Math.PI) / 180;
-  const R = 6371; // Radius of Earth in km
+  const R = 6371; // Raio da Terra em km
 
   const dLat = toRad(coords2.lat - coords1.lat);
   const dLon = toRad(coords2.lng - coords1.lng);
@@ -63,8 +63,7 @@ function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], select
   const [isLocating, setIsLocating] = useState(false);
 
   const handleGetCurrentLocation = () => {
-    // Geolocation logic moved to parent component to control the map
-    // This button can be adapted to call a function passed by props if needed
+    // Lógica de geolocalização movida para o componente pai para controlar o mapa
   }
 
   return (
@@ -72,15 +71,15 @@ function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], select
       <div className="border-b p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold">Nearby Tents</h2>
-            <p className="text-sm text-muted-foreground">Sorted by proximity</p>
+            <h2 className="text-lg font-bold">Barracas Próximas</h2>
+            <p className="text-sm text-muted-foreground">Ordenado por proximidade</p>
           </div>
           <Button
             size="icon"
             variant="outline"
             onClick={handleGetCurrentLocation}
             disabled={isLocating}
-            aria-label="Use my current location"
+            aria-label="Usar minha localização atual"
             className="rounded-full"
           >
             {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
@@ -103,7 +102,7 @@ function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], select
                     'text-xs font-semibold',
                     tent.hasAvailableKits ? 'text-green-600' : 'text-red-600'
                   )}>
-                    {tent.hasAvailableKits ? '(Available)' : '(Rentals Unavailable)'}
+                    {tent.hasAvailableKits ? '(Disponível)' : '(Aluguéis Indisponíveis)'}
                   </span>
                 </CardTitle>
                 <CardDescription className="flex items-center pt-1 text-xs">
@@ -114,15 +113,15 @@ function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], select
                 <div className="flex justify-between items-center text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
-                    <span>{tent.distance.toFixed(2)} km away</span>
+                    <span>{tent.distance.toFixed(2)} km de distância</span>
                   </div>
                   <Button asChild variant="link" size="sm" className="p-0 h-auto">
-                    <Link href={`/tents/${tent.slug}`}>View Menu</Link>
+                    <Link href={`/tents/${tent.slug}`}>Ver Cardápio</Link>
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          )) : <p className="p-4 text-center text-sm text-muted-foreground">No tents found.</p>}
+          )) : <p className="p-4 text-center text-sm text-muted-foreground">Nenhuma barraca encontrada.</p>}
         </div>
       </ScrollArea>
     </>
@@ -166,7 +165,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
-      toast({ variant: "destructive", title: "Geolocation not supported." });
+      toast({ variant: "destructive", title: "Geolocalização não suportada." });
       return;
     }
 
@@ -180,12 +179,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         setMapCenter(userLocation);
         map?.panTo(userLocation);
         map?.setZoom(15);
-        toast({ title: "Location found!", description: "Showing tents near you." });
+        toast({ title: "Localização encontrada!", description: "Mostrando barracas perto de você." });
         setIsLocating(false);
       },
       (error) => {
-        console.error("Geolocation Error: ", error.message);
-        toast({ variant: "destructive", title: "Could not get your location.", description: "Please check your browser's location permissions." });
+        console.error("Erro de Geolocalização: ", error.message);
+        toast({ variant: "destructive", title: "Não foi possível obter sua localização.", description: "Por favor, verifique as permissões de localização do seu navegador." });
         setIsLocating(false);
       }
     );
@@ -236,7 +235,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           setMapCenter(userLocation);
           map?.panTo(userLocation);
         }, (error) => {
-          console.warn("Geolocation warning on initial load: ", error.message);
+          console.warn("Aviso de Geolocalização no carregamento inicial: ", error.message);
         });
       }
     }
@@ -253,12 +252,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   };
 
   const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
-    let color = 'hsl(0, 84.2%, 60.2%)'; // destructive red
+    let color = 'hsl(0, 84.2%, 60.2%)';
 
     if (selectedTent?.id === tent.id) {
-      color = 'hsl(var(--accent))'; // yellow
+      color = 'hsl(var(--accent))';
     } else if (tent.hasAvailableKits) {
-      color = 'hsl(142.1, 76.2%, 36.3%)'; // green
+      color = 'hsl(142.1, 76.2%, 36.3%)';
     }
 
     return {
@@ -278,9 +277,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         <div className="flex h-full items-center justify-center bg-muted p-8">
           <Alert variant="destructive" className="max-w-md">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Map Configuration Incomplete</AlertTitle>
+            <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
             <AlertDescription>
-              The Google Maps API key has not been configured. Please add your key to the `.env.local` file as `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
+              A chave da API do Google Maps não foi configurada. Adicione sua chave ao arquivo `.env.local` como `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
             </AlertDescription>
           </Alert>
         </div>
@@ -292,9 +291,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         <div className="flex h-full items-center justify-center bg-muted p-8">
           <Alert variant="destructive" className="max-w-md">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error Loading Map</AlertTitle>
+            <AlertTitle>Erro ao Carregar o Mapa</AlertTitle>
             <AlertDescription>
-              Could not load Google Maps. Please check the API key and internet connection.
+              Não foi possível carregar o Google Maps. Verifique a chave da API e a conexão com a internet.
             </AlertDescription>
           </Alert>
         </div>
@@ -305,7 +304,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       return (
         <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading map...</p>
+          <p className="text-muted-foreground">Carregando mapa...</p>
         </div>
       );
     }
@@ -350,10 +349,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 'text-xs font-semibold mt-1',
                 selectedTent.hasAvailableKits ? 'text-green-600' : 'text-red-600'
               )}>
-                {selectedTent.hasAvailableKits ? 'Rentals Available' : 'Rentals Unavailable'}
+                {selectedTent.hasAvailableKits ? 'Aluguéis Disponíveis' : 'Aluguéis Indisponíveis'}
               </p>
               <Button asChild size="sm" className="w-full mt-2">
-                <Link href={`/tents/${selectedTent.slug}`}>View Menu</Link>
+                <Link href={`/tents/${selectedTent.slug}`}>Ver Cardápio</Link>
               </Button>
             </div>
           </InfoWindow>
@@ -381,7 +380,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 <SheetTrigger asChild>
                     <Button className="shadow-lg">
                         <List className="mr-2 h-4 w-4"/>
-                        View Tents
+                        Ver Barracas
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="h-[80%] flex flex-col">
@@ -394,7 +393,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg"
             onClick={handleGetCurrentLocation}
             disabled={isLocating}
-            aria-label="Use my current location"
+            aria-label="Usar minha localização atual"
           >
             {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
           </Button>
