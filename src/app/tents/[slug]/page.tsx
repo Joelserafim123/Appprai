@@ -279,10 +279,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <main>
         <div className="relative h-64 w-full md:h-96">
             <Image
-                src="https://picsum.photos/seed/sea-banner/1600/600"
+                src="https://picsum.photos/seed/atlantic-ocean/1600/600"
                 alt={tent.name}
                 className="object-cover"
-                data-ai-hint="sea"
+                data-ai-hint="atlantic ocean"
                 fill
                 priority
             />
