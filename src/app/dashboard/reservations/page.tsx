@@ -386,7 +386,7 @@ export default function OwnerReservationsPage() {
                             </div>
                         </CardContent>
                         <CardFooter className="flex-col gap-2">
-                            {reservation.status === 'confirmed' && (
+                             {reservation.status === 'confirmed' && (
                                 <div className="grid grid-cols-2 gap-2 w-full">
                                     <Button size="sm" onClick={() => setReservationForCheckIn(reservation)}>
                                         <Check className="mr-2 h-4 w-4" /> Fazer Check-in
@@ -434,3 +434,4 @@ export default function OwnerReservationsPage() {
     
 
     
+

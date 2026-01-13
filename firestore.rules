@@ -8,40 +8,35 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if false;
     }
+    
+    function hasActiveReservation(userId) {
+      // Check if a user has any reservation that is not 'completed' or 'cancelled'.
+      return exists(
+        /databases/$(database)/documents/reservations/
+          .where("userId", "==", userId)
+          .where("status", "in", ["confirmed", "checked-in", "payment-pending"])
+      );
+    }
 
     //--------------------------------
     // Users
     //--------------------------------
     match /users/{userId} {
-      // A user can read their own document.
+      // Allow user to read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
-
-      // A user can create and update their own document, with protections.
-      allow create: if request.auth != null && request.auth.uid == userId
-                   // The user's UID must match the document ID.
-                   && request.resource.data.uid == request.auth.uid
-                   // Validate required fields on creation
-                   && request.resource.data.email is string
-                   && request.resource.data.displayName is string
-                   && request.resource.data.role in ['customer', 'owner']
-                   && request.resource.data.cpf is string
-                   && request.resource.data.cep is string
-                   && request.resource.data.street is string
-                   && request.resource.data.number is string
-                   && request.resource.data.neighborhood is string
-                   && request.resource.data.city is string
-                   && request.resource.data.state is string;
-
-      allow update: if request.auth != null && request.auth.uid == userId
-                   // The user's UID must match the document ID.
-                   && request.resource.data.uid == request.auth.uid
-                   // Protect 'role': cannot be changed after creation.
-                   && request.resource.data.role == resource.data.role
-                   // Protect 'cpf': cannot be changed once it has been set.
-                   && (
-                     resource.data.cpf == null ||
-                     request.resource.data.cpf == resource.data.cpf
-                   );
+      
+      // Allow user to create their own document with basic fields.
+      allow create: if request.auth != null 
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.email is string
+                    && request.resource.data.displayName is string
+                    && request.resource.data.role in ['customer', 'owner'];
+      
+      // Allow user to update their own document.
+      // The CPF and role cannot be changed once set.
+      allow update: if request.auth != null && request.auth.uid == userId 
+                    && (request.resource.data.cpf == resource.data.cpf || resource.data.cpf == null)
+                    && (request.resource.data.role == resource.data.role);
       
       // Disallow deleting user documents and listing all users.
       allow delete, list: if false;
@@ -54,7 +49,7 @@ service cloud.firestore {
       // Anyone can read tent information.
       allow read: if true;
       // The tent owner is the only one who can modify the tent.
-      // We enforce one tent per owner by making the doc id the owner's uid.
+      // Now we enforce one tent per owner by making the doc id the owner's uid.
       allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
@@ -72,8 +67,10 @@ service cloud.firestore {
     // Reservations
     //--------------------------------
     match /reservations/{reservationId} {
-      // A user can only create a reservation for themselves.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // A user can only create a reservation for themselves and only if they don't have an active one.
+      allow create: if request.auth != null 
+                    && request.resource.data.userId == request.auth.uid
+                    && !hasActiveReservation(request.auth.uid);
       
       // Anyone involved (customer or owner) can read the reservation.
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
@@ -81,6 +78,7 @@ service cloud.firestore {
       // Update rules are now more granular.
       allow update: if request.auth != null && (
         // Case 1: Tent owner can update status, paymentMethod, tableNumber, or cancel.
+        // Also, owner can update the status of individual items.
         (
           get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
         ) ||
@@ -94,7 +92,7 @@ service cloud.firestore {
             request.resource.data.items.size() > resource.data.items.size() ||
             // They can cancel ONLY if not yet checked-in.
             (
-              request.resource.data.status == 'cancelled' && resource.data.status != 'checked-in'
+              request.resource.data.status == 'cancelled' && resource.data.status == 'confirmed'
             )
           )
         )
@@ -130,5 +128,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
