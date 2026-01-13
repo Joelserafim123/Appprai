@@ -13,10 +13,28 @@ service cloud.firestore {
     // Users
     //--------------------------------
     match /users/{userId} {
-      // Allow user to read and update their own document.
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      // Allow user to create their own document.
-      allow create: if request.auth != null;
+      // Allow user to read their own document.
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow user to create their own document if all required fields are present.
+      allow create: if request.auth != null 
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.role in ['customer', 'owner']
+                    && request.resource.data.displayName is string && request.resource.data.displayName.size() > 0
+                    && request.resource.data.email is string && request.resource.data.email.size() > 0
+                    && request.resource.data.cpf is string && request.resource.data.cpf.size() > 0
+                    && request.resource.data.cep is string && request.resource.data.cep.size() > 0
+                    && request.resource.data.street is string && request.resource.data.street.size() > 0
+                    && request.resource.data.number is string && request.resource.data.number.size() > 0
+                    && request.resource.data.neighborhood is string && request.resource.data.neighborhood.size() > 0
+                    && request.resource.data.city is string && request.resource.data.city.size() > 0
+                    && request.resource.data.state is string && request.resource.data.state.size() > 0;
+      
+      // Allow user to update their own document, but not change their CPF or role.
+      allow update: if request.auth != null && request.auth.uid == userId 
+                    && request.resource.data.cpf == resource.data.cpf
+                    && request.resource.data.role == resource.data.role;
+      
       // Disallow deleting user documents and listing all users.
       allow delete, list: if false;
     }
@@ -68,6 +86,31 @@ service cloud.firestore {
 
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
+    }
+    
+    //--------------------------------
+    // Chats & Messages
+    //--------------------------------
+    match /chats/{chatId} {
+      // Allow read/update if user is the customer or the tent owner.
+      allow read, update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+      // Allow create if the user is the one initiating the chat.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    match /chats/{chatId}/messages/{messageId} {
+      // Allow read if user is part of the parent chat.
+      allow read: if request.auth != null && (
+        get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+      );
+      // Allow create if user is part of the parent chat.
+      allow create: if request.auth != null && (
+        get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+        get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+      );
+      // Disallow updates and deletes for message integrity.
+      allow update, delete: if false;
     }
   }
 }
