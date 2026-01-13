@@ -104,8 +104,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
   const handleStartChat = async () => {
     toast({
-        title: "Em breve!",
-        description: "Funcionalidade de chat em construção.",
+        title: "Funcionalidade em breve!",
+        description: "A função de chat está sendo finalizada e estará disponível em breve.",
     });
   };
 
