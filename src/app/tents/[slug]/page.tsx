@@ -19,7 +19,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Tent, Chat } from '@/lib/types';
+import type { Tent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -89,62 +89,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
 
   const handleStartChat = async () => {
-    if (!user || !tent || !firestore) {
-      toast({
-        variant: "destructive",
-        title: "Login Necessário",
-        description: "Você precisa estar logado para iniciar uma conversa.",
-      });
-      router.push(`/login?redirect=/tents/${tent?.slug}`);
-      return;
-    }
-
-    try {
-      // Check if a chat already exists
-      const chatsRef = collection(firestore, 'chats');
-      const q = query(chatsRef, where('userId', '==', user.uid), where('tentId', '==', tent.id));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        // Chat already exists, navigate to it
-        router.push('/dashboard/chats');
-      } else {
-        // Create a new chat
-        const newChatRef = doc(collection(firestore, 'chats'));
-        const newChatData: Omit<Chat, 'id'> = {
-          userId: user.uid,
-          userName: user.displayName || 'Cliente',
-          userPhotoURL: user.photoURL || '',
-          tentId: tent.id,
-          tentName: tent.name,
-          tentOwnerId: tent.ownerId,
-          tentLogoUrl: '', // Removed logoUrl from tent, so this is empty
-          lastMessage: "Olá! Como posso ajudar?",
-          lastMessageTimestamp: serverTimestamp() as any,
-        };
-
-        const firstMessage = {
-            senderId: tent.ownerId,
-            text: "Olá! Como posso ajudar?",
-            timestamp: serverTimestamp()
-        };
-
-        const batch = writeBatch(firestore);
-        batch.set(newChatRef, newChatData);
-        batch.set(doc(collection(firestore, 'chats', newChatRef.id, 'messages')), firstMessage);
-
-        await batch.commit();
-        
-        router.push('/dashboard/chats');
-      }
-    } catch (error) {
-      console.error("Error starting chat:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao iniciar conversa',
-        description: 'Tente novamente mais tarde.',
-      });
-    }
+    toast({
+        title: "Em breve!",
+        description: "Funcionalidade de chat em construção.",
+    });
   };
 
 
