@@ -5,7 +5,7 @@ import type { Tent } from "@/lib/types";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, MapPin, List } from "lucide-react";
+import { AlertTriangle, Loader2, MapPin, List, Search } from "lucide-react";
 import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSearchStore } from "@/hooks/use-search";
+import { Input } from "./ui/input";
 
 
 const containerStyle = {
@@ -59,17 +61,14 @@ const haversineDistance = (
   return R * c;
 };
 
-function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], selectedTent: Tent | null, onTentSelect: (tent: Tent) => void }) {
-  const [isLocating, setIsLocating] = useState(false);
-
-  const handleGetCurrentLocation = () => {
-    // Lógica de geolocalização movida para o componente pai para controlar o mapa
-  }
+function TentList({ tents, selectedTent, onTentSelect, onLocate, isLocating }: { tents: Tent[], selectedTent: Tent | null, onTentSelect: (tent: Tent) => void, onLocate: () => void, isLocating: boolean }) {
+  
+  const { searchTerm, setSearchTerm } = useSearchStore();
 
   return (
     <>
       <div className="border-b p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold">Barracas Próximas</h2>
             <p className="text-sm text-muted-foreground">Ordenado por proximidade</p>
@@ -77,7 +76,7 @@ function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], select
           <Button
             size="icon"
             variant="outline"
-            onClick={handleGetCurrentLocation}
+            onClick={onLocate}
             disabled={isLocating}
             aria-label="Usar minha localização atual"
             className="rounded-full"
@@ -85,6 +84,15 @@ function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], select
             {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
           </Button>
         </div>
+         <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Filtrar barracas..."
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
       </div>
       <ScrollArea className="flex-1">
         <div className="space-y-4 p-4">
@@ -111,10 +119,12 @@ function TentList({ tents, selectedTent, onTentSelect }: { tents: Tent[], select
               </CardHeader>
               <CardContent>
                 <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{tent.distance.toFixed(2)} km de distância</span>
-                  </div>
+                  {tent.distance != null && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{tent.distance.toFixed(2)} km de distância</span>
+                    </div>
+                  )}
                   <Button asChild variant="link" size="sm" className="p-0 h-auto">
                     <Link href={`/tents/${tent.slug}`}>Ver Cardápio</Link>
                   </Button>
@@ -136,6 +146,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { searchTerm, setSearchTerm } = useSearchStore();
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -192,20 +203,27 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   const sortedTents = useMemo(() => {
     if (!tents) return [];
-    return [...tents]
+    
+    const withDistance = tents
       .filter(tent => tent.location?.latitude && tent.location?.longitude)
       .map(tent => ({
         ...tent,
         distance: haversineDistance({ lat: mapCenter.lat, lng: mapCenter.lng }, { lat: tent.location.latitude, lng: tent.location.longitude }),
-      }))
-      .sort((a, b) => a.distance - b.distance);
-  }, [tents, mapCenter]);
+      }));
+
+    const filtered = withDistance.filter(tent =>
+        tent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tent.beachName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+    return filtered.sort((a, b) => a.distance - b.distance);
+  }, [tents, mapCenter, searchTerm]);
 
 
   useEffect(() => {
-    if (map && tents.length > 0) {
+    if (map && sortedTents.length > 0) {
       const bounds = new window.google.maps.LatLngBounds();
-      tents.forEach(tent => {
+      sortedTents.forEach(tent => {
         if (tent.location?.latitude && tent.location?.longitude) {
           bounds.extend(new window.google.maps.LatLng(tent.location.latitude, tent.location.longitude));
         }
@@ -214,7 +232,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         map.setCenter(defaultCenter);
         map.setZoom(12);
       } else {
-        if (tents.length > 1) {
+        if (sortedTents.length > 1) {
           map.fitBounds(bounds);
           const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
             if (map.getZoom()! > 16) map.setZoom(16);
@@ -226,20 +244,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
         }
       }
     } else if (map) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-          const userLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setMapCenter(userLocation);
-          map?.panTo(userLocation);
-        }, (error) => {
-          console.warn("Aviso de Geolocalização no carregamento inicial: ", error.message);
-        });
-      }
+        // Se não houver barracas, centralize na localização do usuário ou padrão
+        handleGetCurrentLocation();
     }
-  }, [map, tents]);
+  }, [map, tents]); // Depende apenas do 'tents' original para ajustar o zoom inicial
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
@@ -370,7 +378,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       `}</style>
       <div className="md:grid h-full grid-cols-1 md:grid-cols-[350px_1fr]">
         <div className="hidden md:flex flex-col border-r">
-          <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} />
+          <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} />
         </div>
 
         <div className="relative h-full w-full bg-muted">
@@ -383,8 +391,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                         Ver Barracas
                     </Button>
                 </SheetTrigger>
-                <SheetContent side="bottom" className="h-[80%] flex flex-col">
-                    <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} />
+                <SheetContent side="bottom" className="h-[80%] flex flex-col p-0">
+                    <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} />
                 </SheetContent>
             </Sheet>
           </div>

@@ -16,6 +16,7 @@ export interface Tent {
   };
   minimumOrderForFeeWaiver?: number;
   hasAvailableKits?: boolean;
+  distance?: number;
 }
 
 export interface UserProfile {
