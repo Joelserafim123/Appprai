@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { UserData } from '@/firebase/auth/use-user';
@@ -9,7 +10,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, User as UserIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials, cn } from '@/lib/utils';
@@ -104,7 +105,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
              <Avatar>
                 <AvatarImage src={currentUser.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl} />
                 <AvatarFallback>
-                    {getInitials(currentUser.role === 'owner' ? chat.userName : chat.tentName)}
+                    <UserIcon className="h-4 w-4" />
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -133,7 +134,9 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                     {!isCurrentUser && (
                        <Avatar className='h-8 w-8'>
                             <AvatarImage src={getSenderAvatar(message.senderId)} />
-                            <AvatarFallback>{getInitials(getSenderName(message.senderId))}</AvatarFallback>
+                            <AvatarFallback>
+                                <UserIcon className="h-4 w-4" />
+                            </AvatarFallback>
                         </Avatar>
                     )}
                      <div

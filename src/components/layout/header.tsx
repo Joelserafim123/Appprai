@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Menu } from 'lucide-react';
+import { LogOut, LayoutGrid, Menu, User } from 'lucide-react';
 import { useUser } from '@/firebase/provider';
 import { getAuth, signOut } from 'firebase/auth';
 import { useFirebase } from '@/firebase/provider';
@@ -63,7 +63,12 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="h-8 w-8">
-                    <Menu className="h-4 w-4" />
+                     <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
+                        <AvatarFallback>
+                            <User className="h-4 w-4" />
+                        </AvatarFallback>
+                    </Avatar>
                     <span className="sr-only">Abrir menu do usuário</span>
                   </Button>
                 </DropdownMenuTrigger>
@@ -81,6 +86,12 @@ export function Header() {
                     <Link href="/dashboard">
                         <LayoutGrid className="mr-2 h-4 w-4" />
                         <span>Painel</span>
+                    </Link>
+                  </DropdownMenuItem>
+                   <DropdownMenuItem asChild>
+                     <Link href="/dashboard/settings">
+                        <LayoutGrid className="mr-2 h-4 w-4" />
+                        <span>Editar Perfil</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

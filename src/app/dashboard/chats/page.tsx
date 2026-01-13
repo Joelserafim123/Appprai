@@ -6,7 +6,7 @@ import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, getDocs, doc, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { Loader2, MessageSquare, User as UserIcon } from 'lucide-react';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
@@ -89,7 +89,6 @@ export default function ChatsPage() {
   }
   
   const selectedChat = chats?.find(c => c.id === selectedChatId) ?? null;
-  const defaultUserImage = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=2080&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
   return (
     <div className="w-full h-[calc(100vh-120px)] flex flex-col">
@@ -112,9 +111,9 @@ export default function ChatsPage() {
                                 return (
                                 <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
                                     <Avatar className='h-10 w-10'>
-                                        <AvatarImage src={photoUrl || defaultUserImage} />
+                                        <AvatarImage src={photoUrl || ''} />
                                         <AvatarFallback>
-                                            {getInitials(displayName)}
+                                            <UserIcon className="h-5 w-5" />
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className='flex-1 overflow-hidden'>

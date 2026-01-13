@@ -96,7 +96,7 @@ export default function SettingsPage() {
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
         address: data.address,
-        photoURL: photoURL, // Explicitly save the new or existing photoURL
+        photoURL: photoURL,
       };
 
       if (!user.cpf) {
@@ -131,12 +131,14 @@ export default function SettingsPage() {
   
     } catch (error: any) {
       console.error("Error updating profile:", error);
-      const permissionError = new FirestorePermissionError({
-        path: `users/${user.uid}`,
-        operation: 'update',
-        requestResourceData: { displayName: data.displayName },
-      });
-      errorEmitter.emit('permission-error', permissionError);
+      if(error.code !== 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+            path: `users/${user.uid}`,
+            operation: 'update',
+            requestResourceData: { displayName: data.displayName },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -187,7 +189,7 @@ export default function SettingsPage() {
                     <Avatar className="h-24 w-24">
                         <AvatarImage src={photoPreview ?? ''} alt={user.displayName || "User"} />
                         <AvatarFallback className="text-3xl">
-                            {getInitials(user.displayName)}
+                            <UserIcon className="h-12 w-12 text-muted-foreground" />
                         </AvatarFallback>
                     </Avatar>
                      <label htmlFor="photo" className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
