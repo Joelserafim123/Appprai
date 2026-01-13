@@ -20,7 +20,7 @@ service cloud.firestore {
       allow create: if request.auth != null 
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.role in ['customer', 'owner']
-                    && request.resource.data.email is string && request.resource.data.email.size() > 0
+                    && request.resource.data.email is string
                     && request.resource.data.cpf is string && request.resource.data.cpf.size() > 0
                     && request.resource.data.cep is string && request.resource.data.cep.size() > 0
                     && request.resource.data.street is string && request.resource.data.street.size() > 0
