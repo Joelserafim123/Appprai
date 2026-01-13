@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Menu, User } from 'lucide-react';
+import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, MessageSquare } from 'lucide-react';
 import { useUser } from '@/firebase/provider';
 import { getAuth, signOut } from 'firebase/auth';
 import { useFirebase } from '@/firebase/provider';
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { getInitials } from '@/lib/utils';
+import { User as UserIcon } from 'lucide-react';
 
 
 export function Header() {
@@ -48,6 +49,82 @@ export function Header() {
     }
   };
   
+  const CustomerMenuItems = () => (
+    <>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard">
+          <LayoutGrid className="mr-2 h-4 w-4" />
+          <span>Painel</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/my-reservations">
+          <Star className="mr-2 h-4 w-4" />
+          <span>Minhas Reservas</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/chats">
+          <MessageSquare className="mr-2 h-4 w-4" />
+          <span>Conversas</span>
+        </Link>
+      </DropdownMenuItem>
+       <DropdownMenuItem asChild>
+        <Link href="/dashboard/settings">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Configurações</span>
+        </Link>
+      </DropdownMenuItem>
+    </>
+  );
+
+  const OwnerMenuItems = () => (
+     <>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/reservations">
+          <Star className="mr-2 h-4 w-4" />
+          <span>Reservas</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/my-tent">
+          <Building className="mr-2 h-4 w-4" />
+          <span>Minha Barraca</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/menu">
+          <Utensils className="mr-2 h-4 w-4" />
+          <span>Cardápio</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/rental-items">
+          <Armchair className="mr-2 h-4 w-4" />
+          <span>Aluguéis</span>
+        </Link>
+      </DropdownMenuItem>
+       <DropdownMenuItem asChild>
+        <Link href="/dashboard/chats">
+          <MessageSquare className="mr-2 h-4 w-4" />
+          <span>Conversas</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/analytics">
+          <BarChart className="mr-2 h-4 w-4" />
+          <span>Análises</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/settings">
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Configurações</span>
+        </Link>
+      </DropdownMenuItem>
+    </>
+  );
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-7xl items-center justify-between">
@@ -66,7 +143,7 @@ export function Header() {
                      <Avatar className="h-8 w-8">
                         <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
                         <AvatarFallback>
-                            <User className="h-4 w-4" />
+                            <UserIcon className="h-4 w-4" />
                         </AvatarFallback>
                     </Avatar>
                     <span className="sr-only">Abrir menu do usuário</span>
@@ -82,18 +159,9 @@ export function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">
-                        <LayoutGrid className="mr-2 h-4 w-4" />
-                        <span>Painel</span>
-                    </Link>
-                  </DropdownMenuItem>
-                   <DropdownMenuItem asChild>
-                     <Link href="/dashboard/settings">
-                        <LayoutGrid className="mr-2 h-4 w-4" />
-                        <span>Editar Perfil</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  
+                  {user.role === 'owner' ? <OwnerMenuItems /> : <CustomerMenuItems />}
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
