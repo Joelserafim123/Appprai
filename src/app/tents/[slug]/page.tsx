@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2 } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
@@ -20,7 +20,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Tent } from '@/lib/types';
+import type { Tent, Chat } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -87,6 +87,66 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
+
+  const handleStartChat = async () => {
+    if (!user || !tent || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Login Necessário",
+        description: "Você precisa estar logado para iniciar uma conversa.",
+      });
+      router.push(`/login?redirect=/tents/${tent?.slug}`);
+      return;
+    }
+
+    try {
+      // Check if a chat already exists
+      const chatsRef = collection(firestore, 'chats');
+      const q = query(chatsRef, where('userId', '==', user.uid), where('tentId', '==', tent.id));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        // Chat already exists, navigate to it
+        router.push('/dashboard/chats');
+      } else {
+        // Create a new chat
+        const newChatRef = doc(collection(firestore, 'chats'));
+        const newChatData: Omit<Chat, 'id'> = {
+          userId: user.uid,
+          userName: user.displayName || 'Cliente',
+          userPhotoURL: user.photoURL || '',
+          tentId: tent.id,
+          tentName: tent.name,
+          tentOwnerId: tent.ownerId,
+          tentLogoUrl: tent.logoUrl || '',
+          lastMessage: "Olá! Como posso ajudar?",
+          lastMessageTimestamp: serverTimestamp() as any,
+        };
+
+        const firstMessage = {
+            senderId: tent.ownerId,
+            text: "Olá! Como posso ajudar?",
+            timestamp: serverTimestamp()
+        };
+
+        const batch = writeBatch(firestore);
+        batch.set(newChatRef, newChatData);
+        batch.set(doc(collection(firestore, 'chats', newChatRef.id, 'messages')), firstMessage);
+
+        await batch.commit();
+        
+        router.push('/dashboard/chats');
+      }
+    } catch (error) {
+      console.error("Error starting chat:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao iniciar conversa',
+        description: 'Tente novamente mais tarde.',
+      });
+    }
+  };
+
 
   if (loadingTent || !tent) {
     return (
@@ -219,10 +279,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <main>
         <div className="relative h-64 w-full md:h-96">
             <Image
-                src="https://picsum.photos/seed/beach-chairs/1600/600"
+                src="https://picsum.photos/seed/sea-banner/1600/600"
                 alt={tent.name}
                 className="object-cover"
-                data-ai-hint="beach chairs"
+                data-ai-hint="sea"
                 fill
                 priority
             />
@@ -237,7 +297,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
                  <Tabs defaultValue="reserve" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 md:w-[300px]">
+                    <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
                         <TabsTrigger value="reserve">Aluguel</TabsTrigger>
                         <TabsTrigger value="menu">Cardápio</TabsTrigger>
                     </TabsList>
@@ -381,9 +441,15 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                             <p className="text-sm text-muted-foreground">Total</p>
                             <p className="text-2xl font-bold">R$ {finalTotal.toFixed(2)}</p>
                         </div>
-                        <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
-                           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                            <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
+                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
+                            </Button>
+                            <Button size="lg" className="w-full" variant="outline" onClick={handleStartChat}>
+                                <MessageSquare className="mr-2 h-4 w-4" />
+                                Iniciar Conversa
+                            </Button>
+                        </div>
                     </CardFooter>
                 </Card>
             </div>
