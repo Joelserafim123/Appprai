@@ -17,6 +17,7 @@ function VerificationHandler() {
   
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
     const oobCode = searchParams.get('oobCode');
@@ -46,6 +47,17 @@ function VerificationHandler() {
     }
   }, [searchParams, firebaseApp, router]);
 
+  useEffect(() => {
+    if (status === 'success') {
+      if (countdown > 0) {
+        const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+        return () => clearTimeout(timer);
+      } else {
+        router.push('/login');
+      }
+    }
+  }, [status, countdown, router]);
+
   if (status === 'loading') {
     return (
       <div className="flex flex-col items-center gap-4">
@@ -62,12 +74,12 @@ function VerificationHandler() {
             <ShieldCheck className="mx-auto h-12 w-12 text-green-500" />
             <CardTitle className="mt-4 text-2xl">E-mail Verificado com Sucesso!</CardTitle>
             <CardDescription>
-                Sua conta foi ativada. Agora você pode fazer login.
+                Sua conta foi ativada. Você será redirecionado para a página de login em {countdown} segundos...
             </CardDescription>
         </CardHeader>
         <CardContent>
             <Button asChild className="w-full">
-                <Link href="/login">Ir para o Login</Link>
+                <Link href="/login">Ir para o Login Agora</Link>
             </Button>
         </CardContent>
       </Card>
