@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -118,7 +117,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           tentId: tent.id,
           tentName: tent.name,
           tentOwnerId: tent.ownerId,
-          tentLogoUrl: tent.logoUrl || '',
+          tentLogoUrl: '', // Removed logoUrl from tent, so this is empty
           lastMessage: "Olá! Como posso ajudar?",
           lastMessageTimestamp: serverTimestamp() as any,
         };
@@ -279,10 +278,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       <main>
         <div className="relative h-64 w-full md:h-96">
             <Image
-                src="https://picsum.photos/seed/beach-umbrella/1600/600"
+                src="https://picsum.photos/seed/whale/1600/600"
                 alt={tent.name}
                 className="object-cover"
-                data-ai-hint="beach umbrella"
+                data-ai-hint="whale"
                 fill
                 priority
             />
@@ -459,3 +458,5 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
+
+    
