@@ -5,15 +5,83 @@ import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Loader2, Star, Settings, Briefcase, Building, Utensils, BarChart, Armchair } from 'lucide-react';
-import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFirebase } from '@/firebase/provider';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 
 export default function DashboardPage() {
-  const { user, isUserLoading: loading } = useUser();
+  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   const router = useRouter();
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [isCheckingReservations, setIsCheckingReservations] = useState(true);
 
-  // Este conteúdo não será mais exibido, mas é mantido como fallback.
+  useEffect(() => {
+    if (isUserLoading || !user || !firestore) {
+      if (!isUserLoading) setIsCheckingReservations(false);
+      return;
+    }
+
+    const checkReservations = async () => {
+      setIsCheckingReservations(true);
+      let reservationsQuery;
+
+      if (user.role === 'customer') {
+        reservationsQuery = query(
+          collection(firestore, 'reservations'),
+          where('userId', '==', user.uid),
+          limit(1)
+        );
+      } else if (user.role === 'owner') {
+        const tentQuery = query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1));
+        const tentSnapshot = await getDocs(tentQuery);
+        if (!tentSnapshot.empty) {
+          const tentId = tentSnapshot.docs[0].id;
+          reservationsQuery = query(
+            collection(firestore, 'reservations'),
+            where('tentId', '==', tentId),
+            limit(1)
+          );
+        }
+      }
+
+      if (reservationsQuery) {
+        const reservationsSnapshot = await getDocs(reservationsQuery);
+        if (!reservationsSnapshot.empty) {
+          setShouldRedirect(true);
+        } else {
+          setIsCheckingReservations(false);
+        }
+      } else {
+        setIsCheckingReservations(false);
+      }
+    };
+
+    checkReservations();
+
+  }, [user, isUserLoading, firestore, router]);
+
+  useEffect(() => {
+    if (shouldRedirect && user) {
+        if (user.role === 'owner') {
+            router.push('/dashboard/reservations');
+        } else {
+            router.push('/dashboard/my-reservations');
+        }
+    }
+  }, [shouldRedirect, user, router]);
+
+
+  if (isUserLoading || isCheckingReservations || shouldRedirect) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   const welcomeMessage = () => {
     const firstName = user?.displayName?.split(' ')[0] || 'usuário';
     if (user?.role === 'owner') {
@@ -22,20 +90,13 @@ export default function DashboardPage() {
     return `Bem-vindo de volta, ${firstName}.`;
   };
 
-  if (loading || !user) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="w-full max-w-2xl">
         <header className="mb-8">
             <h1 className="text-3xl font-bold tracking-tight">Painel</h1>
             <p className="text-muted-foreground">{welcomeMessage()}</p>
         </header>
+        <p>Use o menu à esquerda para navegar.</p>
     </div>
   );
 }
