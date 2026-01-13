@@ -27,7 +27,7 @@ service cloud.firestore {
                         && request.resource.data.photoURL is string
                         && request.resource.data.role in ['customer', 'owner']
                    )
-                   // On Update, check immutable fields.
+                   // On Update, check immutable fields and allow others.
                    || (
                      exists(/databases/$(database)/documents/users/$(userId))
                         && request.resource.data.role == resource.data.role
