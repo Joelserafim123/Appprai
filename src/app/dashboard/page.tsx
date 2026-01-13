@@ -27,6 +27,7 @@ export default function DashboardPage() {
     const checkReservations = async () => {
       setIsCheckingReservations(true);
       let reservationsQuery;
+      let hasReservations = false;
 
       if (user.role === 'customer') {
         reservationsQuery = query(
@@ -34,6 +35,9 @@ export default function DashboardPage() {
           where('userId', '==', user.uid),
           limit(1)
         );
+        const reservationsSnapshot = await getDocs(reservationsQuery);
+        hasReservations = !reservationsSnapshot.empty;
+
       } else if (user.role === 'owner') {
         const tentQuery = query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1));
         const tentSnapshot = await getDocs(tentQuery);
@@ -44,16 +48,13 @@ export default function DashboardPage() {
             where('tentId', '==', tentId),
             limit(1)
           );
+           const reservationsSnapshot = await getDocs(reservationsQuery);
+           hasReservations = !reservationsSnapshot.empty;
         }
       }
 
-      if (reservationsQuery) {
-        const reservationsSnapshot = await getDocs(reservationsQuery);
-        if (!reservationsSnapshot.empty) {
-          setShouldRedirect(true);
-        } else {
-          setIsCheckingReservations(false);
-        }
+      if (hasReservations) {
+        setShouldRedirect(true);
       } else {
         setIsCheckingReservations(false);
       }
@@ -61,7 +62,7 @@ export default function DashboardPage() {
 
     checkReservations();
 
-  }, [user, isUserLoading, firestore, router]);
+  }, [user, isUserLoading, firestore]);
 
   useEffect(() => {
     if (shouldRedirect && user) {
