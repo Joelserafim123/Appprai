@@ -17,18 +17,29 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
 
       // A user can create and update their own document, with protections.
-      allow write: if request.auth != null && request.auth.uid == userId
+      allow create: if request.auth != null && request.auth.uid == userId
+                   // The user's UID must match the document ID.
+                   && request.resource.data.uid == request.auth.uid
+                   // Validate required fields on creation
+                   && request.resource.data.email is string
+                   && request.resource.data.displayName is string
+                   && request.resource.data.role in ['customer', 'owner']
+                   && request.resource.data.cpf is string
+                   && request.resource.data.cep is string
+                   && request.resource.data.street is string
+                   && request.resource.data.number is string
+                   && request.resource.data.neighborhood is string
+                   && request.resource.data.city is string
+                   && request.resource.data.state is string;
+
+      allow update: if request.auth != null && request.auth.uid == userId
                    // The user's UID must match the document ID.
                    && request.resource.data.uid == request.auth.uid
                    // Protect 'role': cannot be changed after creation.
-                   && (
-                     !exists(path) || // Allow on create
-                     request.resource.data.role == resource.data.role
-                   )
+                   && request.resource.data.role == resource.data.role
                    // Protect 'cpf': cannot be changed once it has been set.
                    && (
-                     !exists(path) || // Allow on create
-                     resource.data.cpf == null || // Allow if not set yet
+                     resource.data.cpf == null ||
                      request.resource.data.cpf == resource.data.cpf
                    );
       
@@ -111,5 +122,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
