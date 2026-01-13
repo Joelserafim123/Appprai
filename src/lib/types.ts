@@ -24,12 +24,12 @@ export interface UserProfile {
     displayName: string;
     photoURL?: string;
     cpf: string;
-    cep: string;
-    street: string;
-    number: string;
-    neighborhood: string;
-    city: string;
-    state: string;
+    cep?: string;
+    street?: string;
+    number?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
     role: 'customer' | 'owner';
 }
 

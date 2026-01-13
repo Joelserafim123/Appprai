@@ -16,18 +16,12 @@ service cloud.firestore {
       // Allow user to read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
       
-      // Allow user to create their own document if all required fields are present.
+      // Allow user to create their own document if basic fields are present.
+      // Address and other details can be added later.
       allow create: if request.auth != null 
                     && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.role in ['customer', 'owner']
                     && request.resource.data.email is string
-                    && request.resource.data.cpf is string && request.resource.data.cpf.size() > 0
-                    && request.resource.data.cep is string && request.resource.data.cep.size() > 0
-                    && request.resource.data.street is string && request.resource.data.street.size() > 0
-                    && request.resource.data.number is string && request.resource.data.number.size() > 0
-                    && request.resource.data.neighborhood is string && request.resource.data.neighborhood.size() > 0
-                    && request.resource.data.city is string && request.resource.data.city.size() > 0
-                    && request.resource.data.state is string && request.resource.data.state.size() > 0;
+                    && request.resource.data.role in ['customer', 'owner'];
       
       // Allow user to update their own document, but not change their CPF or role.
       allow update: if request.auth != null && request.auth.uid == userId 
