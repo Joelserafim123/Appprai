@@ -21,7 +21,8 @@ export interface Tent {
 export interface UserProfile {
     uid: string;
     email: string;
-    displayName?: string;
+    displayName: string;
+    role: 'customer' | 'owner';
     photoURL?: string;
     cpf?: string;
     cep?: string;
@@ -30,7 +31,6 @@ export interface UserProfile {
     neighborhood?: string;
     city?: string;
     state?: string;
-    role: 'customer' | 'owner';
 }
 
 export interface TentMedia {

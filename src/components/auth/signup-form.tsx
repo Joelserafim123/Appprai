@@ -61,15 +61,14 @@ export function SignUpForm() {
 
       await updateProfile(user, {
         displayName: values.displayName,
-        photoURL: '',
       });
 
-      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
+      const userProfileData: Partial<UserProfile> = {
         uid: user.uid,
         email: values.email,
         displayName: values.displayName,
-        photoURL: '',
         role: values.role,
+        photoURL: user.photoURL || '',
       };
 
       const userDocRef = doc(firestore, "users", user.uid);

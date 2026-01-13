@@ -23,13 +23,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
-  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.'),
-  street: z.string().min(1, 'A rua é obrigatória.'),
-  number: z.string().min(1, 'O número é obrigatório.'),
-  neighborhood: z.string().min(1, 'O bairro é obrigatório.'),
-  city: z.string().min(1, 'A cidade é obrigatória.'),
-  state: z.string().min(1, 'O estado é obrigatório.'),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }).optional().or(z.literal('')),
+  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
+  street: z.string().optional(),
+  number: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
   photo: z.any().optional(),
 });
 
@@ -81,19 +81,20 @@ export default function SettingsPage() {
   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     value = value.replace(/\D/g, "");
+    if (value.length > 11) value = value.slice(0, 11);
     value = value.replace(/(\d{3})(\d)/, "$1.$2");
     value = value.replace(/(\d{3})(\d)/, "$1.$2");
     value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    setValue('cpf', value);
-    return value;
+    setValue('cpf', value, { shouldValidate: true });
   }, [setValue]);
 
    const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
     if (value.length > 5) {
-      value = value.slice(0, 5) + '-' + value.slice(5, 8);
+      value = value.slice(0, 5) + '-' + value.slice(5);
     }
-    setValue('cep', value);
+    setValue('cep', value, { shouldValidate: true });
 
     if (value.length === 9) { // CEP is complete
       try {
@@ -137,16 +138,18 @@ export default function SettingsPage() {
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
         photoURL: photoURL,
-        cep: data.cep,
-        street: data.street,
-        number: data.number,
-        neighborhood: data.neighborhood,
-        city: data.city,
-        state: data.state,
       };
 
+      // Conditionally add address fields if they are provided
+      if (data.cep) firestoreData.cep = data.cep;
+      if (data.street) firestoreData.street = data.street;
+      if (data.number) firestoreData.number = data.number;
+      if (data.neighborhood) firestoreData.neighborhood = data.neighborhood;
+      if (data.city) firestoreData.city = data.city;
+      if (data.state) firestoreData.state = data.state;
+      
       // Only allow setting CPF if it's not already set
-      if (!user.cpf) {
+      if (!user.cpf && data.cpf) {
         firestoreData.cpf = data.cpf.replace(/\D/g, "");
       }
   
@@ -234,7 +237,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
             <CardDescription>
-                Atualize as informações da sua conta. O CPF não pode ser alterado após o cadastro inicial.
+                Atualize as informações da sua conta. O CPF e a sua função não podem ser alterados após o cadastro inicial.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -255,6 +258,7 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                     <p className="font-medium">{user.displayName}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <p className="text-xs font-semibold text-primary capitalize py-1 px-2 bg-primary/10 rounded-full inline-block">{user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</p>
                 </div>
             </div>
 
@@ -274,20 +278,16 @@ export default function SettingsPage() {
               <Input
                 id="cpf"
                 {...register('cpf')}
-                onChange={(e) => {
-                  const value = handleCpfChange(e);
-                  // The react-hook-form `register` function will handle the value change.
-                }}
+                onChange={handleCpfChange}
                 disabled={isSubmitting || !!user.cpf}
                 placeholder="000.000.000-00"
-                maxLength={14}
               />
               {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
             </div>
             
             <div className="space-y-2">
                 <Label htmlFor="cep">CEP</Label>
-                <Input {...register('cep')} onChange={handleCepChange} maxLength={9} placeholder="00000-000" disabled={isSubmitting} />
+                <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} />
                 {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
             </div>
 
