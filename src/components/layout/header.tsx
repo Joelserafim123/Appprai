@@ -39,7 +39,7 @@ export function Header() {
       });
       router.push('/');
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Erro ao fazer logout:", error);
       toast({
         variant: 'destructive',
         title: 'Erro no Logout',

@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -11,11 +12,11 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Uploads a file to a specified path in Firebase Storage.
- * @param storage The FirebaseStorage instance.
- * @param file The file to upload.
- * @param path The folder path in the bucket (e.g., 'users/[uid]').
- * @returns The public download URL of the uploaded file.
+ * Faz upload de um arquivo para um caminho especificado no Firebase Storage.
+ * @param storage A instância do FirebaseStorage.
+ * @param file O arquivo para upload.
+ * @param path O caminho da pasta no bucket (ex: 'users/[uid]').
+ * @returns A URL de download pública do arquivo enviado.
  */
 export async function uploadFile(
   storage: FirebaseStorage,
@@ -34,10 +35,10 @@ export async function uploadFile(
 }
 
 /**
- * Deletes a file from Firebase Storage using its full URL.
- * @param storage The FirebaseStorage instance.
- * @param url The full `gs://` or `https://firebasestorage.googleapis.com/...` URL of the file.
- * @returns A promise that resolves when the file is deleted.
+ * Deleta um arquivo do Firebase Storage usando sua URL completa.
+ * @param storage A instância do FirebaseStorage.
+ * @param url A URL completa `gs://` ou `https://firebasestorage.googleapis.com/...` do arquivo.
+ * @returns Uma promessa que resolve quando o arquivo é deletado.
  */
 export async function deleteFileByUrl(storage: FirebaseStorage, url: string) {
   if (!url) return;
@@ -45,9 +46,9 @@ export async function deleteFileByUrl(storage: FirebaseStorage, url: string) {
     const fileRef = ref(storage, url);
     await deleteObject(fileRef);
   } catch (error: any) {
-    // A "object-not-found" error is okay, it means the file is already gone.
+    // Um erro "object-not-found" é aceitável, significa que o arquivo já foi removido.
     if (error.code !== 'storage/object-not-found') {
-      console.error('Error deleting file from storage:', error);
+      console.error('Erro ao deletar arquivo do storage:', error);
       throw error;
     }
   }

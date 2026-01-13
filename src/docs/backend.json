@@ -2,36 +2,36 @@
 {
   "entities": {
     "User": {
-      "title": "User",
-      "description": "Represents a user profile for both customers and tent owners.",
+      "title": "Usuário",
+      "description": "Representa um perfil de usuário para clientes e donos de barracas.",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "The unique identifier from Firebase Auth." },
+        "uid": { "type": "string", "description": "O identificador único do Firebase Auth." },
         "email": { "type": "string", "format": "email" },
-        "displayName": { "type": "string", "description": "User's full name." },
-        "cpf": { "type": "string", "description": "User's Brazilian tax ID." },
-        "cep": { "type": "string", "description": "User's postal code." },
-        "street": { "type": "string" },
-        "number": { "type": "string" },
-        "neighborhood": { "type": "string" },
-        "city": { "type": "string" },
-        "state": { "type": "string" },
-        "photoURL": { "type": "string", "format": "uri", "description": "Public URL of the user's profile picture from Firebase Storage." },
-        "role": { "type": "string", "enum": ["customer", "owner"] }
+        "displayName": { "type": "string", "description": "Nome completo do usuário." },
+        "cpf": { "type": "string", "description": "CPF do usuário." },
+        "cep": { "type": "string", "description": "CEP do usuário." },
+        "street": { "type": "string", "description": "Rua do endereço do usuário." },
+        "number": { "type": "string", "description": "Número do endereço do usuário." },
+        "neighborhood": { "type": "string", "description": "Bairro do endereço do usuário." },
+        "city": { "type": "string", "description": "Cidade do endereço do usuário." },
+        "state": { "type": "string", "description": "Estado do endereço do usuário." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL pública da foto de perfil do usuário no Firebase Storage." },
+        "role": { "type": "string", "enum": ["customer", "owner"], "description": "Função do usuário (cliente ou dono)." }
       },
       "required": ["uid", "email", "role", "displayName"]
     },
     "Tent": {
-      "title": "Tent",
-      "description": "Represents a beach tent business.",
+      "title": "Barraca",
+      "description": "Representa uma barraca de praia.",
       "type": "object",
       "properties": {
-        "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
-        "ownerName": { "type": "string", "description": "The name of the user who owns the tent." },
-        "name": { "type": "string" },
-        "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
-        "description": { "type": "string" },
-        "beachName": { "type": "string" },
+        "ownerId": { "type": "string", "description": "O UID do usuário dono da barraca." },
+        "ownerName": { "type": "string", "description": "O nome do usuário dono da barraca." },
+        "name": { "type": "string", "description": "Nome da barraca." },
+        "slug": { "type": "string", "description": "Uma versão do nome da barraca para URL." },
+        "description": { "type": "string", "description": "Descrição da barraca." },
+        "beachName": { "type": "string", "description": "Nome da praia onde a barraca está localizada." },
         "location": {
           "type": "object",
           "properties": {
@@ -40,44 +40,44 @@
           },
           "required": ["latitude", "longitude"]
         },
-        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Minimum order value to waive rental fees." },
-        "hasAvailableKits": { "type": "boolean", "description": "Indicates if there are rental kits available." }
+        "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Valor mínimo do pedido para isenção da taxa de aluguel." },
+        "hasAvailableKits": { "type": "boolean", "description": "Indica se há kits de aluguel disponíveis." }
       },
       "required": ["ownerId", "ownerName", "name", "slug", "description", "beachName", "location"]
     },
     "MenuItem": {
-      "title": "Menu Item",
-      "description": "An item available on a tent's menu.",
+      "title": "Item do Cardápio",
+      "description": "Um item disponível no cardápio de uma barraca.",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "price": { "type": "number" },
-        "category": { "type": "string", "enum": ["Bebidas", "Petiscos", "Pratos Principais"] }
+        "name": { "type": "string", "description": "Nome do item." },
+        "description": { "type": "string", "description": "Descrição do item." },
+        "price": { "type": "number", "description": "Preço do item." },
+        "category": { "type": "string", "enum": ["Bebidas", "Petiscos", "Pratos Principais"], "description": "Categoria do item." }
       },
       "required": ["name", "price", "category"]
     },
     "RentalItem": {
-      "title": "Rental Item",
-      "description": "An item available for rent at a tent (e.g., chair, umbrella).",
+      "title": "Item de Aluguel",
+      "description": "Um item disponível para aluguel em uma barraca (ex: cadeira, guarda-sol).",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "enum": ["Kit Guarda-sol + 2 Cadeiras", "Cadeira Adicional"] },
-        "price": { "type": "number", "description": "Price per day." },
-        "quantity": { "type": "number", "description": "Total available quantity." }
+        "name": { "type": "string", "enum": ["Kit Guarda-sol + 2 Cadeiras", "Cadeira Adicional"], "description": "Nome do item de aluguel." },
+        "price": { "type": "number", "description": "Preço por dia." },
+        "quantity": { "type": "number", "description": "Quantidade total disponível." }
       },
       "required": ["name", "price", "quantity"]
     },
     "Reservation": {
-      "title": "Reservation",
-      "description": "A customer's reservation for rental items and/or menu items.",
+      "title": "Reserva",
+      "description": "Uma reserva de um cliente para itens de aluguel e/ou itens do cardápio.",
       "type": "object",
       "properties": {
-        "userId": { "type": "string", "description": "The UID of the customer." },
-        "userName": { "type": "string", "description": "The name of the customer." },
-        "tentId": { "type": "string", "description": "The ID of the tent." },
-        "tentName": { "type": "string" },
-        "tentOwnerName": { "type": "string", "description": "The name of the tent owner." },
+        "userId": { "type": "string", "description": "O UID do cliente." },
+        "userName": { "type": "string", "description": "O nome do cliente." },
+        "tentId": { "type": "string", "description": "O ID da barraca." },
+        "tentName": { "type": "string", "description": "Nome da barraca." },
+        "tentOwnerName": { "type": "string", "description": "O nome do dono da barraca." },
         "tentLocation": {
           "type": "object",
           "properties": {
@@ -91,48 +91,48 @@
           "items": {
             "type": "object",
             "properties": {
-              "itemId": { "type": "string" },
-              "name": { "type": "string" },
-              "price": { "type": "number" },
-              "quantity": { "type": "number" },
-              "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled"] }
+              "itemId": { "type": "string", "description": "ID do item." },
+              "name": { "type": "string", "description": "Nome do item." },
+              "price": { "type": "number", "description": "Preço do item." },
+              "quantity": { "type": "number", "description": "Quantidade do item." },
+              "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled"], "description": "Status do item na reserva." }
             },
             "required": ["itemId", "name", "price", "quantity", "status"]
           }
         },
-        "total": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"] },
-        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"] },
-        "tableNumber": { "type": "number" }
+        "total": { "type": "number", "description": "Valor total da reserva." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Data e hora da criação da reserva." },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"], "description": "Status geral da reserva." },
+        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "Método de pagamento." },
+        "tableNumber": { "type": "number", "description": "Número da mesa do cliente." }
       },
       "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status"]
     },
     "Chat": {
         "title": "Chat",
-        "description": "Represents a conversation between a user and a tent owner.",
+        "description": "Representa uma conversa entre um usuário e um dono de barraca.",
         "type": "object",
         "properties": {
-          "userId": { "type": "string" },
-          "userName": { "type": "string" },
-          "userPhotoURL": { "type": "string", "format": "uri" },
-          "tentId": { "type": "string" },
-          "tentName": { "type": "string" },
-          "tentOwnerId": { "type": "string" },
-          "tentLogoUrl": { "type": "string", "format": "uri" },
-          "lastMessage": { "type": "string" },
-          "lastMessageTimestamp": { "type": "string", "format": "date-time" }
+          "userId": { "type": "string", "description": "ID do usuário." },
+          "userName": { "type": "string", "description": "Nome do usuário." },
+          "userPhotoURL": { "type": "string", "format": "uri", "description": "URL da foto do usuário." },
+          "tentId": { "type": "string", "description": "ID da barraca." },
+          "tentName": { "type": "string", "description": "Nome da barraca." },
+          "tentOwnerId": { "type": "string", "description": "ID do dono da barraca." },
+          "tentLogoUrl": { "type": "string", "format": "uri", "description": "URL do logo da barraca." },
+          "lastMessage": { "type": "string", "description": "Última mensagem trocada." },
+          "lastMessageTimestamp": { "type": "string", "format": "date-time", "description": "Timestamp da última mensagem." }
         },
         "required": ["userId", "userName", "tentId", "tentName", "tentOwnerId", "lastMessageTimestamp"]
       },
     "ChatMessage": {
-      "title": "Chat Message",
-      "description": "An individual message within a chat.",
+      "title": "Mensagem de Chat",
+      "description": "Uma mensagem individual dentro de um chat.",
       "type": "object",
       "properties": {
-        "senderId": { "type": "string" },
-        "text": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "senderId": { "type": "string", "description": "ID de quem enviou a mensagem." },
+        "text": { "type": "string", "description": "Texto da mensagem." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Timestamp do envio." }
       },
       "required": ["senderId", "text", "timestamp"]
     }
@@ -143,31 +143,31 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
-      "description": "Stores public-facing user profile information."
+      "description": "Armazena informações públicas do perfil do usuário."
     },
     "/tents/{tentId}": {
       "schema": { "$ref": "#/entities/Tent" },
-      "description": "Stores information about each beach tent."
+      "description": "Armazena informações sobre cada barraca de praia."
     },
     "/tents/{tentId}/menuItems/{menuItemId}": {
       "schema": { "$ref": "#/entities/MenuItem" },
-      "description": "Menu items for a specific tent."
+      "description": "Itens do cardápio para uma barraca específica."
     },
     "/tents/{tentId}/rentalItems/{rentalItemId}": {
       "schema": { "$ref": "#/entities/RentalItem" },
-      "description": "Rental items for a specific tent."
+      "description": "Itens de aluguel para uma barraca específica."
     },
     "/reservations/{reservationId}": {
       "schema": { "$ref": "#/entities/Reservation" },
-      "description": "Stores all reservations from all users."
+      "description": "Armazena todas as reservas de todos os usuários."
     },
     "/chats/{chatId}": {
       "schema": { "$ref": "#/entities/Chat" },
-      "description": "Stores metadata for each chat conversation."
+      "description": "Armazena metadados para cada conversa de chat."
     },
     "/chats/{chatId}/messages/{messageId}": {
       "schema": { "$ref": "#/entities/ChatMessage" },
-      "description": "Stores the messages for a specific chat."
+      "description": "Armazena as mensagens para um chat específico."
     }
   }
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useCallback } from 'react';
@@ -37,32 +38,32 @@ export const FirebaseContext = createContext<FirebaseContextState | undefined>(u
 export const useFirebase = (): FirebaseContextState & { db: Firestore } => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
-    throw new Error('useFirebase must be used within a FirebaseProvider.');
+    throw new Error('useFirebase deve ser usado dentro de um FirebaseProvider.');
   }
   return { ...context, db: context.firestore };
 };
 
 export const useAuth = (): Auth => {
   const { auth } = useFirebase();
-  if (!auth) throw new Error("Auth service not available.");
+  if (!auth) throw new Error("Serviço de autenticação não disponível.");
   return auth;
 };
 
 export const useFirestore = (): Firestore => {
   const { firestore } = useFirebase();
-  if (!firestore) throw new Error("Firestore service not available.");
+  if (!firestore) throw new Error("Serviço do Firestore não disponível.");
   return firestore;
 };
 
 export const useStorage = (): FirebaseStorage => {
   const { storage } = useFirebase();
-  if (!storage) throw new Error("Storage service not available.");
+  if (!storage) throw new Error("Serviço de armazenamento não disponível.");
   return storage;
 };
 
 export const useFirebaseApp = (): FirebaseApp => {
   const { firebaseApp } = useFirebase();
-  if (!firebaseApp) throw new Error("FirebaseApp not available.");
+  if (!firebaseApp) throw new Error("FirebaseApp não disponível.");
   return firebaseApp;
 };
 
@@ -87,21 +88,21 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (userDoc.exists()) {
             return { ...firebaseUser, ...userDoc.data() } as UserData;
         } else {
-             // Document doesn't exist, so let's create a basic one.
-            console.warn(`User document for ${firebaseUser.uid} not found. Recreating...`);
+             // O documento não existe, então vamos criar um básico.
+            console.warn(`Documento do usuário para ${firebaseUser.uid} não encontrado. Recriando...`);
             const newUserProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 displayName: firebaseUser.displayName || 'Usuário',
                 photoURL: firebaseUser.photoURL || '',
-                role: 'customer', // Default role
+                role: 'customer', // Papel padrão
             };
             await setDoc(userDocRef, { ...newUserProfileData });
             return { ...firebaseUser, ...newUserProfileData } as UserData;
         }
     } catch (error) {
-        console.error("Error fetching or creating user data from Firestore:", error);
-        return firebaseUser as UserData; // Return basic auth user on error
+        console.error("Erro ao buscar ou criar dados do usuário no Firestore:", error);
+        return firebaseUser as UserData; // Retorna usuário básico de autenticação em caso de erro
     }
   }, [firestore]);
   
@@ -113,7 +114,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     if (!auth) {
-      setUserState({ user: null, isUserLoading: false, userError: new Error("Auth service not available.") });
+      setUserState({ user: null, isUserLoading: false, userError: new Error("Serviço de autenticação não disponível.") });
       return;
     }
 
@@ -122,7 +123,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userData = await fetchExtraData(firebaseUser);
       setUserState({ user: userData, isUserLoading: false, userError: null });
     }, (error) => {
-      console.error("Auth state change error:", error);
+      console.error("Erro na mudança de estado de autenticação:", error);
       setUserState({ user: null, isUserLoading: false, userError: error });
     });
 
@@ -142,7 +143,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useUser = (): UserAuthState => {
   const context = useContext(UserContext);
   if (context === undefined) {
-    throw new Error('useUser must be used within a UserProvider.');
+    throw new Error('useUser deve ser usado dentro de um UserProvider.');
   }
   return context;
 };

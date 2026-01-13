@@ -23,7 +23,7 @@ const containerStyle = {
 
 const defaultCenter = {
   lat: -22.9845,
-  lng: -43.2040 // Default to Copacabana
+  lng: -43.2040 // Padrão para Copacabana
 };
 
 const mapOptions = {
@@ -44,7 +44,7 @@ const haversineDistance = (
   coords2: { lat: number; lng: number }
 ): number => {
   const toRad = (x: number) => (x * Math.PI) / 180;
-  const R = 6371; // Earth radius in km
+  const R = 6371; // Raio da Terra em km
 
   const dLat = toRad(coords2.lat - coords1.lat);
   const dLon = toRad(coords2.lng - coords1.lng);
@@ -253,12 +253,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   };
 
   const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
-    let color = 'hsl(0, 84.2%, 60.2%)'; // destructive red
+    let color = 'hsl(0, 84.2%, 60.2%)'; // vermelho destrutivo
 
     if (selectedTent?.id === tent.id) {
-      color = 'hsl(var(--accent))'; // yellow
+      color = 'hsl(var(--accent))'; // amarelo
     } else if (tent.hasAvailableKits) {
-      color = 'hsl(142.1, 76.2%, 36.3%)'; // green
+      color = 'hsl(142.1, 76.2%, 36.3%)'; // verde
     }
 
     return {

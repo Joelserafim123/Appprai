@@ -39,7 +39,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
 
   const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
 
-  // Auto-scroll to bottom
+  // Auto-scroll para o final
   useEffect(() => {
     if (scrollAreaViewport.current) {
       scrollAreaViewport.current.scrollTo({
@@ -72,7 +72,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     const messagesColRef = collection(firestore, 'chats', chat.id, 'messages');
 
     try {
-      // Not awaiting to provide optimistic updates
+      // Não aguardar para fornecer atualizações otimistas
       addDoc(messagesColRef, messageData).catch(error => {
         const permissionError = new FirestorePermissionError({
             path: messagesColRef.path,
@@ -92,16 +92,10 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
         throw error;
       });
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('Erro ao enviar mensagem:', error);
     } finally {
       setIsSending(false);
     }
-  };
-
-  const getSenderName = (senderId: string) => {
-    if (senderId === chat.userId) return chat.userName;
-    if (senderId === chat.tentOwnerId) return chat.tentName;
-    return 'Desconhecido';
   };
 
   const getSenderAvatar = (senderId: string) => {
