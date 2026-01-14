@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, Utensils, ArrowRight } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect, use } from 'react';
 import { useUser } from '@/firebase/provider';
@@ -70,7 +70,8 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
     );
 }
 
-export default function TentPage({ params }: { params: { slug: string } }) {
+export default function TentPage({ params: rawParams }: { params: { slug: string } }) {
+  const params = use(rawParams);
   const { firestore } = useFirebase();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
@@ -277,6 +278,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     setIsSubmitting(true);
 
     const orderNumber = Math.floor(100000 + Math.random() * 900000).toString();
+    const checkinCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     const reservationData = {
       userId: user.uid,
@@ -297,6 +299,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       createdAt: serverTimestamp(),
       reservationTime: reservationTime,
       orderNumber: orderNumber,
+      checkinCode: checkinCode,
       status: 'confirmed',
     };
 

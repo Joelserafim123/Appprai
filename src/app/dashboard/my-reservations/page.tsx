@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X, Hourglass, MapPin, Check, QrCode, Receipt } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, User, X, Hourglass, MapPin, Check, QrCode, Receipt, ShieldQuestion } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -138,14 +138,22 @@ export default function MyReservationsPage() {
                     </p>
                   </CardDescription>
                 </div>
-                 <div className='text-right'>
+                 <div className='text-right space-y-2'>
                      <Badge variant={statusConfig[reservation.status].variant}>
                         {statusConfig[reservation.status].text}
                     </Badge>
                     {['confirmed', 'checked-in'].includes(reservation.status) && (
-                        <div className="mt-2 text-sm text-center font-mono tracking-widest bg-muted p-2 rounded-lg">
-                            <p className="text-xs text-muted-foreground">Nº do Pedido</p>
-                            <p className="font-bold text-lg">{reservation.orderNumber}</p>
+                        <div className="flex items-center gap-2 justify-end">
+                            <div className="text-sm text-center font-mono tracking-widest bg-muted p-2 rounded-lg">
+                                <p className="text-xs text-muted-foreground">Nº do Pedido</p>
+                                <p className="font-bold text-lg">{reservation.orderNumber}</p>
+                            </div>
+                           {reservation.status === 'confirmed' && (
+                             <div className="text-sm text-center font-mono tracking-widest bg-primary/10 p-2 rounded-lg text-primary">
+                                <p className="text-xs text-primary/80">Cód. Check-in</p>
+                                <p className="font-bold text-lg">{reservation.checkinCode}</p>
+                            </div>
+                           )}
                         </div>
                     )}
                  </div>

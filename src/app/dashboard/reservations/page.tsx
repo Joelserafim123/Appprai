@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit, Receipt, Search } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit, Receipt, Search, ShieldQuestion } from 'lucide-react';
 import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -53,6 +53,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [inputCode, setInputCode] = useState('');
     
     const isCheckinExpired = useMemo(() => {
         if (!reservation.reservationTime) return false;
@@ -68,6 +69,11 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     const handleConfirmCheckIn = () => {
         if (!firestore) return;
         
+        if (inputCode !== reservation.checkinCode) {
+            toast({ variant: 'destructive', title: 'Código de Check-in Inválido' });
+            return;
+        }
+
         setIsSubmitting(true);
         const docRef = doc(firestore, 'reservations', reservation.id);
         const updates = {
@@ -116,13 +122,27 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Confirmar Check-in</DialogTitle>
+                 <DialogDescription>
+                    Peça ao cliente o código de 4 dígitos para confirmar o check-in.
+                </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-                <p>Você confirma a chegada do cliente <span className='font-bold'>{reservation.userName}</span> (Pedido Nº {reservation.orderNumber})?</p>
+                <p>Confirmando a chegada de <span className='font-bold'>{reservation.userName}</span> (Pedido Nº {reservation.orderNumber})?</p>
+                 <div className="space-y-2">
+                    <Label htmlFor="checkin-code">Código de Check-in (4 dígitos)</Label>
+                    <Input
+                        id="checkin-code"
+                        value={inputCode}
+                        onChange={(e) => setInputCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        maxLength={4}
+                        className="text-center text-lg tracking-[0.5em]"
+                        placeholder="••••"
+                    />
+                </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
-                <Button onClick={handleConfirmCheckIn} disabled={isSubmitting}>
+                <Button onClick={handleConfirmCheckIn} disabled={isSubmitting || inputCode.length !== 4}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Sim, Fazer Check-in'}
                 </Button>
             </DialogFooter>
