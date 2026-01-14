@@ -49,6 +49,12 @@ const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: str
   'cancelled': { text: 'Cancelado', color: 'text-red-600' },
 }
 
+const paymentMethodLabels: Record<PaymentMethod, string> = {
+    card: 'Cartão',
+    cash: 'Dinheiro',
+    pix: 'PIX'
+}
+
 function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { firestore } = useFirebase();
     const { toast } = useToast();
@@ -512,13 +518,9 @@ export default function OwnerReservationsPage() {
                                     </Button>
                                 </div>
                             )}
-                             {reservation.status === 'completed' && (
-                                <div className="w-full">
-                                    <Button asChild size="sm" variant="secondary" className="w-full">
-                                        <Link href={`/dashboard/receipt/${reservation.id}`}>
-                                            <Download className="mr-2 h-4 w-4" /> Baixar Comprovante
-                                        </Link>
-                                    </Button>
+                             {reservation.status === 'completed' && reservation.paymentMethod && (
+                                <div className="text-sm text-center w-full bg-green-50 text-green-700 p-2 rounded-md">
+                                    Pago com <span className="font-semibold">{paymentMethodLabels[reservation.paymentMethod]}</span>
                                 </div>
                             )}
                         </CardFooter>
@@ -551,3 +553,4 @@ export default function OwnerReservationsPage() {
     
 
     
+
