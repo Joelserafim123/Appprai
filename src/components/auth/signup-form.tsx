@@ -83,7 +83,6 @@ export function SignUpForm() {
           displayName: user.displayName,
           email: user.email,
           photoURL: user.photoURL,
-          role: 'customer'
         });
       }
       

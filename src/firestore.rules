@@ -27,10 +27,7 @@ service cloud.firestore {
       
       // Allow user to create their own document with basic fields.
       allow create: if request.auth != null 
-                    && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.email is string
-                    && request.resource.data.displayName is string
-                    && request.resource.data.role in ['customer', 'owner'];
+                    && request.resource.data.uid == request.auth.uid;
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.

@@ -216,32 +216,24 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
 
   useEffect(() => {
-    if (map && tents.length > 0) {
-      const bounds = new window.google.maps.LatLngBounds();
-      tents.forEach(tent => {
-        if (tent.location?.latitude && tent.location?.longitude) {
-          bounds.extend(new window.google.maps.LatLng(tent.location.latitude, tent.location.longitude));
+    if (isLoaded && !map) return;
+    handleGetCurrentLocation();
+  }, [isLoaded, map, handleGetCurrentLocation]);
+
+  useEffect(() => {
+    if (map && tents.length > 0 && !isLocating) {
+        const bounds = new window.google.maps.LatLngBounds();
+        sortedTents.forEach(tent => {
+            if (tent.location?.latitude && tent.location?.longitude) {
+            bounds.extend(new window.google.maps.LatLng(tent.location.latitude, tent.location.longitude));
+            }
+        });
+
+        if (!bounds.isEmpty()) {
+            map.fitBounds(bounds, 100); // 100px padding
         }
-      });
-      if (bounds.isEmpty()) {
-        map.setCenter(defaultCenter);
-        map.setZoom(12);
-      } else {
-          const listener = window.google.maps.event.addListenerOnce(map, 'idle', () => {
-             if (map.getZoom()! > 16) map.setZoom(16);
-              if (tents.length > 1) {
-                map.fitBounds(bounds);
-              } else {
-                map.setCenter(bounds.getCenter());
-              }
-             window.google.maps.event.removeListener(listener);
-          });
-      }
-    } else if (map) {
-        // Se não houver barracas, centralize na localização do usuário ou padrão
-        handleGetCurrentLocation();
     }
-  }, [map, tents, handleGetCurrentLocation]);
+  }, [map, tents, isLocating, sortedTents]);
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
@@ -315,7 +307,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={mapCenter}
-        zoom={15}
+        zoom={12}
         options={mapOptions}
         onLoad={onMapLoad}
         onDragEnd={onCenterChanged}

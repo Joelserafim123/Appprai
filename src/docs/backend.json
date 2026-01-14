@@ -19,7 +19,7 @@
         "photoURL": { "type": "string", "format": "uri", "description": "URL pública da foto de perfil do usuário no Firebase Storage." },
         "role": { "type": "string", "enum": ["customer", "owner"], "description": "Função do usuário (cliente ou dono)." }
       },
-      "required": ["uid", "email", "role", "displayName"]
+      "required": ["uid", "email", "displayName"]
     },
     "Tent": {
       "title": "Tent",
@@ -164,7 +164,8 @@
     }
   },
   "auth": {
-    "providers": ["password", "google"]
+    "providers": ["password", "google"],
+    "authDomain": "cadastro-3c63f.firebaseapp.com"
   },
   "firestore": {
     "/users/{userId}": {

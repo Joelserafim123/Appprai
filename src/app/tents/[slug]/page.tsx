@@ -219,29 +219,45 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const isCartEmpty = Object.keys(cart).length === 0;
 
   const handleCreateReservation = async () => {
-    if (!user || !firestore || !hasRentalKitInCart || !reservationTime) {
-      if(!user) {
+    if (!user) {
         toast({
-          variant: "destructive",
-          title: "Login Necessário",
-          description: "Você precisa estar logado para fazer um pedido.",
+            variant: "destructive",
+            title: "Login Necessário",
+            description: "Você precisa estar logado para fazer um pedido.",
         });
         router.push(`/login?redirect=/tents/${tent.slug}`);
-      } else if (!hasRentalKitInCart) {
-         toast({
-          variant: "destructive",
-          title: "Aluguel Obrigatório",
-          description: "Você precisa alugar um 'Kit Guarda-sol + 2 Cadeiras' para fazer uma reserva.",
-        });
-      } else if (!reservationTime) {
+        return;
+    }
+    
+    if (activeReservation) {
         toast({
-          variant: "destructive",
-          title: "Horário Obrigatório",
-          description: "Por favor, selecione um horário para a sua reserva.",
+            variant: "destructive",
+            title: "Reserva Ativa Encontrada",
+            description: "Você já possui uma reserva ativa. Finalize-a antes de criar uma nova.",
         });
-      }
-      return;
-    };
+        router.push('/dashboard/my-reservations');
+        return;
+    }
+
+    if (!hasRentalKitInCart) {
+        toast({
+            variant: "destructive",
+            title: "Aluguel Obrigatório",
+            description: "Você precisa alugar um 'Kit Guarda-sol + 2 Cadeiras' para fazer uma reserva.",
+        });
+        return;
+    }
+    
+    if (!reservationTime) {
+        toast({
+            variant: "destructive",
+            title: "Horário Obrigatório",
+            description: "Por favor, selecione um horário para a sua reserva.",
+        });
+        return;
+    }
+    
+    if (!firestore) return;
     
     setIsSubmitting(true);
 
