@@ -46,10 +46,13 @@ service cloud.firestore {
       // Anyone can read tent information.
       allow read: if true;
 
-      // Allow tent owner to create or update their own tent document.
-      // The document ID must match the owner's UID.
-      allow create, update: if request.auth != null && request.auth.uid == tentId
+      // Allow a user to create a tent document.
+      allow create: if request.auth != null 
           && request.resource.data.ownerId == request.auth.uid;
+      
+      // Allow tent owner to update their own tent document.
+      allow update: if request.auth != null 
+          && resource.data.ownerId == request.auth.uid;
 
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
@@ -102,7 +105,37 @@ service cloud.firestore {
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
     }
+    
+    //--------------------------------
+    // Chats & Messages
+    //--------------------------------
+    match /chats/{chatId} {
+        // A user can read a chat if they are the customer or the tent owner.
+        allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+
+        // A user can list chats if the query filters by their user ID or their tent owner ID.
+        allow list: if request.auth != null && 
+                      (request.query.filters.userId == request.auth.uid || 
+                       request.query.filters.tentOwnerId == request.auth.uid);
+        
+        // Chat creation is handled by a backend function (or a more specific rule if needed).
+        allow create: if request.auth != null; // Be more specific in production
+        
+        // Only participants can update the last message details.
+        allow update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+        
+        allow delete: if false;
+        
+        match /messages/{messageId} {
+            // Anyone in the chat can read messages.
+            allow read: if request.auth != null && (get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid || get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid);
+            
+            // Only authenticated users who are part of the chat can create messages.
+            allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid &&
+                          (get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid || get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid);
+
+            allow update, delete: if false;
+        }
+    }
   }
 }
-
-    

@@ -125,7 +125,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
 
-    const docRef = doc(firestore, 'tents', user.uid); // Usar UID do usuário como ID do documento
+    const docRef = doc(firestore, 'tents', user.uid); 
 
     const tentData = {
       ...data,
@@ -134,6 +134,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       slug: generateSlug(data.name),
       hasAvailableKits: existingTent?.hasAvailableKits || false,
     };
+    
+    const operation = existingTent ? 'update' : 'create';
 
     setDoc(docRef, tentData, { merge: true })
       .then(() => {
@@ -146,10 +148,13 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       .catch((e) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
-          operation: existingTent ? 'update' : 'create',
+          operation: operation,
           requestResourceData: tentData,
         });
         errorEmitter.emit('permission-error', permissionError);
+        
+        // Throwing the error here will be caught by the global error boundary,
+        // which is what we want for permission errors.
         throw e;
       })
       .finally(() => {
@@ -334,5 +339,3 @@ export default function MyTentPage() {
   );
 
 }
-
-    
