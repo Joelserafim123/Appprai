@@ -27,10 +27,7 @@ service cloud.firestore {
       
       // Allow user to create their own document with basic fields.
       allow create: if request.auth != null 
-                    && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.email is string
-                    && request.resource.data.displayName is string
-                    && request.resource.data.role in ['customer', 'owner'];
+                    && request.resource.data.uid == request.auth.uid;
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
@@ -48,9 +45,9 @@ service cloud.firestore {
     match /tents/{tentId} {
       // Anyone can read tent information.
       allow read: if true;
-      // The tent owner is the only one who can modify the tent.
-      // Now we enforce one tent per owner by making the doc id the owner's uid.
-      allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
+      // Allow creation if the ownerId in the data is the authenticated user.
+      // Allow update if the user is the owner.
+      allow create, update: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
@@ -102,31 +99,5 @@ service cloud.firestore {
       allow delete: if false;
     }
     
-    //--------------------------------
-    // Chats & Messages
-    //--------------------------------
-    match /chats/{chatId} {
-      // Allow read/update if user is the customer or the tent owner.
-      allow read, update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
-      // Allow create if the user is the one initiating the chat.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      // Allow listing chats if the query filters by the user's ID (as either customer or owner)
-      allow list: if request.auth != null && (request.query.where.field == "userId" && request.query.where.value == request.auth.uid || request.query.where.field == "tentOwnerId" && request.query.where.value == request.auth.uid);
-    }
-    
-    match /chats/{chatId}/messages/{messageId} {
-      // Allow read if user is part of the parent chat.
-      allow read: if request.auth != null && (
-        get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
-        get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
-      );
-      // Allow create if user is part of the parent chat.
-      allow create: if request.auth != null && (
-        get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
-        get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
-      );
-      // Disallow updates and deletes for message integrity.
-      allow update, delete: if false;
-    }
   }
 }

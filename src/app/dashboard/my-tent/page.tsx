@@ -125,6 +125,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
     
+    // O ID do documento da barraca agora é o UID do dono.
     const docRef = doc(firestore, 'tents', user.uid);
     
     const tentData = {
@@ -132,6 +133,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       ownerId: user.uid,
       ownerName: user.displayName,
       slug: generateSlug(data.name),
+      // Garantir que hasAvailableKits exista, mesmo que seja a primeira vez.
+      hasAvailableKits: existingTent?.hasAvailableKits || false
     };
 
     setDoc(docRef, tentData, { merge: true }).then(() => {
@@ -263,6 +266,7 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
+        // O ID do documento da barraca é o UID do usuário.
         const docRef = doc(firestore, 'tents', user.uid);
         const docSnap = await getDoc(docRef);
         
