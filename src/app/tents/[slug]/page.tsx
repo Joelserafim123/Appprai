@@ -143,7 +143,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const handleStartChat = async () => {
     toast({
         title: "Funcionalidade em Construção",
-        description: "O chat de conversa ainda não está pronto. Volte em breve!",
+        description: "O chat de conversa ainda não está pronto.",
     });
   };
 
