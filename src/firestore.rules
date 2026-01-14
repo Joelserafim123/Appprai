@@ -22,11 +22,13 @@ service cloud.firestore {
     function isCheckinWithinTolerance(reservationTimeStr) {
       let now = request.time;
       let todayStr = now.date().toString().split('T')[0]; // "YYYY-MM-DD"
+      // Combina a data de hoje com a hora da reserva para criar um timestamp completo
       let reservationTimestamp = timestamp.value(todayStr + 'T' + reservationTimeStr + ':00Z');
-      let tolerance = now - duration.value(15, 'm');
+      // Calcula o horário limite, que é o horário da reserva mais 15 minutos.
+      let deadline = reservationTimestamp + duration.value(15, 'm');
       
-      // Check-in must happen AFTER the reservation time, but no later than 15 minutes after.
-      return now >= reservationTimestamp && tolerance <= reservationTimestamp;
+      // O check-in é válido se o tempo atual for ANTES do horário limite.
+      return now < deadline;
     }
 
     //--------------------------------
