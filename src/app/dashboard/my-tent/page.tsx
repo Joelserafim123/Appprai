@@ -125,44 +125,62 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
 
-    const docRef = doc(firestore, 'tents', user.uid); 
-    
-    // Combine os dados existentes (para preservar ownerId, slug, etc.) com os novos dados do formulário.
-    const tentData = {
-      ...(existingTent || {}), // Preserva campos existentes
-      ...data,                 // Sobrescreve com os novos dados do formulário
-      ownerId: user.uid,
-      ownerName: user.displayName,
-      slug: generateSlug(data.name),
-      hasAvailableKits: existingTent?.hasAvailableKits ?? false,
-    };
-    
-    const operation = existingTent ? 'update' : 'create';
+    const docRef = doc(firestore, 'tents', user.uid);
+    const slug = generateSlug(data.name);
 
-    // Use setDoc com merge: true para criar ou atualizar o documento.
-    setDoc(docRef, tentData, { merge: true })
-      .then(() => {
+    try {
+      if (existingTent) {
+        // Update existing tent
+        const updateData = {
+          ...data,
+          slug: slug, // Update slug in case name changed
+        };
+        await updateDoc(docRef, updateData).catch((e) => {
+           errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'update',
+                requestResourceData: updateData
+            }));
+            throw e;
+        });
         toast({
-          title: existingTent ? 'Barraca atualizada!' : 'Barraca cadastrada!',
-          description: existingTent ? 'Suas informações foram salvas.' : 'Sua barraca agora está visível no mapa.',
+          title: 'Barraca atualizada!',
+          description: 'Suas informações foram salvas.',
         });
-        onFinished();
-      })
-      .catch((e) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: operation,
-          requestResourceData: tentData,
+      } else {
+        // Create new tent
+        const newTentData = {
+          ...data,
+          slug: slug,
+          ownerId: user.uid,
+          ownerName: user.displayName,
+          hasAvailableKits: false, // Default value on creation
+        };
+        await setDoc(docRef, newTentData).catch((e) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'create',
+                requestResourceData: newTentData
+            }));
+            throw e;
         });
-        errorEmitter.emit('permission-error', permissionError);
-        
-        // Throwing the error here will be caught by the global error boundary,
-        // which is what we want for permission errors.
-        throw e;
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-      });
+        toast({
+          title: 'Barraca cadastrada!',
+          description: 'Sua barraca agora está visível no mapa.',
+        });
+      }
+      onFinished();
+    } catch (e: any) {
+        if (e.name !== 'FirebaseError') { // Don't show toast for permission errors handled globally
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao salvar',
+                description: 'Não foi possível salvar as informações da barraca. Tente novamente.'
+            });
+        }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -342,5 +360,3 @@ export default function MyTentPage() {
   );
 
 }
-
-    
