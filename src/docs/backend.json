@@ -16,9 +16,10 @@
         "neighborhood": { "type": "string", "description": "Bairro do usuário." },
         "city": { "type": "string", "description": "Cidade do usuário." },
         "state": { "type": "string", "description": "Estado do usuário." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL da foto de perfil do usuário." },
         "role": { "type": "string", "enum": ["customer", "owner"], "description": "Função do usuário (cliente ou dono)." }
       },
-      "required": ["uid", "email", "displayName"]
+      "required": ["uid", "email", "displayName", "role"]
     },
     "Tent": {
       "title": "Tent",
@@ -130,9 +131,38 @@
         "orderNumber": { "type": "string", "description": "Número do pedido de 6 dígitos para identificação." },
         "checkinCode": { "type": "string", "description": "Código de 4 dígitos para confirmação do check-in." },
         "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"], "description": "Status geral da reserva." },
-        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "Método de pagamento." }
+        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "Método de pagamento." },
+        "tableNumber": { "type": "number", "description": "Número da mesa atribuída pelo dono." }
       },
       "required": ["userId", "userName", "tentId", "tentOwnerId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status", "orderNumber", "reservationTime", "checkinCode"]
+    },
+    "Chat": {
+        "title": "Chat",
+        "description": "Represents a conversation between a user and a tent owner.",
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "userName": { "type": "string" },
+          "userPhotoURL": { "type": "string", "format": "uri" },
+          "tentId": { "type": "string" },
+          "tentName": { "type": "string" },
+          "tentOwnerId": { "type": "string" },
+          "tentLogoUrl": { "type": "string", "format": "uri" },
+          "lastMessage": { "type": "string" },
+          "lastMessageTimestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["userId", "userName", "tentId", "tentName", "tentOwnerId", "lastMessageTimestamp"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "An individual message within a chat.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text", "timestamp"]
     }
   },
   "auth": {
@@ -159,6 +189,14 @@
     "/reservations/{reservationId}": {
       "schema": { "$ref": "#/entities/Reservation" },
       "description": "Armazena todas as reservas de todos os usuários."
+    },
+     "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Stores metadata for each chat conversation."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Stores the messages for a specific chat."
     }
   }
 }

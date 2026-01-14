@@ -50,7 +50,7 @@ export default function OrderPage() {
 
     const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuQuery);
     
-    if (loadingReservation) {
+    if (loadingReservation || loadingMenu) {
         return (
             <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -72,7 +72,7 @@ export default function OrderPage() {
             <div className="flex h-screen w-full flex-col items-center justify-center gap-4 text-center">
                  <Utensils className="h-12 w-12 text-muted-foreground" />
                 <h1 className="text-2xl font-bold">Não é possível adicionar itens</h1>
-                <p className="text-muted-foreground max-w-sm">Você só pode adicionar itens a um pedido após o dono da barraca ter feito seu check-in. Atualmente, o status do seu pedido é: <span className="font-semibold">{reservation.status}</span>.</p>
+                <p className="text-muted-foreground max-w-sm">Você só pode adicionar itens a um pedido após o dono da barraca ter feito seu check-in. O status atual do seu pedido é: <span className="font-semibold">{reservation.status}</span>.</p>
                  <Button onClick={() => router.back()}>Voltar</Button>
             </div>
         );

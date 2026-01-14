@@ -43,6 +43,7 @@ export interface UserProfile {
     email: string;
     displayName: string;
     role: 'customer' | 'owner';
+    photoURL?: string;
     cpf?: string;
     cep?: string;
     street?: string;
@@ -110,4 +111,5 @@ export interface Reservation {
   checkinCode: string;
   status: ReservationStatus;
   paymentMethod?: PaymentMethod;
+  tableNumber?: number;
 }
