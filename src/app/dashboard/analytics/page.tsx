@@ -15,10 +15,9 @@ import {
   ResponsiveContainer,
   XAxis,
   YAxis,
-  Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { ChartTooltipContent, ChartContainer, ChartConfig } from '@/components/ui/chart';
+import { ChartTooltipContent, ChartContainer, ChartConfig, ChartTooltip } from '@/components/ui/chart';
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
