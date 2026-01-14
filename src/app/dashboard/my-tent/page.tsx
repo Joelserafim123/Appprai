@@ -125,7 +125,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     if (!firestore || !user) return;
     setIsSubmitting(true);
 
-    const docRef = doc(firestore, 'tents', user.uid);
+    const docRef = doc(firestore, 'tents', user.uid); // ALWAYS use user.uid as the document ID
     const slug = generateSlug(data.name);
 
     try {
@@ -133,7 +133,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         // Update existing tent
         const updateData = {
           ...data,
-          slug: slug, // Update slug in case name changed
+          slug: slug,
         };
         await updateDoc(docRef, updateData).catch((e) => {
            errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -171,7 +171,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       }
       onFinished();
     } catch (e: any) {
-        if (e.name !== 'FirebaseError') { // Don't show toast for permission errors handled globally
+        if (e.name !== 'FirebaseError' && e.code !== 'permission-denied') { // Don't show toast for permission errors handled globally
+            console.error("Error saving tent:", e);
             toast({
                 variant: 'destructive',
                 title: 'Erro ao salvar',
@@ -296,7 +297,7 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        const docRef = doc(firestore, 'tents', user.uid); // Usar UID do usuário para buscar
+        const docRef = doc(firestore, 'tents', user.uid); // ALWAYS use user.uid to fetch
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {

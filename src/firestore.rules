@@ -47,12 +47,12 @@ service cloud.firestore {
       allow read: if true;
 
       // Allow a user to create a tent document if the ownerId in the data is them.
-      allow create: if request.auth != null 
-          && request.resource.data.ownerId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       
-      // Allow tent owner to update their own tent document.
+      // Allow tent owner to update their own tent document. The tentId must match the user's UID.
       allow update: if request.auth != null 
-          && resource.data.ownerId == request.auth.uid;
+          && resource.data.ownerId == request.auth.uid
+          && tentId == request.auth.uid;
 
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
