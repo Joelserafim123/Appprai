@@ -92,12 +92,11 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                 onFinished();
             })
             .catch(e => {
-                const permissionError = new FirestorePermissionError({
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: docRef.path,
                     operation: 'update',
                     requestResourceData: updates,
-                });
-                errorEmitter.emit('permission-error', permissionError);
+                }));
                 throw e;
             })
             .finally(() => setIsSubmitting(false));
@@ -178,12 +177,11 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
                 onFinished();
             })
             .catch(e => {
-                const permissionError = new FirestorePermissionError({
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: docRef.path,
                     operation: 'update',
                     requestResourceData: updateData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
+                }));
                 throw e;
             })
             .finally(() => setIsSubmitting(false));
@@ -307,13 +305,12 @@ export default function OwnerReservationsPage() {
       .then(() => {
         toast({ title: 'Reserva Cancelada!' });
       })
-      .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
+      .catch(serverError => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: resDocRef.path,
           operation: 'update',
           requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        }));
         throw serverError;
       });
   };
@@ -321,17 +318,17 @@ export default function OwnerReservationsPage() {
   const handleCloseBill = (reservationId: string) => {
     if (!firestore) return;
     const docRef = doc(firestore, 'reservations', reservationId);
-    updateDoc(docRef, { status: 'payment-pending' })
+    const updateData = { status: 'payment-pending' };
+    updateDoc(docRef, updateData)
     .then(() => {
         toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
     })
     .catch(e => {
-       const permissionError = new FirestorePermissionError({
+       errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
-            requestResourceData: { status: 'payment-pending' },
-        });
-        errorEmitter.emit('permission-error', permissionError);
+            requestResourceData: updateData,
+        }));
         throw e;
     })
   }
@@ -357,13 +354,12 @@ export default function OwnerReservationsPage() {
       .then(() => {
         toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
       })
-      .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
+      .catch(serverError => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: resDocRef.path,
           operation: 'update',
           requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        }));
         throw serverError;
       });
   }
@@ -519,8 +515,8 @@ export default function OwnerReservationsPage() {
                                 </div>
                             )}
                              {reservation.status === 'completed' && reservation.paymentMethod && (
-                                <div className="text-sm text-center w-full bg-green-50 text-green-700 p-2 rounded-md">
-                                    Pago com <span className="font-semibold">{paymentMethodLabels[reservation.paymentMethod]}</span>
+                                <div className="text-sm text-center w-full bg-green-50 text-green-700 p-2 rounded-md font-semibold">
+                                    Pago com {paymentMethodLabels[reservation.paymentMethod]}
                                 </div>
                             )}
                         </CardFooter>
@@ -553,4 +549,5 @@ export default function OwnerReservationsPage() {
     
 
     
+
 
