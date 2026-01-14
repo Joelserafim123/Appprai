@@ -132,13 +132,9 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       if (existingTent) {
         // Update existing tent
         const updateData = {
-          name: data.name,
-          description: data.description,
-          beachName: data.beachName,
-          minimumOrderForFeeWaiver: data.minimumOrderForFeeWaiver,
-          location: data.location,
-          operatingHours: data.operatingHours,
+          ...data,
           slug: slug,
+          hasAvailableKits: existingTent.hasAvailableKits,
         };
         await updateDoc(docRef, updateData).catch((e) => {
            errorEmitter.emit('permission-error', new FirestorePermissionError({

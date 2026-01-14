@@ -52,16 +52,10 @@ service cloud.firestore {
                     && request.resource.data.ownerId == request.auth.uid 
                     && tentId == request.auth.uid;
 
-      // Allow update if the user is the owner. The tentId must also match the user's UID.
-      // Allow updating specific fields.
+      // Allow update if the user is the owner.
       allow update: if request.auth != null 
                     && resource.data.ownerId == request.auth.uid 
-                    && tentId == request.auth.uid
-                    && request.resource.data.keys().hasAll([
-                        'name', 'description', 'beachName', 
-                        'minimumOrderForFeeWaiver', 'location', 
-                        'operatingHours', 'slug'
-                    ]);
+                    && tentId == request.auth.uid;
 
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
