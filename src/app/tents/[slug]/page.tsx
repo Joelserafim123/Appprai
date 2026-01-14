@@ -9,12 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, MessageSquare, AlertTriangle, Clock } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp, setDoc, doc, getDoc, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -500,15 +500,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                 </Button>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-2">
-                                <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
-                                {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
-                                </Button>
-                                <Button size="lg" className="w-full" variant="outline" onClick={handleStartChat}>
-                                    <MessageSquare className="mr-2 h-4 w-4" />
-                                    Iniciar Conversa
-                                </Button>
-                            </div>
+                            <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
+                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
+                            </Button>
                         )}
                     </CardFooter>
                 </Card>

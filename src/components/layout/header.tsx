@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, MessageSquare, List } from 'lucide-react';
+import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List } from 'lucide-react';
 import { useUser } from '@/firebase/provider';
 import { getAuth, signOut } from 'firebase/auth';
 import { useFirebase } from '@/firebase/provider';
@@ -63,12 +63,6 @@ export function Header() {
           <span>Minhas Reservas</span>
         </Link>
       </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link href="/dashboard/chats">
-          <MessageSquare className="mr-2 h-4 w-4" />
-          <span>Conversas</span>
-        </Link>
-      </DropdownMenuItem>
        <DropdownMenuItem asChild>
         <Link href="/dashboard/settings">
             <Settings className="mr-2 h-4 w-4" />
@@ -102,12 +96,6 @@ export function Header() {
         <Link href="/dashboard/rental-items">
           <Armchair className="mr-2 h-4 w-4" />
           <span>Aluguéis</span>
-        </Link>
-      </DropdownMenuItem>
-       <DropdownMenuItem asChild>
-        <Link href="/dashboard/chats">
-          <MessageSquare className="mr-2 h-4 w-4" />
-          <span>Conversas</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
@@ -149,7 +137,7 @@ export function Header() {
                      <Avatar className="h-8 w-8">
                         <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
                         <AvatarFallback>
-                            <UserIcon className="h-4 w-4" />
+                            {getInitials(user.displayName)}
                         </AvatarFallback>
                     </Avatar>
                     <span className="sr-only">Abrir menu do usuário</span>

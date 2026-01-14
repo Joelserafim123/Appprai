@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, User as UserIcon, Info, Upload } from 'lucide-react';
+import { Loader2, User as UserIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -12,14 +12,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase, uploadFile } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -29,7 +28,6 @@ const profileSchema = z.object({
   neighborhood: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  photo: z.any().optional(),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
 });
 
@@ -38,11 +36,11 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore, storage } = useFirebase();
+  const { firebaseApp, firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
@@ -55,13 +53,6 @@ export default function SettingsPage() {
           cpf: user?.cpf || '',
       }
   });
-
-  const photoFile = watch("photo")?.[0];
-  const photoPreview = useMemo(() => {
-    if (photoFile) return URL.createObjectURL(photoFile);
-    return user?.photoURL;
-  }, [photoFile, user?.photoURL]);
-
 
   useEffect(() => {
     if (user) {
@@ -118,7 +109,7 @@ export default function SettingsPage() {
   
   
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firestore || !firebaseApp || !storage) return;
+    if (!user || !firestore || !firebaseApp) return;
     setIsSubmitting(true);
   
     try {
@@ -126,17 +117,8 @@ export default function SettingsPage() {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Usuário não autenticado.");
       
-      let photoURL = user.photoURL;
-      const file = data.photo?.[0];
-
-      if (file) {
-        const { downloadURL } = await uploadFile(storage, file, `users/${user.uid}`);
-        photoURL = downloadURL;
-      }
-  
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
-        photoURL: photoURL,
       };
 
       if (data.cep) firestoreData.cep = data.cep;
@@ -158,16 +140,8 @@ export default function SettingsPage() {
         throw e;
       });
   
-      const authProfileUpdate: { displayName?: string, photoURL?: string } = {};
       if (currentUser.displayName !== data.displayName) {
-        authProfileUpdate.displayName = data.displayName;
-      }
-      if (photoURL && currentUser.photoURL !== photoURL) {
-        authProfileUpdate.photoURL = photoURL;
-      }
-      
-      if (Object.keys(authProfileUpdate).length > 0) {
-        await updateProfile(currentUser, authProfileUpdate);
+        await updateProfile(currentUser, { displayName: data.displayName });
       }
   
       toast({
@@ -220,18 +194,12 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
-                <div className="group relative">
-                    <Avatar className="h-24 w-24">
-                        <AvatarImage src={photoPreview ?? ''} alt={user.displayName || "User"} />
-                        <AvatarFallback className="text-3xl">
-                            <UserIcon className="h-12 w-12 text-muted-foreground" />
-                        </AvatarFallback>
-                    </Avatar>
-                     <label htmlFor="photo" className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-                        <Upload className="h-6 w-6 text-white" />
-                    </label>
-                    <Input id="photo" type="file" className="hidden" accept="image/*" {...register('photo')} />
-                </div>
+                <Avatar className="h-24 w-24">
+                    <AvatarImage src={user.photoURL ?? ''} alt={user.displayName || "User"} />
+                    <AvatarFallback className="text-3xl">
+                        {getInitials(user.displayName)}
+                    </AvatarFallback>
+                </Avatar>
 
                 <div className="space-y-2">
                     <p className="text-lg font-semibold">{user.displayName?.split(' ')[0]}</p>

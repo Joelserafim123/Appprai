@@ -82,7 +82,7 @@ export function SignUpForm() {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
-          photoURL: user.photoURL,
+          role: 'customer'
         });
       }
       
@@ -122,12 +122,11 @@ export function SignUpForm() {
 
       await sendEmailVerification(user);
 
-      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
+      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'photoURL'> = {
         uid: user.uid,
         email: values.email,
         displayName: values.displayName,
         role: values.role,
-        photoURL: user.photoURL || '',
       };
       
       const userDocRef = doc(firestore, "users", user.uid);
