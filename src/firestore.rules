@@ -111,8 +111,7 @@ service cloud.firestore {
       // Allow create if the user is the one initiating the chat.
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
       // Allow listing chats if the query filters by the user's ID (as either customer or owner)
-      allow list: if request.auth != null && 
-                  (request.query.where.userId == request.auth.uid || request.query.where.tentOwnerId == request.auth.uid);
+      allow list: if request.auth != null && (request.query.where.userId == request.auth.uid || request.query.where.tentOwnerId == request.auth.uid);
     }
     
     match /chats/{chatId}/messages/{messageId} {
