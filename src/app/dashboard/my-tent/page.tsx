@@ -132,7 +132,12 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       if (existingTent) {
         // Update existing tent
         const updateData = {
-          ...data,
+          name: data.name,
+          description: data.description,
+          beachName: data.beachName,
+          minimumOrderForFeeWaiver: data.minimumOrderForFeeWaiver,
+          location: data.location,
+          operatingHours: data.operatingHours,
           slug: slug,
         };
         await updateDoc(docRef, updateData).catch((e) => {

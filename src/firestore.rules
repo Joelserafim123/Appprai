@@ -47,9 +47,21 @@ service cloud.firestore {
       allow read: if true;
 
       // Allow creation if the ownerId in the data is the authenticated user.
+      // The tentId must also match the user's UID.
+      allow create: if request.auth != null 
+                    && request.resource.data.ownerId == request.auth.uid 
+                    && tentId == request.auth.uid;
+
       // Allow update if the user is the owner. The tentId must also match the user's UID.
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.ownerId == request.auth.uid && tentId == request.auth.uid;
+      // Allow updating specific fields.
+      allow update: if request.auth != null 
+                    && resource.data.ownerId == request.auth.uid 
+                    && tentId == request.auth.uid
+                    && request.resource.data.keys().hasAll([
+                        'name', 'description', 'beachName', 
+                        'minimumOrderForFeeWaiver', 'location', 
+                        'operatingHours', 'slug'
+                    ]);
 
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
