@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, User, X, Hourglass, MapPin, Check, QrCode, Receipt, ShieldQuestion, Download } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, User, X, Hourglass, MapPin, Check } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -80,14 +80,16 @@ export default function MyReservationsPage() {
   const handleCloseBill = (reservationId: string) => {
     if (!firestore) return;
     const docRef = doc(firestore, 'reservations', reservationId);
-    updateDoc(docRef, { status: 'payment-pending' })
+    const updateData = { status: 'payment-pending' };
+    updateDoc(docRef, updateData)
     .catch(e => {
-       const permissionError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
-            requestResourceData: { status: 'payment-pending' },
-        });
-        errorEmitter.emit('permission-error', permissionError);
+            requestResourceData: updateData,
+        }));
+        // We re-throw the original error if we don't want to swallow it.
+        // The global listener will catch the emitted one.
         throw e;
     })
   }
@@ -95,13 +97,13 @@ export default function MyReservationsPage() {
   const handleCancelReservation = (reservationId: string) => {
     if (!firestore) return;
     const resDocRef = doc(firestore, 'reservations', reservationId);
-    updateDoc(resDocRef, { status: 'cancelled' }).catch(err => {
-        const permissionError = new FirestorePermissionError({
+    const updateData = { status: 'cancelled' };
+    updateDoc(resDocRef, updateData).catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: resDocRef.path,
             operation: 'update',
-            requestResourceData: { status: 'cancelled' }
-        });
-        errorEmitter.emit('permission-error', permissionError);
+            requestResourceData: updateData
+        }));
         throw err;
     });
   }
