@@ -121,69 +121,72 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     }
   }
 
-  const onSubmit = async (data: TentFormData) => {
+  const onSubmit = (data: TentFormData) => {
     if (!firestore || !user) return;
     setIsSubmitting(true);
 
-    const docRef = doc(firestore, 'tents', user.uid); // ALWAYS use user.uid as the document ID
+    const docRef = doc(firestore, 'tents', user.uid);
     const slug = generateSlug(data.name);
 
-    try {
-      if (existingTent) {
-        // Update existing tent
-        const updateData = {
-          ...data,
-          slug: slug,
-          hasAvailableKits: existingTent.hasAvailableKits,
-        };
-        await updateDoc(docRef, updateData).catch((e) => {
-           errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'update',
-                requestResourceData: updateData
-            }));
-            throw e;
+    if (existingTent) {
+      // Update existing tent
+      const updateData = {
+        ...data,
+        slug: slug,
+        hasAvailableKits: existingTent.hasAvailableKits,
+        operatingHours: data.operatingHours,
+      };
+      updateDoc(docRef, updateData)
+        .then(() => {
+          toast({
+            title: 'Barraca atualizada!',
+            description: 'Suas informações foram salvas.',
+          });
+          onFinished();
+        })
+        .catch((e) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: updateData,
+          }));
+          throw e;
+        })
+        .finally(() => {
+          setIsSubmitting(false);
         });
-        toast({
-          title: 'Barraca atualizada!',
-          description: 'Suas informações foram salvas.',
+    } else {
+      // Create new tent
+      const newTentData = {
+        ...data,
+        slug: slug,
+        ownerId: user.uid,
+        ownerName: user.displayName,
+        hasAvailableKits: false,
+        operatingHours: data.operatingHours,
+      };
+      setDoc(docRef, newTentData)
+        .then(() => {
+          toast({
+            title: 'Barraca cadastrada!',
+            description: 'Sua barraca agora está visível no mapa.',
+          });
+          onFinished();
+        })
+        .catch((e) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'create',
+            requestResourceData: newTentData,
+          }));
+          throw e;
+        })
+        .finally(() => {
+          setIsSubmitting(false);
         });
-      } else {
-        // Create new tent
-        const newTentData = {
-          ...data,
-          slug: slug,
-          ownerId: user.uid,
-          ownerName: user.displayName,
-          hasAvailableKits: false, // Default value on creation
-        };
-        await setDoc(docRef, newTentData).catch((e) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: docRef.path,
-                operation: 'create',
-                requestResourceData: newTentData
-            }));
-            throw e;
-        });
-        toast({
-          title: 'Barraca cadastrada!',
-          description: 'Sua barraca agora está visível no mapa.',
-        });
-      }
-      onFinished();
-    } catch (e: any) {
-        if (e.name !== 'FirebaseError' && e.code !== 'permission-denied') { // Don't show toast for permission errors handled globally
-            console.error("Error saving tent:", e);
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao salvar',
-                description: 'Não foi possível salvar as informações da barraca. Tente novamente.'
-            });
-        }
-    } finally {
-      setIsSubmitting(false);
     }
   };
+
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -362,3 +365,5 @@ export default function MyTentPage() {
   );
 
 }
+
+    
