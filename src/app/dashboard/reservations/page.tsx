@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, QrCode } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, QrCode, Edit } from 'lucide-react';
 import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -470,9 +471,16 @@ export default function OwnerReservationsPage() {
                                 </div>
                             )}
                             {reservation.status === 'checked-in' && (
-                                <Button size="sm" className="w-full" onClick={() => setReservationForPayment(reservation)}>
-                                    <CreditCard className="mr-2 h-4 w-4" /> Receber Pagamento
-                                </Button>
+                                <div className="grid grid-cols-2 gap-2 w-full">
+                                    <Button asChild size="sm">
+                                        <Link href={`/dashboard/owner-order/${reservation.id}`}>
+                                            <Edit className="mr-2 h-4 w-4" /> Gerenciar Pedido
+                                        </Link>
+                                    </Button>
+                                    <Button size="sm" variant="secondary" onClick={() => setReservationForPayment(reservation)}>
+                                        <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta
+                                    </Button>
+                                </div>
                             )}
                             {reservation.status === 'payment-pending' && (
                                 <div className="grid grid-cols-2 gap-2 w-full">
@@ -508,5 +516,7 @@ export default function OwnerReservationsPage() {
     </Dialog>
   );
 }
+
+    
 
     
