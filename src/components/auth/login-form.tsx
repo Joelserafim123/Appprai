@@ -195,7 +195,7 @@ export function LoginForm() {
           displayName: user.displayName,
           email: user.email,
           photoURL: user.photoURL,
-          role: 'customer', // Default role
+          role: 'customer' // Default role
         });
       }
       
