@@ -148,9 +148,6 @@ export default function MyReservationsPage() {
                             <p className="font-bold text-lg">{reservation.checkinCode}</p>
                         </div>
                     )}
-                    {reservation.status === 'checked-in' && reservation.tableNumber && (
-                        <p className="text-sm mt-2 font-semibold flex items-center justify-end gap-2"><Scan className="w-4 h-4"/> Mesa {reservation.tableNumber}</p>
-                    )}
                  </div>
               </CardHeader>
               <CardContent>

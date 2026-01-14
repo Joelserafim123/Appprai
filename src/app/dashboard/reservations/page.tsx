@@ -52,7 +52,6 @@ const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: str
 function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { firestore } = useFirebase();
     const { toast } = useToast();
-    const [tableNumber, setTableNumber] = useState<string>('');
     const [checkinCode, setCheckinCode] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -68,8 +67,8 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     }, [reservation.reservationTime, reservation.createdAt]);
 
     const handleConfirmCheckIn = () => {
-        if (!firestore || !tableNumber || !checkinCode) {
-            toast({ variant: 'destructive', title: 'Campos obrigatórios', description: 'Por favor, insira o número da mesa e o código de check-in.' });
+        if (!firestore || !checkinCode) {
+            toast({ variant: 'destructive', title: 'Código obrigatório', description: 'Por favor, insira o código de check-in.' });
             return;
         }
 
@@ -82,7 +81,6 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
         const docRef = doc(firestore, 'reservations', reservation.id);
         const updates = {
             status: 'checked-in' as ReservationStatus,
-            tableNumber: parseInt(tableNumber, 10)
         };
 
         updateDoc(docRef, updates)
@@ -129,7 +127,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                 <DialogTitle>Fazer Check-in</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-                <p>Insira as informações para o check-in do cliente <span className='font-bold'>{reservation.userName}</span>.</p>
+                <p>Insira o código de check-in do cliente <span className='font-bold'>{reservation.userName}</span> para confirmar a chegada.</p>
                 <div className="space-y-2">
                     <Label htmlFor="checkinCode">Código de Check-in do Cliente</Label>
                     <Input 
@@ -141,21 +139,10 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                         disabled={isSubmitting}
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="tableNumber">Número da Mesa</Label>
-                    <Input 
-                        id="tableNumber" 
-                        type="number" 
-                        value={tableNumber} 
-                        onChange={(e) => setTableNumber(e.target.value)} 
-                        placeholder="Ex: 15"
-                        disabled={isSubmitting}
-                    />
-                </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
-                <Button onClick={handleConfirmCheckIn} disabled={!tableNumber || !checkinCode || isSubmitting}>
+                <Button onClick={handleConfirmCheckIn} disabled={!checkinCode || isSubmitting}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar Check-in'}
                 </Button>
             </DialogFooter>
@@ -405,9 +392,6 @@ export default function OwnerReservationsPage() {
                                 day: '2-digit', month: 'long', year: 'numeric',
                                 })} às {reservation.reservationTime}
                                 </p>
-                                {reservation.tableNumber && (
-                                <p className="font-semibold flex items-center gap-2 pt-1"><Scan className="w-4 h-4"/> Mesa {reservation.tableNumber}</p>
-                                )}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-1">

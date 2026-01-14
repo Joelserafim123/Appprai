@@ -102,7 +102,6 @@ export interface Reservation {
     latitude: number;
     longitude: number;
   };
-  tableNumber?: number;
   items: ReservationItem[];
   total: number;
   createdAt: Timestamp;
