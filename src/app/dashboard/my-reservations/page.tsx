@@ -12,7 +12,7 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
-import type { Reservation, ReservationStatus, ReservationItemStatus } from '@/lib/types';
+import type { Reservation, ReservationStatus, ReservationItemStatus, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -49,6 +49,13 @@ const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: str
   'confirmed': { text: 'Confirmado', color: 'text-green-600', icon: Check },
   'cancelled': { text: 'Cancelado', color: 'text-red-600', icon: X },
 }
+
+const paymentMethodLabels: Record<PaymentMethod, string> = {
+    card: 'Cartão',
+    cash: 'Dinheiro',
+    pix: 'PIX'
+}
+
 
 export default function MyReservationsPage() {
   const { user, isUserLoading } = useUser();
@@ -194,12 +201,10 @@ export default function MyReservationsPage() {
                       <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
                   </div>
                   <div className='flex gap-2 w-full sm:w-auto justify-end flex-wrap'>
-                      {reservation.status === 'completed' && (
-                          <Button asChild variant="secondary">
-                              <Link href={`/dashboard/receipt/${reservation.id}`}>
-                                  <Download className="mr-2 h-4 w-4"/> Baixar Comprovante
-                              </Link>
-                          </Button>
+                      {reservation.status === 'completed' && reservation.paymentMethod && (
+                          <div className="text-sm text-center w-full bg-green-50 text-green-700 p-2 rounded-md font-semibold">
+                              Pago com {paymentMethodLabels[reservation.paymentMethod]}
+                          </div>
                       )}
                       {reservation.tentLocation && ['confirmed', 'checked-in'].includes(reservation.status) && (
                           <Button asChild variant="outline">

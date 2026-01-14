@@ -110,6 +110,6 @@ export interface Reservation {
   orderNumber: string;
   checkinCode: string;
   status: ReservationStatus;
-  paymentMethod?: PaymentMethod;
+  paymentMethod: PaymentMethod;
   tableNumber?: number;
 }
