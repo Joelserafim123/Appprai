@@ -28,6 +28,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -118,129 +124,145 @@ export default function MyReservationsPage() {
       </header>
 
       {sortedReservations && sortedReservations.length > 0 ? (
-        <div className="space-y-6">
-          {sortedReservations.map((reservation) => (
-            <Card key={reservation.id} className="transition-all hover:shadow-md">
-              <CardHeader className='flex-row justify-between items-start'>
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Tent className="w-5 h-5"/>
-                    {reservation.tentName}
-                  </CardTitle>
-                  <CardDescription className="space-y-1 mt-1">
-                    <p className='flex items-center gap-2 text-xs'><User className="w-3 h-3"/> Por: {reservation.tentOwnerName}</p>
-                    <p>
-                        {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: 'long',
-                        year: 'numeric',
-                        })} às {reservation.reservationTime}
-                    </p>
-                  </CardDescription>
-                </div>
-                 <div className='text-right space-y-2'>
-                     <Badge variant={statusConfig[reservation.status].variant}>
-                        {statusConfig[reservation.status].text}
-                    </Badge>
-                    {['confirmed', 'checked-in'].includes(reservation.status) && (
-                        <div className="flex items-center gap-2 justify-end">
-                            <div className="text-sm text-center font-mono tracking-widest bg-muted p-2 rounded-lg">
-                                <p className="text-xs text-muted-foreground">Nº do Pedido</p>
-                                <p className="font-bold text-lg">{reservation.orderNumber}</p>
-                            </div>
-                           {reservation.status === 'confirmed' && (
-                             <div className="text-sm text-center font-mono tracking-widest bg-primary/10 p-2 rounded-lg text-primary">
-                                <p className="text-xs text-primary/80">Cód. Check-in</p>
-                                <p className="font-bold text-lg">{reservation.checkinCode}</p>
-                            </div>
-                           )}
-                        </div>
-                    )}
-                 </div>
-              </CardHeader>
-              <CardContent>
-                 {reservation.status === 'payment-pending' && (
-                    <div className="mb-4 rounded-lg border border-dashed border-amber-500 bg-amber-50 p-4 text-center">
-                        <Hourglass className="mx-auto h-8 w-8 text-amber-600 mb-2" />
-                        <h4 className="font-semibold text-amber-800">Aguardando Pagamento</h4>
-                        <p className="text-sm text-amber-700">O dono da barraca precisa confirmar o recebimento para finalizar o pedido.</p>
-                    </div>
-                )}
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                    {reservation.items.map((item, index) => {
-                      const StatusIcon = item.status ? itemStatusConfig[item.status]?.icon : null;
-                      return (
-                        <li key={`${item.name}-${index}`} className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                              {StatusIcon && <StatusIcon className={cn("w-3 h-3", item.status ? itemStatusConfig[item.status].color : '')}/>}
-                              <span>{item.quantity}x {item.name}</span>
-                            </div>
-                            <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                        </li>
-                      )
-                    })}
-                </ul>
-              </CardContent>
-              <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                 <div className="text-right w-full sm:w-auto">
-                    <p className="text-sm font-medium text-muted-foreground">Total</p>
-                    <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
-                </div>
-                <div className='flex gap-2 w-full sm:w-auto justify-end flex-wrap'>
-                    {reservation.status === 'completed' && (
-                         <Button asChild variant="secondary">
-                            <Link href={`/dashboard/receipt/${reservation.id}`}>
-                                <Receipt className="mr-2 h-4 w-4"/> Ver Comprovante
-                            </Link>
-                        </Button>
-                    )}
-                    {reservation.tentLocation && ['confirmed', 'checked-in'].includes(reservation.status) && (
-                        <Button asChild variant="outline">
-                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${reservation.tentLocation.latitude},${reservation.tentLocation.longitude}`} target="_blank" rel="noopener noreferrer">
-                                <MapPin className="mr-2 h-4 w-4"/> Como Chegar
-                            </a>
-                        </Button>
-                    )}
-                    {reservation.status === 'checked-in' && (
-                        <>
-                            <Button asChild className='flex-1'>
-                                <Link href={`/dashboard/order/${reservation.id}`}>
-                                    <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
-                                </Link>
-                            </Button>
-                            <Button onClick={() => handleCloseBill(reservation.id)} variant="secondary" className='flex-1'>
-                                <CreditCard className="mr-2 h-4 w-4"/> Fechar Conta
-                            </Button>
-                        </>
-                    )}
-                    {reservation.status === 'confirmed' && (
-                       <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive">
-                              <X className="mr-2 h-4 w-4"/> Cancelar Reserva
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Voltar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleCancelReservation(reservation.id)}>
-                                Sim, cancelar reserva
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                    )}
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+        <TooltipProvider>
+          <div className="space-y-6">
+            {sortedReservations.map((reservation) => (
+              <Card key={reservation.id} className="transition-all hover:shadow-md">
+                <CardHeader className='flex-row justify-between items-start'>
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Tent className="w-5 h-5"/>
+                      {reservation.tentName}
+                    </CardTitle>
+                    <CardDescription className="space-y-1 mt-1">
+                      <p className='flex items-center gap-2 text-xs'><User className="w-3 h-3"/> Por: {reservation.tentOwnerName}</p>
+                      <p>
+                          {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                          })} às {reservation.reservationTime}
+                      </p>
+                    </CardDescription>
+                  </div>
+                  <div className='text-right space-y-2'>
+                      <Badge variant={statusConfig[reservation.status].variant}>
+                          {statusConfig[reservation.status].text}
+                      </Badge>
+                      {['confirmed', 'checked-in'].includes(reservation.status) && (
+                          <div className="flex items-center gap-2 justify-end">
+                              <div className="text-sm text-center font-mono tracking-widest bg-muted p-2 rounded-lg">
+                                  <p className="text-xs text-muted-foreground">Nº do Pedido</p>
+                                  <p className="font-bold text-lg">{reservation.orderNumber}</p>
+                              </div>
+                            {reservation.status === 'confirmed' && (
+                              <div className="text-sm text-center font-mono tracking-widest bg-primary/10 p-2 rounded-lg text-primary">
+                                  <p className="text-xs text-primary/80">Cód. Check-in</p>
+                                  <p className="font-bold text-lg">{reservation.checkinCode}</p>
+                              </div>
+                            )}
+                          </div>
+                      )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {reservation.status === 'payment-pending' && (
+                      <div className="mb-4 rounded-lg border border-dashed border-amber-500 bg-amber-50 p-4 text-center">
+                          <Hourglass className="mx-auto h-8 w-8 text-amber-600 mb-2" />
+                          <h4 className="font-semibold text-amber-800">Aguardando Pagamento</h4>
+                          <p className="text-sm text-amber-700">O dono da barraca precisa confirmar o recebimento para finalizar o pedido.</p>
+                      </div>
+                  )}
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                      {reservation.items.map((item, index) => {
+                        const StatusIcon = item.status ? itemStatusConfig[item.status]?.icon : null;
+                        return (
+                          <li key={`${item.name}-${index}`} className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                {StatusIcon && <StatusIcon className={cn("w-3 h-3", item.status ? itemStatusConfig[item.status].color : '')}/>}
+                                <span>{item.quantity}x {item.name}</span>
+                              </div>
+                              <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                          </li>
+                        )
+                      })}
+                  </ul>
+                </CardContent>
+                <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div className="text-right w-full sm:w-auto">
+                      <p className="text-sm font-medium text-muted-foreground">Total</p>
+                      <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
+                  </div>
+                  <div className='flex gap-2 w-full sm:w-auto justify-end flex-wrap'>
+                      {reservation.status === 'completed' && (
+                          <Button asChild variant="secondary">
+                              <Link href={`/dashboard/receipt/${reservation.id}`}>
+                                  <Receipt className="mr-2 h-4 w-4"/> Ver Comprovante
+                              </Link>
+                          </Button>
+                      )}
+                      {reservation.tentLocation && ['confirmed', 'checked-in'].includes(reservation.status) && (
+                          <Button asChild variant="outline">
+                              <a href={`https://www.google.com/maps/dir/?api=1&destination=${reservation.tentLocation.latitude},${reservation.tentLocation.longitude}`} target="_blank" rel="noopener noreferrer">
+                                  <MapPin className="mr-2 h-4 w-4"/> Como Chegar
+                              </a>
+                          </Button>
+                      )}
+                      {reservation.status === 'checked-in' && (
+                          <>
+                              <Button asChild className='flex-1'>
+                                  <Link href={`/dashboard/order/${reservation.id}`}>
+                                      <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
+                                  </Link>
+                              </Button>
+                              <Button onClick={() => handleCloseBill(reservation.id)} variant="secondary" className='flex-1'>
+                                  <CreditCard className="mr-2 h-4 w-4"/> Fechar Conta
+                              </Button>
+                          </>
+                      )}
+                      {reservation.status === 'confirmed' && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive">
+                                <X className="mr-2 h-4 w-4"/> Cancelar Reserva
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleCancelReservation(reservation.id)}>
+                                  Sim, cancelar reserva
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                      )}
+                      {reservation.status === 'checked-in' && (
+                          <Tooltip>
+                              <TooltipTrigger asChild>
+                                  <div className="cursor-not-allowed">
+                                      <Button variant="destructive" disabled>
+                                          <X className="mr-2 h-4 w-4"/> Cancelar Reserva
+                                      </Button>
+                                  </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>Não é possível cancelar uma reserva após o check-in.</p>
+                              </TooltipContent>
+                          </Tooltip>
+                      )}
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TooltipProvider>
       ) : (
         <div className="text-center py-16 border-2 border-dashed rounded-lg">
             <Star className="mx-auto h-12 w-12 text-muted-foreground" />
