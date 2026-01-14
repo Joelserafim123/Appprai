@@ -1,4 +1,5 @@
 
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface OperatingHoursDay {
@@ -42,7 +43,6 @@ export interface UserProfile {
     email: string;
     displayName: string;
     role: 'customer' | 'owner';
-    photoURL?: string;
     cpf?: string;
     cep?: string;
     street?: string;
@@ -96,6 +96,7 @@ export interface Reservation {
   userName: string;
   tentId: string;
   tentName: string;
+  tentOwnerId: string;
   tentOwnerName: string;
   tentLocation: {
     latitude: number;

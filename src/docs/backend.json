@@ -99,6 +99,7 @@
         "userId": { "type": "string", "description": "O UID do cliente." },
         "userName": { "type": "string", "description": "O nome do cliente." },
         "tentId": { "type": "string", "description": "O ID da barraca." },
+        "tentOwnerId": { "type": "string", "description": "O UID do dono da barraca." },
         "tentName": { "type": "string", "description": "Nome da barraca." },
         "tentOwnerName": { "type": "string", "description": "O nome do dono da barraca." },
         "tentLocation": {
@@ -131,7 +132,7 @@
         "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "Método de pagamento." },
         "tableNumber": { "type": "number", "description": "Número da mesa do cliente." }
       },
-      "required": ["userId", "userName", "tentId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status", "checkinCode", "reservationTime"]
+      "required": ["userId", "userName", "tentId", "tentOwnerId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status", "checkinCode", "reservationTime"]
     }
   },
   "auth": {

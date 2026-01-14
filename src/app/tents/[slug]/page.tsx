@@ -283,6 +283,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
       userId: user.uid,
       userName: user.displayName,
       tentId: tent.id,
+      tentOwnerId: tent.ownerId,
       tentName: tent.name,
       tentOwnerName: tent.ownerName || tent.name,
       tentLocation: tent.location,
