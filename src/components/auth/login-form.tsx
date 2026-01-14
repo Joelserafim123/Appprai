@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { KeyRound, Loader2, User, Mail } from "lucide-react"
+import { KeyRound, Loader2, User, Mail, Smartphone } from "lucide-react"
 import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -33,6 +33,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Separator } from "../ui/separator"
 import { doc, getDoc, setDoc } from "firebase/firestore"
+import { PhoneSignIn } from "./phone-signin"
 
 
 const formSchema = z.object({
@@ -148,6 +149,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [isPhoneSignInOpen, setIsPhoneSignInOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -304,9 +306,19 @@ export function LoginForm() {
             </span>
         </div>
       </div>
-      <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting || isGoogleSubmitting}>
-        {isGoogleSubmitting ? <Loader2 className="animate-spin" /> : <><GoogleIcon className="mr-2" /> Entrar com o Google</>}
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting || isGoogleSubmitting}>
+          {isGoogleSubmitting ? <Loader2 className="animate-spin" /> : <><GoogleIcon className="mr-2" /> Google</>}
+        </Button>
+        <Dialog open={isPhoneSignInOpen} onOpenChange={setIsPhoneSignInOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="w-full" disabled={isSubmitting || isGoogleSubmitting}>
+              <Smartphone className="mr-2" /> Telefone
+            </Button>
+          </DialogTrigger>
+          <PhoneSignIn onAuthSuccess={() => { setIsPhoneSignInOpen(false); handleAuthSuccess(); }} />
+        </Dialog>
+      </div>
       <ForgotPasswordDialog />
     </Dialog>
   )
