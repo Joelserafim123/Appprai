@@ -17,19 +17,6 @@ service cloud.firestore {
           .where("status", "in", ["confirmed", "checked-in", "payment-pending"])
       );
     }
-    
-    // Function to check if the check-in time is within the tolerance period
-    function isCheckinWithinTolerance(reservationTimeStr) {
-      let now = request.time;
-      let todayStr = now.date().toString().split('T')[0]; // "YYYY-MM-DD"
-      // Combina a data de hoje com a hora da reserva para criar um timestamp completo
-      let reservationTimestamp = timestamp.value(todayStr + 'T' + reservationTimeStr + ':00Z');
-      // Calcula o horário limite, que é o horário da reserva mais 15 minutos.
-      let deadline = reservationTimestamp + duration.value(15, 'm');
-      
-      // O check-in é válido se o tempo atual for ANTES do horário limite.
-      return now < deadline;
-    }
 
     //--------------------------------
     // Users
@@ -100,13 +87,7 @@ service cloud.firestore {
       allow update: if request.auth != null && (
         // Case 1: Tent owner can update the reservation.
         (
-          get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid &&
-          (
-            // Owner can do check-in only if within the 15-minute tolerance window.
-            ( request.resource.data.status == 'checked-in' && resource.data.status == 'confirmed' && isCheckinWithinTolerance(resource.data.reservationTime) ) ||
-            // Owner can handle payment status updates and cancellations
-            ( request.resource.data.status != 'checked-in' )
-          )
+          get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
         ) ||
         // Case 2: Customer can update.
         (

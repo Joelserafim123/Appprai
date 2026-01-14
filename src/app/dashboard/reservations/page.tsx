@@ -43,16 +43,6 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     const [checkinCode, setCheckinCode] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const isExpired = useMemo(() => {
-        if (!reservation.reservationTime) return false;
-        const [hours, minutes] = reservation.reservationTime.split(':').map(Number);
-        const now = new Date();
-        const reservationDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
-        const deadline = new Date(reservationDateTime.getTime() + 15 * 60 * 1000); // 15 minutes tolerance
-        return now > deadline;
-    }, [reservation.reservationTime]);
-
-
     const handleConfirmCheckIn = () => {
         if (!firestore || !tableNumber || !checkinCode) {
             toast({ variant: 'destructive', title: 'Campos obrigatórios', description: 'Por favor, insira o número da mesa e o código de check-in.' });
@@ -64,11 +54,6 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
             return;
         }
         
-        if (isExpired) {
-            toast({ variant: 'destructive', title: 'Reserva Expirada', description: 'O tempo de tolerância de 15 minutos foi excedido.' });
-            return;
-        }
-
         setIsSubmitting(true);
         const docRef = doc(firestore, 'reservations', reservation.id);
         const updates = {
@@ -82,15 +67,6 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                 onFinished();
             })
             .catch(e => {
-                let errorMessage = e.message;
-                if (e.code === 'permission-denied') {
-                    if (e.message.includes('expired')) {
-                        errorMessage = 'O tempo de tolerância de 15 minutos para o check-in foi excedido. A reserva não pode mais ser ativada.';
-                    } else {
-                        errorMessage = 'Você não tem permissão para realizar esta ação.'
-                    }
-                }
-                toast({ variant: 'destructive', title: 'Erro no Check-in', description: errorMessage });
                 const permissionError = new FirestorePermissionError({
                     path: docRef.path,
                     operation: 'update',
@@ -108,14 +84,6 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                 <DialogTitle>Fazer Check-in</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-                {isExpired && (
-                    <Alert variant="destructive">
-                        <AlertTitle>Reserva Expirada</AlertTitle>
-                        <AlertDescription>
-                            O tempo de tolerância de 15 minutos foi excedido. O check-in não é mais possível para esta reserva. Você pode cancelá-la para liberar o horário.
-                        </AlertDescription>
-                    </Alert>
-                )}
                 <p>Insira as informações para o check-in do cliente <span className='font-bold'>{reservation.userName}</span>.</p>
                 <div className="space-y-2">
                     <Label htmlFor="checkinCode">Código de Check-in do Cliente</Label>
@@ -125,7 +93,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                         value={checkinCode}
                         onChange={(e) => setCheckinCode(e.target.value)} 
                         placeholder="Ex: 1234"
-                        disabled={isSubmitting || isExpired}
+                        disabled={isSubmitting}
                     />
                 </div>
                 <div className="space-y-2">
@@ -136,13 +104,13 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                         value={tableNumber} 
                         onChange={(e) => setTableNumber(e.target.value)} 
                         placeholder="Ex: 15"
-                        disabled={isSubmitting || isExpired}
+                        disabled={isSubmitting}
                     />
                 </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
-                <Button onClick={handleConfirmCheckIn} disabled={!tableNumber || !checkinCode || isSubmitting || isExpired}>
+                <Button onClick={handleConfirmCheckIn} disabled={!tableNumber || !checkinCode || isSubmitting}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar Check-in'}
                 </Button>
             </DialogFooter>
