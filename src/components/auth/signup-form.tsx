@@ -23,7 +23,7 @@ import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import type { UserProfile } from "@/lib/types"
 import { Separator } from "../ui/separator"
 
@@ -33,7 +33,16 @@ const formSchema = z.object({
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
   password: z.string().min(8, { message: "A senha deve ter pelo menos 8 caracteres." }),
   role: z.enum(["customer", "owner"], { required_error: "Você deve selecionar uma função." }),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
+  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
+  street: z.string().optional(),
+  number: z.string().optional(),
+  neighborhood: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
 })
+
+type SignUpFormData = z.infer<typeof formSchema>;
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -54,15 +63,62 @@ export function SignUpForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<SignUpFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       displayName: "",
       email: "",
       password: "",
       role: "customer",
+      cpf: "",
+      cep: "",
+      street: "",
+      number: "",
+      neighborhood: "",
+      city: "",
+      state: "",
     },
   })
+
+  const { setValue, register } = form;
+
+  const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    value = value.replace(/\D/g, "");
+    if (value.length > 11) value = value.slice(0, 11);
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d)/, "$1.$2");
+    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    setValue('cpf', value, { shouldValidate: true });
+  }, [setValue]);
+
+  const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    if (value.length > 5) {
+      value = value.slice(0, 5) + '-' + value.slice(5);
+    }
+    setValue('cep', value, { shouldValidate: true });
+
+    if (value.length === 9) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${value.replace('-', '')}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setValue('street', data.logradouro);
+          setValue('neighborhood', data.bairro);
+          setValue('city', data.localidade);
+          setValue('state', data.uf);
+          toast({ title: "Endereço encontrado!" });
+        } else {
+          toast({ variant: 'destructive', title: "CEP não encontrado." });
+        }
+      } catch (error) {
+        toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
+      }
+    }
+  }, [setValue, toast]);
+
 
   const handleGoogleSignIn = async () => {
     if (!app || !firestore) return;
@@ -106,7 +162,7 @@ export function SignUpForm() {
   };
 
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: SignUpFormData) {
     if (!app || !firestore) return;
     setIsSubmitting(true);
 
@@ -122,11 +178,18 @@ export function SignUpForm() {
 
       await sendEmailVerification(user);
 
-      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'photoURL'> = {
+      const userProfileData: Omit<UserProfile, 'photoURL'> = {
         uid: user.uid,
         email: values.email,
         displayName: values.displayName,
         role: values.role,
+        cpf: values.cpf.replace(/\D/g, ''),
+        cep: values.cep,
+        street: values.street,
+        number: values.number,
+        neighborhood: values.neighborhood,
+        city: values.city,
+        state: values.state,
       };
       
       const userDocRef = doc(firestore, "users", user.uid);
@@ -249,6 +312,117 @@ export function SignUpForm() {
             </FormItem>
           )}
         />
+
+        <FormField
+            control={form.control}
+            name="cpf"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>CPF</FormLabel>
+                    <FormControl>
+                        <Input
+                            {...field}
+                            onChange={handleCpfChange}
+                            placeholder="000.000.000-00"
+                            disabled={isSubmitting || isGoogleSubmitting}
+                        />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+            
+        <FormField
+            control={form.control}
+            name="cep"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>CEP</FormLabel>
+                    <FormControl>
+                        <Input {...field} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting || isGoogleSubmitting} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+
+        <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+                <FormField
+                    control={form.control}
+                    name="street"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Rua</FormLabel>
+                            <FormControl>
+                                <Input {...field} disabled={isSubmitting || isGoogleSubmitting}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <div>
+                 <FormField
+                    control={form.control}
+                    name="number"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Número</FormLabel>
+                            <FormControl>
+                                <Input {...field} disabled={isSubmitting || isGoogleSubmitting}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+        <FormField
+            control={form.control}
+            name="neighborhood"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Bairro</FormLabel>
+                    <FormControl>
+                        <Input {...field} disabled={isSubmitting || isGoogleSubmitting}/>
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+        <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+                <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Cidade</FormLabel>
+                            <FormControl>
+                                <Input {...field} disabled={isSubmitting || isGoogleSubmitting}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <div>
+                 <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Estado</FormLabel>
+                            <FormControl>
+                                <Input {...field} disabled={isSubmitting || isGoogleSubmitting}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
         
         <Button type="submit" className="w-full" disabled={isSubmitting || isGoogleSubmitting}>
            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta'}

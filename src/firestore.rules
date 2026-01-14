@@ -25,9 +25,8 @@ service cloud.firestore {
       // Allow user to read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
       
-      // Allow user to create their own document with basic fields.
-      allow create: if request.auth != null 
-                    && request.resource.data.uid == request.auth.uid;
+      // Allow user to create their own document with all necessary fields.
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
@@ -53,9 +52,7 @@ service cloud.firestore {
                     && tentId == request.auth.uid;
 
       // Allow update if the user is the owner.
-      allow update: if request.auth != null 
-                    && resource.data.ownerId == request.auth.uid 
-                    && tentId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.ownerId == request.auth.uid;
 
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
