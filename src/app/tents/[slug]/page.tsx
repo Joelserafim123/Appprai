@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, Utensils } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, Utensils, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect, use } from 'react';
 import { useUser } from '@/firebase/provider';
@@ -20,7 +20,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Tent, OperatingHoursDay } from '@/lib/types';
+import type { Tent, OperatingHoursDay, Reservation } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -517,7 +517,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
                             </div>
                         ) : activeTab === 'reserve' ? (
                              <Button size="lg" className="w-full" onClick={handleProceedToMenu} disabled={!hasRentalKitInCart || isSubmitting}>
-                                {isSubmitting ? <Loader2 className="animate-spin" /> : <>Ir para o Cardápio <Utensils className="ml-2" /></>}
+                                {isSubmitting ? <Loader2 className="animate-spin" /> : <>Próximo Passo <ArrowRight className="ml-2" /></>}
                             </Button>
                         ) : (
                             <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
@@ -533,4 +533,3 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
     </div>
   );
 }
-
