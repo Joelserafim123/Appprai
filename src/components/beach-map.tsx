@@ -116,12 +116,10 @@ function TentList({ tents, selectedTent, onTentSelect, onLocate, isLocating, sea
               </CardHeader>
               <CardContent>
                 <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  {tent.distance != null && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      <span>{tent.distance.toFixed(2)} km de distância</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{tent.distance != null ? `${tent.distance.toFixed(2)} km de distância` : 'Distância indisponível'}</span>
+                  </div>
                   <Button asChild variant="link" size="sm" className="p-0 h-auto">
                     <Link href={`/tents/${tent.slug}`}>Ver Cardápio</Link>
                   </Button>
