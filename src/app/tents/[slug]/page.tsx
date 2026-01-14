@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -141,8 +142,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
   const handleStartChat = async () => {
     toast({
-        title: "Funcionalidade em breve!",
-        description: "A função de chat está sendo finalizada e estará disponível em breve.",
+        title: "Em construção",
+        description: "A função de chat estará disponível em breve.",
     });
   };
 
