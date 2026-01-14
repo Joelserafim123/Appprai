@@ -45,12 +45,16 @@ service cloud.firestore {
     match /tents/{tentId} {
       // Anyone can read tent information.
       allow read: if true;
-      // The tent owner is the only one who can modify the tent.
-      // Now we enforce one tent per owner by making the doc id the owner's uid.
-      allow create, update: if request.auth != null && tentId == request.auth.uid && request.resource.data.ownerId == request.auth.uid;
+
+      // Allow tent owner to create or update their own tent document.
+      // The document ID must match the owner's UID.
+      allow create, update: if request.auth != null && request.auth.uid == tentId
+          && request.resource.data.ownerId == request.auth.uid;
+
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
+
 
     // Media, MenuItems, RentalItems
     match /tents/{tentId}/{collection}/{itemId} {
@@ -100,3 +104,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

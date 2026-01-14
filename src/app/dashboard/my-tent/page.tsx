@@ -124,33 +124,37 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user) return;
     setIsSubmitting(true);
-    
-    // O ID do documento da barraca agora é o UID do dono.
-    const docRef = doc(firestore, 'tents', user.uid);
-    
+
+    const docRef = doc(firestore, 'tents', user.uid); // Usar UID do usuário como ID do documento
+
     const tentData = {
       ...data,
       ownerId: user.uid,
       ownerName: user.displayName,
       slug: generateSlug(data.name),
-      // Garantir que hasAvailableKits exista, mesmo que seja a primeira vez.
-      hasAvailableKits: existingTent?.hasAvailableKits || false
+      hasAvailableKits: existingTent?.hasAvailableKits || false,
     };
 
-    setDoc(docRef, tentData, { merge: true }).then(() => {
-        toast({ title: existingTent ? 'Barraca atualizada com sucesso!' : 'Barraca cadastrada com sucesso!' });
+    setDoc(docRef, tentData, { merge: true })
+      .then(() => {
+        toast({
+          title: existingTent ? 'Barraca atualizada!' : 'Barraca cadastrada!',
+          description: existingTent ? 'Suas informações foram salvas.' : 'Sua barraca agora está visível no mapa.',
+        });
         onFinished();
-    }).catch((e) => {
+      })
+      .catch((e) => {
         const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: existingTent ? 'update' : 'create',
-            requestResourceData: tentData,
+          path: docRef.path,
+          operation: existingTent ? 'update' : 'create',
+          requestResourceData: tentData,
         });
         errorEmitter.emit('permission-error', permissionError);
         throw e;
-    }).finally(() => {
+      })
+      .finally(() => {
         setIsSubmitting(false);
-    });
+      });
   };
 
   return (
@@ -266,8 +270,7 @@ export default function MyTentPage() {
     if (!firestore || !user) return;
     setLoadingTent(true);
     try {
-        // O ID do documento da barraca é o UID do usuário.
-        const docRef = doc(firestore, 'tents', user.uid);
+        const docRef = doc(firestore, 'tents', user.uid); // Usar UID do usuário para buscar
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
@@ -331,3 +334,5 @@ export default function MyTentPage() {
   );
 
 }
+
+    
