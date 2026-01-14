@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, QrCode, Edit } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit } from 'lucide-react';
 import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -19,7 +19,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import {
@@ -33,6 +32,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { cn } from '@/lib/utils';
+
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
   'confirmed': { text: 'Confirmada', variant: 'default' },
@@ -54,6 +55,17 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     const [tableNumber, setTableNumber] = useState<string>('');
     const [checkinCode, setCheckinCode] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const isCheckinExpired = useMemo(() => {
+        if (!reservation.reservationTime) return false;
+        
+        const [hours, minutes] = reservation.reservationTime.split(':').map(Number);
+        const reservationDate = reservation.createdAt.toDate();
+        reservationDate.setHours(hours, minutes, 0, 0);
+
+        const toleranceLimit = new Date(reservationDate.getTime() + 16 * 60 * 1000); 
+        return new Date() > toleranceLimit;
+    }, [reservation.reservationTime, reservation.createdAt]);
 
     const handleConfirmCheckIn = () => {
         if (!firestore || !tableNumber || !checkinCode) {
@@ -89,6 +101,27 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
             })
             .finally(() => setIsSubmitting(false));
     };
+    
+    if (isCheckinExpired) {
+         return (
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Check-in Expirado</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                    <Alert variant="destructive">
+                      <AlertTitle>Tempo de Tolerância Excedido</AlertTitle>
+                      <AlertDescription>
+                        O cliente não chegou dentro dos 15 minutos de tolerância. O check-in não é mais possível para esta reserva.
+                      </AlertDescription>
+                    </Alert>
+                </div>
+                 <DialogFooter>
+                    <DialogClose asChild><Button variant="secondary">Fechar</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        )
+    }
 
     return (
         <DialogContent>
@@ -205,8 +238,7 @@ export default function OwnerReservationsPage() {
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
   
-  // Ref to track if it's the initial load
-  const isInitialLoad = useRef(true);
+  const previousReservationsCount = useRef<number>(0);
 
   useEffect(() => {
      if (isUserLoading) {
@@ -240,27 +272,19 @@ export default function OwnerReservationsPage() {
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
-  // Real-time notification for new reservations
   useEffect(() => {
-    if (reservationsLoading) return;
-    
-    // On initial load, just set the flag to false and exit
-    if (isInitialLoad.current) {
-        isInitialLoad.current = false;
-        return;
-    }
-    
-    // Check for new confirmed reservations that just arrived
-    const newConfirmed = reservations?.find(r => 
-        r.status === 'confirmed' && 
-        (Timestamp.now().toMillis() - r.createdAt.toMillis() < 5000) // 5 seconds threshold
-    );
-
-    if (newConfirmed) {
-        toast({
-            title: "Nova reserva recebida!",
-            description: `Reserva de ${newConfirmed.userName} foi confirmada.`,
-        });
+    if (!reservationsLoading && reservations) {
+        const currentCount = reservations.length;
+        if (previousReservationsCount.current > 0 && currentCount > previousReservationsCount.current) {
+            const newReservation = [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
+             if (newReservation.status === 'confirmed') {
+                toast({
+                    title: "Nova reserva recebida!",
+                    description: `Reserva de ${newReservation.userName} foi confirmada.`,
+                });
+             }
+        }
+        previousReservationsCount.current = currentCount;
     }
   }, [reservations, reservationsLoading, toast]);
 
@@ -279,25 +303,6 @@ export default function OwnerReservationsPage() {
     updateDoc(resDocRef, updateData)
       .then(() => {
         toast({ title: 'Reserva Cancelada!' });
-      })
-      .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: resDocRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw serverError;
-      });
-  };
-
-  const handleCompleteReservation = (reservationId: string) => {
-    if (!firestore) return;
-    const resDocRef = doc(firestore, 'reservations', reservationId);
-    const updateData = { status: 'completed' as ReservationStatus };
-    updateDoc(resDocRef, updateData)
-      .then(() => {
-        toast({ title: 'Reserva Finalizada!' });
       })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -410,7 +415,7 @@ export default function OwnerReservationsPage() {
                                 <div className="mb-4">
                                     <h4 className="flex items-center gap-2 text-sm font-semibold mb-2"><ChefHat className="w-4 h-4"/> Itens Pendentes</h4>
                                     <ul className="space-y-2 text-sm text-amber-800 bg-amber-50 p-3 rounded-md">
-                                        {pendingItems.map((item, index) => (
+                                        {pendingItems.map((item) => (
                                             <li key={`pending-${item.originalIndex}`} className="flex justify-between items-center">
                                                 <span>{item.quantity}x {item.name}</span>
                                                 <div className="flex gap-1">
@@ -425,12 +430,12 @@ export default function OwnerReservationsPage() {
 
                             {nonPendingItems.length > 0 && (
                                 <>
-                                    <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 mt-4"><History className="w-4 h-4"/> Itens Confirmados</h4>
+                                    <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 mt-4"><History className="w-4 h-4"/> Itens do Pedido</h4>
                                     <ul className="space-y-2 text-sm text-muted-foreground">
                                         {nonPendingItems.map((item, index) => (
                                             <li key={`confirmed-${index}`} className="flex justify-between">
-                                                <span>{item.quantity}x {item.name} <span className={item.status === 'cancelled' ? itemStatusConfig.cancelled.color : ''}>{item.status === 'cancelled' ? `(${itemStatusConfig.cancelled.text})` : ''}</span></span>
-                                                <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                                <span className={cn(item.status === 'cancelled' && 'line-through')}>{item.quantity}x {item.name}</span>
+                                                <span className={cn(item.status === 'cancelled' && 'line-through')}>R$ {(item.price * item.quantity).toFixed(2)}</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -483,12 +488,9 @@ export default function OwnerReservationsPage() {
                                 </div>
                             )}
                             {reservation.status === 'payment-pending' && (
-                                <div className="grid grid-cols-2 gap-2 w-full">
-                                    <Button size="sm" onClick={() => setReservationForPayment(reservation)}>
+                                <div className="w-full">
+                                    <Button size="sm" className="w-full" onClick={() => setReservationForPayment(reservation)}>
                                         <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
-                                    </Button>
-                                     <Button size="sm" variant="secondary" onClick={() => handleCompleteReservation(reservation.id)}>
-                                        <Check className="mr-2 h-4 w-4" /> Finalizar Pedido
                                     </Button>
                                 </div>
                             )}
@@ -516,7 +518,5 @@ export default function OwnerReservationsPage() {
     </Dialog>
   );
 }
-
-    
 
     
