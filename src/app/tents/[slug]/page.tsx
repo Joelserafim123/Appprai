@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, Utensils } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect, use } from 'react';
 import { useUser } from '@/firebase/provider';
@@ -20,7 +20,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Tent, Reservation, OperatingHoursDay } from '@/lib/types';
+import type { Tent, OperatingHoursDay } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
@@ -80,6 +80,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
   const [tent, setTent] = useState<Tent | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
   const [reservationTime, setReservationTime] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('reserve');
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,13 +141,6 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
   
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
-
-  const handleStartChat = async () => {
-    toast({
-        title: "Funcionalidade em Construção",
-        description: "O chat de conversa ainda não está pronto.",
-    });
-  };
 
 
   if (loadingTent || isUserLoading || loadingReservations || !tent) {
@@ -218,6 +212,27 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
   
   const hasRentalKitInCart = rentalKit && cart[rentalKit.id] && cart[rentalKit.id].quantity > 0;
   const isCartEmpty = Object.keys(cart).length === 0;
+
+  const handleProceedToMenu = () => {
+    if (!hasRentalKitInCart) {
+        toast({
+            variant: "destructive",
+            title: "Aluguel Obrigatório",
+            description: "Você precisa alugar um 'Kit Guarda-sol + 2 Cadeiras' para fazer uma reserva.",
+        });
+        return;
+    }
+    
+    if (!reservationTime) {
+        toast({
+            variant: "destructive",
+            title: "Horário Obrigatório",
+            description: "Por favor, selecione um horário para a sua reserva.",
+        });
+        return;
+    }
+    setActiveTab('menu');
+  }
 
   const handleCreateReservation = async () => {
     if (!user) {
@@ -328,7 +343,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
         <div className="container mx-auto max-w-7xl px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
-                 <Tabs defaultValue="reserve" className="w-full">
+                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
                         <TabsTrigger value="reserve">Aluguel e Horário</TabsTrigger>
                         <TabsTrigger value="menu">Cardápio</TabsTrigger>
@@ -451,7 +466,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
             <div className="lg:col-span-1 mt-8 lg:mt-0">
                 <Card className="sticky top-24">
                     <CardHeader>
-                        <CardTitle>Sua Reserva Inicial</CardTitle>
+                        <CardTitle>Sua Reserva</CardTitle>
                         <CardDescription>Revise seus itens antes de fazer a reserva.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -500,9 +515,13 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
                                     <Link href="/dashboard/my-reservations">Ver Minhas Reservas</Link>
                                 </Button>
                             </div>
+                        ) : activeTab === 'reserve' ? (
+                             <Button size="lg" className="w-full" onClick={handleProceedToMenu} disabled={!hasRentalKitInCart || isSubmitting}>
+                                {isSubmitting ? <Loader2 className="animate-spin" /> : <>Ir para o Cardápio <Utensils className="ml-2" /></>}
+                            </Button>
                         ) : (
                             <Button size="lg" className="w-full" onClick={handleCreateReservation} disabled={!hasRentalKitInCart || isSubmitting}>
-                            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Fazer Reserva Inicial'}
+                                {isSubmitting ? <Loader2 className="animate-spin" /> : <>Fazer Reserva <ShoppingCart className="ml-2" /></>}
                             </Button>
                         )}
                     </CardFooter>
@@ -514,3 +533,4 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
     </div>
   );
 }
+
