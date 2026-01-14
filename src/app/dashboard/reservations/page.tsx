@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit, Receipt, Search, ShieldQuestion } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit, Receipt, Search, ShieldQuestion, Download } from 'lucide-react';
 import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -516,7 +516,7 @@ export default function OwnerReservationsPage() {
                                 <div className="w-full">
                                     <Button asChild size="sm" variant="secondary" className="w-full">
                                         <Link href={`/dashboard/receipt/${reservation.id}`}>
-                                            <Receipt className="mr-2 h-4 w-4" /> Ver Comprovante
+                                            <Download className="mr-2 h-4 w-4" /> Baixar Comprovante
                                         </Link>
                                     </Button>
                                 </div>

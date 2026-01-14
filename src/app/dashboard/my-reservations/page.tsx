@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, User, X, Hourglass, MapPin, Check, QrCode, Receipt, ShieldQuestion } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, User, X, Hourglass, MapPin, Check, QrCode, Receipt, ShieldQuestion, Download } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -197,7 +197,7 @@ export default function MyReservationsPage() {
                       {reservation.status === 'completed' && (
                           <Button asChild variant="secondary">
                               <Link href={`/dashboard/receipt/${reservation.id}`}>
-                                  <Receipt className="mr-2 h-4 w-4"/> Ver Comprovante
+                                  <Download className="mr-2 h-4 w-4"/> Baixar Comprovante
                               </Link>
                           </Button>
                       )}
