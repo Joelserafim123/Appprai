@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, MessageSquare, Map } from 'lucide-react';
+import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, MessageSquare, List } from 'lucide-react';
 import { useUser } from '@/firebase/provider';
 import { getAuth, signOut } from 'firebase/auth';
 import { useFirebase } from '@/firebase/provider';
@@ -133,9 +133,9 @@ export function Header() {
         </Link>
         <nav className="flex items-center space-x-4">
            <Button asChild variant="outline">
-                <Link href="/map">
-                    <Map className="mr-2 h-4 w-4"/>
-                    <span>Mapa</span>
+                <Link href="/list">
+                    <List className="mr-2 h-4 w-4"/>
+                    <span>Lista</span>
                 </Link>
             </Button>
           {user ? (
@@ -191,4 +191,3 @@ export function Header() {
     </header>
   );
 }
-
