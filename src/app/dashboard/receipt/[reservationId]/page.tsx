@@ -20,8 +20,8 @@ const paymentMethodLabels: Record<string, string> = {
     pix: 'PIX'
 }
 
-export default function ReceiptPage() {
-    const { reservationId } = useParams();
+export default function ReceiptPage({ params }: { params: { reservationId: string } }) {
+    const { reservationId } = params;
     const { firestore } = useFirebase();
     const { user, isUserLoading } = useUser();
     const router = useRouter();
