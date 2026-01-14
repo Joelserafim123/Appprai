@@ -7,7 +7,7 @@ import { useFirebase, useUser } from '@/firebase/provider';
 import { doc } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import type { Reservation, ReservationItem } from '@/lib/types';
-import { Loader2, Printer, MapPin, Tent, User as UserIcon, Calendar, Hash } from 'lucide-react';
+import { Loader2, Printer, MapPin, Tent, User as UserIcon, Calendar, Hash, ShoppingCart, Armchair, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/icons';
@@ -57,10 +57,9 @@ export default function ReceiptPage() {
 
     const rentalItems = reservation.items.filter(item => item.name.includes('Kit') || item.name.includes('Cadeira'));
     const menuItems = reservation.items.filter(item => !item.name.includes('Kit') && !item.name.includes('Cadeira'));
-    const allItems = [...rentalItems, ...menuItems];
 
     return (
-        <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4 print:bg-white print:p-0">
+        <div className="min-h-screen bg-muted flex flex-col items-center p-4 print:bg-white print:p-0">
              <style jsx global>{`
                 @media print {
                     body { -webkit-print-color-adjust: exact; }
@@ -68,69 +67,72 @@ export default function ReceiptPage() {
                 }
             `}</style>
 
-            <div className="w-full max-w-2xl bg-background rounded-lg shadow-lg print:shadow-none print:border-none">
-                <header className="px-8 py-6 border-b print:border-0">
-                   <div className="flex justify-between items-center">
+            <div className="w-full max-w-2xl bg-background rounded-lg shadow-lg print:shadow-none print:border-none print:rounded-none">
+                <header className="px-8 py-6 border-b print:border-b">
+                   <div className="flex justify-between items-start">
                         <Logo />
                         <div className="text-right">
                             <h2 className="text-2xl font-bold">Comprovante</h2>
-                            <p className="text-sm text-muted-foreground">ID: {reservation.id.substring(0, 8)}</p>
+                            <p className="text-sm text-muted-foreground mt-1">Pedido Nº: <span className="font-semibold text-foreground">{reservation.orderNumber}</span></p>
                         </div>
                    </div>
                    <div className="grid grid-cols-2 gap-4 mt-6 text-sm">
-                        <div>
-                            <h3 className="font-semibold text-muted-foreground mb-1">DE</h3>
+                        <div className="space-y-1">
+                            <h3 className="font-semibold text-muted-foreground">BARRACA</h3>
                             <p className="font-bold flex items-center gap-2"><Tent className="w-4 h-4 text-primary" /> {reservation.tentName}</p>
-                            <p>{reservation.tentOwnerName}</p>
-                             <a href={`https://www.google.com/maps/search/?api=1&query=${reservation.tentLocation.latitude},${reservation.tentLocation.longitude}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                                <MapPin className="w-4 h-4"/> Ver no Mapa
-                             </a>
+                            <p className="text-muted-foreground">{reservation.tentOwnerName}</p>
                         </div>
-                        <div className="text-right">
-                             <h3 className="font-semibold text-muted-foreground mb-1">PARA</h3>
+                        <div className="text-right space-y-1">
+                             <h3 className="font-semibold text-muted-foreground">CLIENTE</h3>
                             <p className="font-bold flex items-center justify-end gap-2"><UserIcon className="w-4 h-4 text-primary" /> {reservation.userName}</p>
-                             <p>Data: {reservation.createdAt.toDate().toLocaleDateString('pt-BR')}</p>
+                             <p className="text-muted-foreground">Data: {reservation.createdAt.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })} às {reservation.reservationTime}</p>
                         </div>
                    </div>
                 </header>
                 <main className="px-8 py-6">
-                    <div className="w-full overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b">
-                                    <th className="py-2 font-semibold">Item</th>
-                                    <th className="py-2 text-center font-semibold">Qtd.</th>
-                                    <th className="py-2 text-right font-semibold">Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                               {allItems.map((item: ReservationItem, index: number) => (
-                                   <tr key={index} className="border-b border-dashed">
-                                       <td className="py-2">
-                                           <p className="font-medium">{item.name}</p>
-                                           <p className="text-xs text-muted-foreground">R$ {item.price.toFixed(2)} cada</p>
-                                       </td>
-                                       <td className="py-2 text-center">{item.quantity}</td>
-                                       <td className="py-2 text-right">R$ {(item.price * item.quantity).toFixed(2)}</td>
-                                   </tr>
-                               ))}
-                            </tbody>
-                        </table>
+                    <div className="w-full overflow-x-auto space-y-6">
+                       {rentalItems.length > 0 && (
+                         <div>
+                            <h4 className="font-semibold mb-2 flex items-center gap-2 text-muted-foreground"><Armchair className="w-4 h-4"/> Aluguel</h4>
+                            <table className="w-full text-left">
+                                <thead><tr className="border-b"><th className="py-2 font-medium">Item</th><th className="py-2 text-center font-medium">Qtd.</th><th className="py-2 text-right font-medium">Subtotal</th></tr></thead>
+                                <tbody>
+                                {rentalItems.map((item: ReservationItem, index: number) => (
+                                    <tr key={`rental-${index}`} className="border-b border-dashed"><td className="py-3"><p>{item.name}</p></td><td className="py-3 text-center">{item.quantity}</td><td className="py-3 text-right font-mono">R$ {(item.price * item.quantity).toFixed(2)}</td></tr>
+                                ))}
+                                </tbody>
+                            </table>
+                         </div>
+                       )}
+                       {menuItems.length > 0 && (
+                         <div>
+                            <h4 className="font-semibold mb-2 flex items-center gap-2 text-muted-foreground"><ShoppingCart className="w-4 h-4"/> Consumo</h4>
+                            <table className="w-full text-left">
+                                <thead><tr className="border-b"><th className="py-2 font-medium">Item</th><th className="py-2 text-center font-medium">Qtd.</th><th className="py-2 text-right font-medium">Subtotal</th></tr></thead>
+                                <tbody>
+                                {menuItems.map((item: ReservationItem, index: number) => (
+                                    <tr key={`menu-${index}`} className="border-b border-dashed"><td className="py-3"><p>{item.name}</p></td><td className="py-3 text-center">{item.quantity}</td><td className="py-3 text-right font-mono">R$ {(item.price * item.quantity).toFixed(2)}</td></tr>
+                                ))}
+                                </tbody>
+                            </table>
+                         </div>
+                       )}
                     </div>
-                     <div className="mt-6 flex justify-end">
-                        <div className="w-full max-w-xs space-y-2">
-                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Total Pago</span>
-                                <span className="font-bold">R$ {reservation.total.toFixed(2)}</span>
+                     <div className="mt-8 flex justify-end">
+                        <div className="w-full max-w-xs space-y-4">
+                             <Separator />
+                             <div className="flex justify-between items-center text-lg">
+                                <span className="font-semibold">TOTAL PAGO</span>
+                                <span className="font-bold text-xl">R$ {reservation.total.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Método</span>
-                                <span className="font-bold">{reservation.paymentMethod ? paymentMethodLabels[reservation.paymentMethod] : 'N/A'}</span>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground flex items-center gap-2"><CreditCard className="w-4 h-4"/> Forma de Pagamento</span>
+                                <span className="font-semibold">{reservation.paymentMethod ? paymentMethodLabels[reservation.paymentMethod] : 'N/A'}</span>
                             </div>
                         </div>
                     </div>
                 </main>
-                 <footer className="px-8 py-4 text-center text-xs text-muted-foreground border-t">
+                 <footer className="px-8 py-4 text-center text-xs text-muted-foreground border-t print:border-t">
                     Obrigado por usar o BeachPal!
                 </footer>
             </div>
