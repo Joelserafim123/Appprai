@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, MessageSquare, AlertTriangle } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, MessageSquare, AlertTriangle, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
 import { tentBannerUrl } from '@/lib/placeholder-images';
+import { Label } from '@/components/ui/label';
 
 
 type CartItem = { 
@@ -41,6 +42,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   
   const [tent, setTent] = useState<Tent | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
+  const [reservationTime, setReservationTime] = useState<string>('');
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -181,7 +183,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const isCartEmpty = Object.keys(cart).length === 0;
 
   const handleCreateReservation = async () => {
-    if (!user || !firestore || !hasRentalKitInCart) {
+    if (!user || !firestore || !hasRentalKitInCart || !reservationTime) {
       if(!user) {
         toast({
           variant: "destructive",
@@ -195,11 +197,19 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           title: "Aluguel Obrigatório",
           description: "Você precisa alugar um 'Kit Guarda-sol + 2 Cadeiras' para fazer uma reserva.",
         });
+      } else if (!reservationTime) {
+        toast({
+          variant: "destructive",
+          title: "Horário Obrigatório",
+          description: "Por favor, selecione um horário para a sua reserva.",
+        });
       }
       return;
     };
     
     setIsSubmitting(true);
+
+    const checkinCode = Math.floor(1000 + Math.random() * 9000).toString();
 
     const reservationData = {
       userId: user.uid,
@@ -217,6 +227,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       } as ReservationItem)),
       total: finalTotal,
       createdAt: serverTimestamp(),
+      reservationTime: reservationTime,
+      checkinCode: checkinCode,
       status: 'confirmed',
     };
 
@@ -265,7 +277,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             <div className="lg:col-span-2">
                  <Tabs defaultValue="reserve" className="w-full">
                     <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
-                        <TabsTrigger value="reserve">Aluguel</TabsTrigger>
+                        <TabsTrigger value="reserve">Aluguel e Horário</TabsTrigger>
                         <TabsTrigger value="menu">Cardápio</TabsTrigger>
                     </TabsList>
                      <TabsContent value="menu" className="mt-6">
@@ -317,10 +329,16 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                         <TabsContent value="reserve" className="mt-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Aluguel de Itens</CardTitle>
-                                    <CardDescription>Para reservar, é obrigatório o aluguel do "Kit Guarda-sol + 2 Cadeiras". { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
+                                    <CardTitle>Aluguel de Itens e Horário</CardTitle>
+                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
+                                    <Input id="reservation-time" type="time" value={reservationTime} onChange={e => setReservationTime(e.target.value)} disabled={isSubmitting}/>
+                                    <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje. Há uma tolerância de 15 minutos para o check-in.</p>
+                                </div>
+
                                 {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
                                     <>
                                         {rentalKit && (

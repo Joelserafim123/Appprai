@@ -87,6 +87,8 @@ export interface Reservation {
   items: ReservationItem[];
   total: number;
   createdAt: Timestamp;
+  reservationTime: string;
+  checkinCode: string;
   status: ReservationStatus;
   paymentMethod?: PaymentMethod;
 }

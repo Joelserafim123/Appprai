@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, QrCode } from 'lucide-react';
 import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -39,11 +39,17 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const [tableNumber, setTableNumber] = useState<string>('');
+    const [checkinCode, setCheckinCode] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleConfirmCheckIn = () => {
-        if (!firestore || !tableNumber) {
-            toast({ variant: 'destructive', title: 'Por favor, insira o número da mesa.' });
+        if (!firestore || !tableNumber || !checkinCode) {
+            toast({ variant: 'destructive', title: 'Campos obrigatórios', description: 'Por favor, insira o número da mesa e o código de check-in.' });
+            return;
+        }
+
+        if (checkinCode !== reservation.checkinCode) {
+            toast({ variant: 'destructive', title: 'Código Inválido', description: 'O código de check-in não confere.' });
             return;
         }
 
@@ -60,6 +66,15 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                 onFinished();
             })
             .catch(e => {
+                let errorMessage = e.message;
+                if (e.code === 'permission-denied') {
+                    if (e.message.includes('expired')) {
+                        errorMessage = 'O tempo de tolerância de 15 minutos para o check-in foi excedido. A reserva não pode mais ser ativada.';
+                    } else {
+                        errorMessage = 'Você não tem permissão para realizar esta ação.'
+                    }
+                }
+                toast({ variant: 'destructive', title: 'Erro no Check-in', description: errorMessage });
                 const permissionError = new FirestorePermissionError({
                     path: docRef.path,
                     operation: 'update',
@@ -77,7 +92,18 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                 <DialogTitle>Fazer Check-in</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-                <p>Insira o número da mesa para o cliente antes de confirmar o check-in.</p>
+                <p>Insira as informações para o check-in do cliente <span className='font-bold'>{reservation.userName}</span>.</p>
+                <div className="space-y-2">
+                    <Label htmlFor="checkinCode">Código de Check-in do Cliente</Label>
+                    <Input 
+                        id="checkinCode" 
+                        type="text" 
+                        value={checkinCode}
+                        onChange={(e) => setCheckinCode(e.target.value)} 
+                        placeholder="Ex: 1234"
+                        disabled={isSubmitting}
+                    />
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="tableNumber">Número da Mesa</Label>
                     <Input 
@@ -92,7 +118,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
-                <Button onClick={handleConfirmCheckIn} disabled={!tableNumber || isSubmitting}>
+                <Button onClick={handleConfirmCheckIn} disabled={!tableNumber || !checkinCode || isSubmitting}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar Check-in'}
                 </Button>
             </DialogFooter>
@@ -368,7 +394,7 @@ export default function OwnerReservationsPage() {
                                 <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
                                 {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
                                 day: '2-digit', month: 'long', year: 'numeric',
-                                })}
+                                })} às {reservation.reservationTime}
                                 </p>
                                 {reservation.tableNumber && (
                                 <p className="font-semibold flex items-center gap-2 pt-1"><Scan className="w-4 h-4"/> Mesa {reservation.tableNumber}</p>

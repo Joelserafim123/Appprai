@@ -17,6 +17,17 @@ service cloud.firestore {
           .where("status", "in", ["confirmed", "checked-in", "payment-pending"])
       );
     }
+    
+    // Function to check if the check-in time is within the tolerance period
+    function isCheckinWithinTolerance(reservationTimeStr) {
+      let now = request.time;
+      let todayStr = now.date().toString().split('T')[0]; // "YYYY-MM-DD"
+      let reservationTimestamp = timestamp.value(todayStr + 'T' + reservationTimeStr + ':00Z');
+      let tolerance = now - duration.value(15, 'm');
+      
+      // Check-in must happen AFTER the reservation time, but no later than 15 minutes after.
+      return now >= reservationTimestamp && tolerance <= reservationTimestamp;
+    }
 
     //--------------------------------
     // Users
@@ -74,20 +85,26 @@ service cloud.firestore {
     // Reservations
     //--------------------------------
     match /reservations/{reservationId} {
-      // A user can only create a reservation for themselves and only if they don't have an active one.
+      // A user can only create a reservation for themselves, for today, and only if they don't have an active one.
       allow create: if request.auth != null 
                     && request.resource.data.userId == request.auth.uid
-                    && !hasActiveReservation(request.auth.uid);
+                    && !hasActiveReservation(request.auth.uid)
+                    && request.resource.data.createdAt.date() == request.time.date();
       
       // Anyone involved (customer or owner) can read the reservation.
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
       
       // Update rules are now more granular.
       allow update: if request.auth != null && (
-        // Case 1: Tent owner can update status, paymentMethod, tableNumber, or cancel.
-        // Also, owner can update the status of individual items.
+        // Case 1: Tent owner can update the reservation.
         (
-          get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
+          get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid &&
+          (
+            // Owner can do check-in only if within the 15-minute tolerance window.
+            ( request.resource.data.status == 'checked-in' && resource.data.status == 'confirmed' && isCheckinWithinTolerance(resource.data.reservationTime) ) ||
+            // Owner can handle payment status updates and cancellations
+            ( request.resource.data.status != 'checked-in' )
+          )
         ) ||
         // Case 2: Customer can update.
         (

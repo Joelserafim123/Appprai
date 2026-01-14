@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X, Hourglass, MapPin, Check } from 'lucide-react';
+import { Loader2, Star, Tent, Plus, CreditCard, Scan, User, X, Hourglass, MapPin, Check, QrCode } from 'lucide-react';
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -123,7 +123,7 @@ export default function MyReservationsPage() {
                         day: '2-digit',
                         month: 'long',
                         year: 'numeric',
-                        })}
+                        })} às {reservation.reservationTime}
                     </p>
                   </CardDescription>
                 </div>
@@ -131,6 +131,12 @@ export default function MyReservationsPage() {
                      <Badge variant={statusConfig[reservation.status].variant}>
                         {statusConfig[reservation.status].text}
                     </Badge>
+                    {['confirmed', 'checked-in'].includes(reservation.status) && (
+                        <div className="mt-2 text-sm text-center font-mono tracking-widest bg-muted p-2 rounded-lg">
+                            <p className="text-xs text-muted-foreground">Cód. Check-in</p>
+                            <p className="font-bold text-lg">{reservation.checkinCode}</p>
+                        </div>
+                    )}
                     {reservation.status === 'checked-in' && reservation.tableNumber && (
                         <p className="text-sm mt-2 font-semibold flex items-center justify-end gap-2"><Scan className="w-4 h-4"/> Mesa {reservation.tableNumber}</p>
                     )}
