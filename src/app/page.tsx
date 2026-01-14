@@ -9,8 +9,6 @@ import { useFirebase } from '@/firebase/provider';
 import { Loader2 } from 'lucide-react';
 import { useMemoFirebase } from '@/firebase/provider';
 import type { Tent as TentType } from '@/lib/types';
-import { useSearchStore } from '@/hooks/use-search';
-import { useEffect } from 'react';
 
 export default function Home() {
   const { firestore } = useFirebase();
