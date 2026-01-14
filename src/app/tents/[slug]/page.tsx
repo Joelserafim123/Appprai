@@ -104,7 +104,8 @@ export default function TentPage({ params: rawParams }: { params: { slug: string
 
     const fetchTent = async () => {
         setLoadingTent(true);
-        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', params.slug));
+        const slug = params.slug;
+        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', slug));
         try {
             const querySnapshot = await getDocs(tentQuery);
             if (querySnapshot.empty) {
@@ -172,8 +173,14 @@ export default function TentPage({ params: rawParams }: { params: { slug: string
 
       if (type === 'rental') {
         const rentalItem = item as RentalItem;
+        
+        // Apply general stock limit
         if (rentalItem.quantity) {
           newQuantity = Math.min(newQuantity, rentalItem.quantity);
+        }
+        // Apply limit for kits
+        if (rentalItem.name === 'Kit Guarda-sol + 2 Cadeiras') {
+            newQuantity = Math.min(newQuantity, 3);
         }
         // Apply limit for additional chairs
         if (rentalItem.name === 'Cadeira Adicional') {
@@ -204,13 +211,16 @@ export default function TentPage({ params: rawParams }: { params: { slug: string
 
   const rentalTotal = Object.values(cart).filter(i => i.type === 'rental').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
   const menuTotal = Object.values(cart).filter(i => i.type === 'menu').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
-
-  const feeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
-  const isFeeWaived = feeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= feeWaiverAmount;
+  const hasRentalKitInCart = rentalKit && cart[rentalKit.id] && cart[rentalKit.id].quantity > 0;
+  
+  const kitsInCart = (rentalKit && cart[rentalKit.id]?.quantity) || 0;
+  const baseFeeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
+  const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
+  
+  const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
   
   const finalTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
   
-  const hasRentalKitInCart = rentalKit && cart[rentalKit.id] && cart[rentalKit.id].quantity > 0;
   const isCartEmpty = Object.keys(cart).length === 0;
 
   const handleProceedToMenu = () => {
@@ -218,7 +228,7 @@ export default function TentPage({ params: rawParams }: { params: { slug: string
         toast({
             variant: "destructive",
             title: "Aluguel Obrigatório",
-            description: "Você precisa alugar um 'Kit Guarda-sol + 2 Cadeiras' para fazer uma reserva.",
+            description: "Você precisa alugar pelo menos um 'Kit Guarda-sol + 2 Cadeiras' para fazer uma reserva.",
         });
         return;
     }
@@ -361,7 +371,7 @@ export default function TentPage({ params: rawParams }: { params: { slug: string
                                 <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
                                     <Info className="h-5 w-5 text-primary"/>
                                     <div>
-                                    <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {tent.minimumOrderForFeeWaiver.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
+                                    <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {proportionalFeeWaiverAmount > 0 ? proportionalFeeWaiverAmount.toFixed(2) : baseFeeWaiverAmount.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
                                     </div>
                                 </div>
                             )}
@@ -426,7 +436,7 @@ export default function TentPage({ params: rawParams }: { params: { slug: string
                                                 <div className="mt-4 flex items-center gap-2 sm:mt-0">
                                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
                                                     <Input type="number" readOnly value={cart[rentalKit.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity}><Plus className="h-4 w-4"/></Button>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity || (cart[rentalKit.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
                                                 </div>
                                             </div>
                                         )}
