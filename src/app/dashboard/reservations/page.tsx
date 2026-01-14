@@ -21,6 +21,17 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
   'confirmed': { text: 'Confirmada', variant: 'default' },
@@ -435,9 +446,27 @@ export default function OwnerReservationsPage() {
                                     <Button size="sm" onClick={() => setReservationForCheckIn(reservation)}>
                                         <Check className="mr-2 h-4 w-4" /> Fazer Check-in
                                     </Button>
-                                    <Button size="sm" variant="destructive" onClick={() => handleCancelReservation(reservation.id)}>
-                                        <X className="mr-2 h-4 w-4" /> Cancelar
-                                    </Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button size="sm" variant="destructive">
+                                                <X className="mr-2 h-4 w-4" /> Cancelar
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta ação não pode ser desfeita e irá cancelar a reserva do cliente.
+                                            </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                            <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleCancelReservation(reservation.id)}>
+                                                Sim, cancelar
+                                            </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             )}
                             {reservation.status === 'checked-in' && (

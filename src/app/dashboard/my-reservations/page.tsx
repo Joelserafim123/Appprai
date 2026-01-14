@@ -17,6 +17,17 @@ import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -191,9 +202,27 @@ export default function MyReservationsPage() {
                         </>
                     )}
                     {reservation.status === 'confirmed' && (
-                       <Button variant="destructive" onClick={() => handleCancelReservation(reservation.id)}>
-                           <X className="mr-2 h-4 w-4"/> Cancelar Reserva
-                       </Button>
+                       <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive">
+                              <X className="mr-2 h-4 w-4"/> Cancelar Reserva
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Voltar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleCancelReservation(reservation.id)}>
+                                Sim, cancelar reserva
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                     )}
                 </div>
               </CardFooter>
