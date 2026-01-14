@@ -70,8 +70,7 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
     );
 }
 
-export default function TentPage({ params }: { params: { slug: string } | Promise<{ slug: string }> }) {
-  const resolvedParams = use(params);
+export default function TentPage({ params }: { params: { slug: string } }) {
   const { firestore } = useFirebase();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
@@ -104,7 +103,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
 
     const fetchTent = async () => {
         setLoadingTent(true);
-        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', resolvedParams.slug));
+        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', params.slug));
         try {
             const querySnapshot = await getDocs(tentQuery);
             if (querySnapshot.empty) {
@@ -123,7 +122,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
         }
     };
     fetchTent();
-  }, [firestore, resolvedParams.slug]);
+  }, [firestore, params.slug]);
 
 
   const menuQuery = useMemoFirebase(() => {
@@ -277,7 +276,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
     
     setIsSubmitting(true);
 
-    const checkinCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const orderNumber = Math.floor(100000 + Math.random() * 900000).toString();
 
     const reservationData = {
       userId: user.uid,
@@ -297,7 +296,7 @@ export default function TentPage({ params }: { params: { slug: string } | Promis
       total: finalTotal,
       createdAt: serverTimestamp(),
       reservationTime: reservationTime,
-      checkinCode: checkinCode,
+      orderNumber: orderNumber,
       status: 'confirmed',
     };
 

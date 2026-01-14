@@ -144,8 +144,8 @@ export default function MyReservationsPage() {
                     </Badge>
                     {['confirmed', 'checked-in'].includes(reservation.status) && (
                         <div className="mt-2 text-sm text-center font-mono tracking-widest bg-muted p-2 rounded-lg">
-                            <p className="text-xs text-muted-foreground">Cód. Check-in</p>
-                            <p className="font-bold text-lg">{reservation.checkinCode}</p>
+                            <p className="text-xs text-muted-foreground">Nº do Pedido</p>
+                            <p className="font-bold text-lg">{reservation.orderNumber}</p>
                         </div>
                     )}
                  </div>

@@ -7,7 +7,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit, Receipt } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit, Receipt, Search } from 'lucide-react';
 import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +52,6 @@ const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: str
 function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { firestore } = useFirebase();
     const { toast } = useToast();
-    const [checkinCode, setCheckinCode] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const isCheckinExpired = useMemo(() => {
@@ -67,15 +66,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     }, [reservation.reservationTime, reservation.createdAt]);
 
     const handleConfirmCheckIn = () => {
-        if (!firestore || !checkinCode) {
-            toast({ variant: 'destructive', title: 'Código obrigatório', description: 'Por favor, insira o código de check-in.' });
-            return;
-        }
-
-        if (checkinCode !== reservation.checkinCode) {
-            toast({ variant: 'destructive', title: 'Código Inválido', description: 'O código de check-in não confere.' });
-            return;
-        }
+        if (!firestore) return;
         
         setIsSubmitting(true);
         const docRef = doc(firestore, 'reservations', reservation.id);
@@ -124,26 +115,15 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     return (
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Fazer Check-in</DialogTitle>
+                <DialogTitle>Confirmar Check-in</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-                <p>Insira o código de check-in do cliente <span className='font-bold'>{reservation.userName}</span> para confirmar a chegada.</p>
-                <div className="space-y-2">
-                    <Label htmlFor="checkinCode">Código de Check-in do Cliente</Label>
-                    <Input 
-                        id="checkinCode" 
-                        type="text" 
-                        value={checkinCode}
-                        onChange={(e) => setCheckinCode(e.target.value)} 
-                        placeholder="Ex: 1234"
-                        disabled={isSubmitting}
-                    />
-                </div>
+                <p>Você confirma a chegada do cliente <span className='font-bold'>{reservation.userName}</span> (Pedido Nº {reservation.orderNumber})?</p>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
-                <Button onClick={handleConfirmCheckIn} disabled={!checkinCode || isSubmitting}>
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar Check-in'}
+                <Button onClick={handleConfirmCheckIn} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Sim, Fazer Check-in'}
                 </Button>
             </DialogFooter>
         </DialogContent>
@@ -224,6 +204,7 @@ export default function OwnerReservationsPage() {
   const [loadingTent, setLoadingTent] = useState(true);
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const previousReservationsCount = useRef<number>(0);
 
@@ -276,10 +257,19 @@ export default function OwnerReservationsPage() {
   }, [reservations, reservationsLoading, toast]);
 
 
-  const sortedReservations = useMemo(() => {
+  const filteredReservations = useMemo(() => {
     if (!reservations) return [];
-    return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-  }, [reservations]);
+    
+    let sorted = [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    
+    if (searchTerm) {
+        return sorted.filter(res => 
+            res.orderNumber?.includes(searchTerm) ||
+            res.userName.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+    return sorted;
+  }, [reservations, searchTerm]);
 
 
   const handleCancelReservation = (reservationId: string) => {
@@ -362,14 +352,25 @@ export default function OwnerReservationsPage() {
   return (
     <Dialog>
         <div className="w-full max-w-6xl">
-        <header className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
-            <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
+        <header className="mb-8 space-y-4">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
+                <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
+            </div>
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Buscar por Nº do Pedido ou nome do cliente..."
+                    className="pl-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
         </header>
 
-        {sortedReservations && sortedReservations.length > 0 ? (
+        {filteredReservations && filteredReservations.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {sortedReservations.map((reservation) => {
+            {filteredReservations.map((reservation) => {
                 const pendingItems = reservation.items.map((item, index) => ({...item, originalIndex: index})).filter(item => item.status === 'pending');
                 const nonPendingItems = reservation.items.filter(item => item.status !== 'pending');
 
@@ -386,7 +387,7 @@ export default function OwnerReservationsPage() {
                                 </Badge>
                             </div>
                             <CardDescription className='space-y-1 pt-2'>
-                                <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> ID: {reservation.id.substring(0, 8)}</p>
+                                <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> Pedido: {reservation.orderNumber}</p>
                                 <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
                                 {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
                                 day: '2-digit', month: 'long', year: 'numeric',
@@ -496,7 +497,9 @@ export default function OwnerReservationsPage() {
             <div className="rounded-lg border-2 border-dashed py-16 text-center">
                 <Star className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Sua barraca ainda não recebeu nenhuma reserva.</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {searchTerm ? 'Nenhuma reserva corresponde à sua busca.' : 'Sua barraca ainda não recebeu nenhuma reserva.'}
+                </p>
             </div>
         )}
         </div>

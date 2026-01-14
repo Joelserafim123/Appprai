@@ -106,7 +106,7 @@ export interface Reservation {
   total: number;
   createdAt: Timestamp;
   reservationTime: string;
-  checkinCode: string;
+  orderNumber: string;
   status: ReservationStatus;
   paymentMethod?: PaymentMethod;
 }

@@ -127,11 +127,11 @@
         "total": { "type": "number", "description": "Valor total da reserva." },
         "createdAt": { "type": "string", "format": "date-time", "description": "Data e hora da criação da reserva." },
         "reservationTime": { "type": "string", "description": "Horário agendado para a reserva (HH:mm)." },
-        "checkinCode": { "type": "string", "description": "Código de 4 dígitos para o check-in." },
+        "orderNumber": { "type": "string", "description": "Número do pedido de 6 dígitos para identificação." },
         "status": { "type": "string", "enum": ["confirmed", "cancelled", "completed", "checked-in", "payment-pending"], "description": "Status geral da reserva." },
         "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"], "description": "Método de pagamento." }
       },
-      "required": ["userId", "userName", "tentId", "tentOwnerId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status", "checkinCode", "reservationTime"]
+      "required": ["userId", "userName", "tentId", "tentOwnerId", "tentName", "tentOwnerName", "tentLocation", "items", "total", "createdAt", "status", "orderNumber", "reservationTime"]
     }
   },
   "auth": {
