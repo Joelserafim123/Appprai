@@ -92,9 +92,9 @@ export default function OwnerOrderPage() {
     });
   };
   
-  const handleCloseBill = (reservationId: string) => {
-    if (!firestore) return;
-    const docRef = doc(firestore, 'reservations', reservationId);
+  const handleCloseBill = () => {
+    if (!firestore || !reservationId) return;
+    const docRef = doc(firestore, 'reservations', reservationId as string);
     updateDoc(docRef, { status: 'payment-pending' })
     .catch(e => {
        const permissionError = new FirestorePermissionError({
@@ -242,7 +242,7 @@ export default function OwnerOrderPage() {
                 <Button size="lg" className="w-full" onClick={handleAddItemsToReservation} disabled={isCartEmpty || isSubmitting}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Adicionar Itens ao Pedido'}
                 </Button>
-                <Button size="lg" variant="secondary" className="w-full" onClick={() => handleCloseBill(reservation.id)} disabled={isSubmitting}>
+                <Button size="lg" variant="secondary" className="w-full" onClick={handleCloseBill} disabled={isSubmitting}>
                     <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta do Cliente
                 </Button>
             </CardFooter>
@@ -252,5 +252,3 @@ export default function OwnerOrderPage() {
     </div>
   );
 }
-
-    
