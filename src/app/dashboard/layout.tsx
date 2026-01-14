@@ -52,7 +52,7 @@ export default function DashboardLayout({
     <>
       <SidebarMenuItem>
         <SidebarMenuButton asChild tooltip={{ children: 'Início', side: 'right' }}>
-          <Link href="/dashboard">
+          <Link href="/dashboard/my-reservations">
             <Home />
             <span>Início</span>
           </Link>
@@ -63,6 +63,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/my-reservations">
             <Star />
             <span>Minhas Reservas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+       <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
+          <Link href="/dashboard/chats">
+            <MessageSquare />
+            <span>Conversas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -116,6 +124,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/analytics">
             <BarChart />
             <span>Análises</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+       <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Conversas', side: 'right' }}>
+          <Link href="/dashboard/chats">
+            <MessageSquare />
+            <span>Conversas</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>

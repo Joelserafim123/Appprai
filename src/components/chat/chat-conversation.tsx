@@ -70,30 +70,27 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     const chatDocRef = doc(firestore, 'chats', chat.id);
     const messagesColRef = collection(firestore, 'chats', chat.id, 'messages');
 
-    try {
-      addDoc(messagesColRef, messageData).catch(error => {
-        const permissionError = new FirestorePermissionError({
-            path: messagesColRef.path,
-            operation: 'create',
-            requestResourceData: messageData
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw error;
+    addDoc(messagesColRef, messageData).catch(error => {
+      const permissionError = new FirestorePermissionError({
+          path: messagesColRef.path,
+          operation: 'create',
+          requestResourceData: messageData
       });
-      updateDoc(chatDocRef, updateData).catch(error => {
-        const permissionError = new FirestorePermissionError({
-            path: chatDocRef.path,
-            operation: 'update',
-            requestResourceData: updateData
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw error;
+      errorEmitter.emit('permission-error', permissionError);
+      throw error;
+    });
+
+    updateDoc(chatDocRef, updateData).catch(error => {
+      const permissionError = new FirestorePermissionError({
+          path: chatDocRef.path,
+          operation: 'update',
+          requestResourceData: updateData
       });
-    } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-    } finally {
-      setIsSending(false);
-    }
+      errorEmitter.emit('permission-error', permissionError);
+      throw error;
+    });
+
+    setIsSending(false);
   };
 
   const getSenderAvatar = (senderId: string) => {

@@ -40,35 +40,11 @@ const chartConfig = {
 export default function AnalyticsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
-  const [tentId, setTentId] = useState<string | null>(null);
-  const [loadingTent, setLoadingTent] = useState(true);
-
-  useEffect(() => {
-    if (isUserLoading) {
-        setLoadingTent(true);
-        return;
-    };
-    if (firestore && user && user.role === 'owner') {
-      setLoadingTent(true);
-      const getTentId = async () => {
-        const tentsRef = collection(firestore, 'tents');
-        const q = query(tentsRef, where('ownerId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          setTentId(querySnapshot.docs[0].id);
-        }
-        setLoadingTent(false);
-      };
-      getTentId();
-    } else {
-      setLoadingTent(false);
-    }
-  }, [firestore, user, isUserLoading]);
-
+  
   const reservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !tentId) return null;
-    return query(collection(firestore, 'reservations'), where('tentId', '==', tentId));
-  }, [firestore, tentId]);
+    if (!firestore || !user || user.role !== 'owner') return null;
+    return query(collection(firestore, 'reservations'), where('tentOwnerId', '==', user.uid));
+  }, [firestore, user]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
@@ -105,8 +81,22 @@ export default function AnalyticsPage() {
       chartData,
     };
   }, [reservations]);
+  
+  const [hasTent, setHasTent] = useState<boolean | null>(null);
 
-  if (isUserLoading || loadingTent) {
+  useEffect(() => {
+    if (firestore && user && user.role === 'owner') {
+      const checkTent = async () => {
+        const tentRef = doc(firestore, 'tents', user.uid);
+        const tentSnap = await getDoc(tentRef);
+        setHasTent(tentSnap.exists());
+      };
+      checkTent();
+    }
+  }, [firestore, user]);
+
+
+  if (isUserLoading || hasTent === null) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -118,7 +108,7 @@ export default function AnalyticsPage() {
     return <p>Acesso negado. Esta página é apenas para donos de barracas.</p>;
   }
 
-  if (!tentId && !loadingTent) {
+  if (hasTent === false) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
               <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />

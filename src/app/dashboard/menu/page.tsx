@@ -4,7 +4,7 @@
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Utensils, Plus, Trash, Edit } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -143,41 +143,33 @@ export default function MenuPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  const [tentId, setTentId] = useState<string | null>(null);
-  const [loadingTent, setLoadingTent] = useState(true);
+  const [hasTent, setHasTent] = useState<boolean | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
 
   useEffect(() => {
-    if (firestore && user) {
-        setLoadingTent(true);
-      const getTentId = async () => {
-        const tentsRef = collection(firestore, 'tents');
-        const q = query(tentsRef, where('ownerId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          setTentId(querySnapshot.docs[0].id);
-        }
-        setLoadingTent(false);
+    if (firestore && user && user.role === 'owner') {
+      const checkTent = async () => {
+        const tentRef = doc(firestore, 'tents', user.uid);
+        const tentSnap = await getDoc(tentRef);
+        setHasTent(tentSnap.exists());
       };
-      getTentId();
-    } else if (!isUserLoading) {
-        setLoadingTent(false);
+      checkTent();
     }
-  }, [firestore, user, isUserLoading]);
+  }, [firestore, user]);
 
   const menuQuery = useMemoFirebase(() => {
-    if (!firestore || !tentId) return null;
-    return collection(firestore, 'tents', tentId, 'menuItems');
-  }, [firestore, tentId]);
+    if (!firestore || !user || !hasTent) return null;
+    return collection(firestore, 'tents', user.uid, 'menuItems');
+  }, [firestore, user, hasTent]);
 
   const { data: menu, isLoading: menuLoading, error } = useCollection<MenuItem>(menuQuery);
   
   const deleteItem = async (itemId: string) => {
-    if (!firestore || !tentId) return;
+    if (!firestore || !user) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
-    const docRef = doc(firestore, 'tents', tentId, 'menuItems', itemId);
+    const docRef = doc(firestore, 'tents', user.uid, 'menuItems', itemId);
     try {
         deleteDoc(docRef).catch((e) => {
           const permissionError = new FirestorePermissionError({
@@ -206,7 +198,7 @@ export default function MenuPage() {
   }
 
 
-  if (isUserLoading || loadingTent) {
+  if (isUserLoading || hasTent === null) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -218,7 +210,7 @@ export default function MenuPage() {
     return <p>Acesso negado.</p>;
   }
   
-    if (!tentId && !loadingTent) {
+    if (hasTent === false) {
         return (
             <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -251,7 +243,7 @@ export default function MenuPage() {
             <h1 className="text-3xl font-bold tracking-tight">Meu Cardápio</h1>
             <p className="text-muted-foreground">Adicione, edite ou remova itens do seu cardápio.</p>
             </div>
-            <Button onClick={openNewForm} disabled={!tentId}>
+            <Button onClick={openNewForm}>
                 <Plus className="mr-2 h-4 w-4" />
                 Adicionar Item
             </Button>
@@ -297,12 +289,12 @@ export default function MenuPage() {
             </div>
         )}
         </div>
-        {tentId && (
+        {user && hasTent && (
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} />
+                <MenuItemForm tentId={user.uid} item={editingItem} onFinished={() => setIsFormOpen(false)} />
             </DialogContent>
         )}
     </Dialog>

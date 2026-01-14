@@ -109,7 +109,7 @@ service cloud.firestore {
     //--------------------------------
     match /chats/{chatId} {
         // A user or tent owner can read a chat they are a part of.
-        allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+        allow read, write: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
 
         // A user can create a chat. The creator must be the userId.
         allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
@@ -123,14 +123,18 @@ service cloud.firestore {
     match /chats/{chatId}/messages/{messageId} {
         // Allow chat participants to read messages.
         allow read: if request.auth != null && (
-            get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
-            get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+            exists(/databases/$(database)/documents/chats/$(chatId)) && (
+              get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+              get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+            )
         );
 
         // Allow chat participants to create messages.
         allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid && (
-            get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
-            get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+            exists(/databases/$(database)/documents/chats/$(chatId)) && (
+              get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+              get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+            )
         );
 
         allow update, delete: if false;

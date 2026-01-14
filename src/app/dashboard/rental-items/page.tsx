@@ -4,7 +4,7 @@
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs, writeBatch, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -127,51 +127,39 @@ export default function RentalItemsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  const [tentId, setTentId] = useState<string | null>(null);
-  const [loadingTent, setLoadingTent] = useState(true);
+  const [hasTent, setHasTent] = useState<boolean | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
 
   useEffect(() => {
-    if (isUserLoading) {
-        setLoadingTent(true);
-        return;
-    }
     if (firestore && user && user.role === 'owner') {
-      setLoadingTent(true);
-      const getTentId = async () => {
-        const tentsRef = collection(firestore, 'tents');
-        const q = query(tentsRef, where('ownerId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          setTentId(querySnapshot.docs[0].id);
-        }
-        setLoadingTent(false);
+      const checkTent = async () => {
+        const tentRef = doc(firestore, 'tents', user.uid);
+        const tentSnap = await getDoc(tentRef);
+        setHasTent(tentSnap.exists());
       };
-      getTentId();
-    } else {
-        setLoadingTent(false);
+      checkTent();
     }
-  }, [firestore, user, isUserLoading]);
+  }, [firestore, user]);
 
   const rentalsQuery = useMemoFirebase(() => {
-    if (!firestore || !tentId) return null;
-    return collection(firestore, 'tents', tentId, 'rentalItems');
-  }, [firestore, tentId]);
+    if (!firestore || !user || !hasTent) return null;
+    return collection(firestore, 'tents', user.uid, 'rentalItems');
+  }, [firestore, user, hasTent]);
 
   const { data: rentalItems, isLoading: rentalsLoading, error } = useCollection<RentalItem>(rentalsQuery);
   
   const deleteItem = async (itemToDelete: RentalItem) => {
-    if (!firestore || !tentId) return;
+    if (!firestore || !user) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
-    const docRef = doc(firestore, 'tents', tentId, 'rentalItems', itemToDelete.id);
+    const docRef = doc(firestore, 'tents', user.uid, 'rentalItems', itemToDelete.id);
     
     const batch = writeBatch(firestore);
     batch.delete(docRef);
 
     if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
-        const tentRef = doc(firestore, 'tents', tentId);
+        const tentRef = doc(firestore, 'tents', user.uid);
         batch.update(tentRef, { hasAvailableKits: false });
     }
     
@@ -200,7 +188,7 @@ export default function RentalItemsPage() {
   const hasKit = useMemo(() => rentalItems?.some(item => item.name === 'Kit Guarda-sol + 2 Cadeiras'), [rentalItems]);
   const hasAdditionalChair = useMemo(() => rentalItems?.some(item => item.name === 'Cadeira Adicional'), [rentalItems]);
 
-  if (isUserLoading || loadingTent) {
+  if (isUserLoading || hasTent === null) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -212,7 +200,7 @@ export default function RentalItemsPage() {
     return <p>Acesso negado.</p>;
   }
 
-  if (!tentId && !loadingTent) {
+  if (hasTent === false) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
               <Armchair className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -286,12 +274,12 @@ export default function RentalItemsPage() {
             </div>
         )}
         </div>
-        {tentId && 
+        {user && hasTent && 
           <DialogContent>
               <DialogHeader>
                   <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
               </DialogHeader>
-              <RentalItemForm tentId={tentId} item={editingItem} onFinished={() => setIsFormOpen(false)} hasKit={!!hasKit} />
+              <RentalItemForm tentId={user.uid} item={editingItem} onFinished={() => setIsFormOpen(false)} hasKit={!!hasKit} />
           </DialogContent>
         }
     </Dialog>

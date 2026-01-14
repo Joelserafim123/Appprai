@@ -88,8 +88,6 @@ export default function MyReservationsPage() {
             operation: 'update',
             requestResourceData: updateData,
         }));
-        // We re-throw the original error if we don't want to swallow it.
-        // The global listener will catch the emitted one.
         throw e;
     })
   }

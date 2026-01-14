@@ -224,43 +224,19 @@ export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  const [tentId, setTentId] = useState<string | null>(null);
-  const [loadingTent, setLoadingTent] = useState(true);
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
   const previousReservationsCount = useRef<number>(0);
 
-  useEffect(() => {
-     if (isUserLoading) {
-        setLoadingTent(true);
-        return;
-    }
-    if (firestore && user && user.role === 'owner') {
-      setLoadingTent(true);
-      const getTentId = async () => {
-        const tentsRef = collection(firestore, 'tents');
-        const q = query(tentsRef, where('ownerId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          setTentId(querySnapshot.docs[0].id);
-        }
-         setLoadingTent(false);
-      };
-      getTentId();
-    } else {
-        setLoadingTent(false);
-    }
-  }, [firestore, user, isUserLoading]);
-
   const reservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !tentId) return null;
+    if (!firestore || !user || user.role !== 'owner') return null;
     return query(
       collection(firestore, 'reservations'),
-      where('tentId', '==', tentId)
+      where('tentOwnerId', '==', user.uid)
     );
-  }, [firestore, tentId]);
+  }, [firestore, user]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
@@ -302,9 +278,6 @@ export default function OwnerReservationsPage() {
     
     const updateData = { status: 'cancelled' as ReservationStatus };
     updateDoc(resDocRef, updateData)
-      .then(() => {
-        toast({ title: 'Reserva Cancelada!' });
-      })
       .catch(serverError => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: resDocRef.path,
@@ -312,6 +285,9 @@ export default function OwnerReservationsPage() {
           requestResourceData: updateData,
         }));
         throw serverError;
+      })
+      .then(() => {
+        toast({ title: 'Reserva Cancelada!' });
       });
   };
 
@@ -320,9 +296,6 @@ export default function OwnerReservationsPage() {
     const docRef = doc(firestore, 'reservations', reservationId);
     const updateData = { status: 'payment-pending' };
     updateDoc(docRef, updateData)
-    .then(() => {
-        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
-    })
     .catch(e => {
        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
@@ -330,6 +303,9 @@ export default function OwnerReservationsPage() {
             requestResourceData: updateData,
         }));
         throw e;
+    })
+    .then(() => {
+        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
     })
   }
 
@@ -351,9 +327,6 @@ export default function OwnerReservationsPage() {
     
     const updateData = { items: updatedItems, total: newTotal };
     updateDoc(resDocRef, updateData)
-      .then(() => {
-        toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
-      })
       .catch(serverError => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: resDocRef.path,
@@ -361,10 +334,13 @@ export default function OwnerReservationsPage() {
           requestResourceData: updateData,
         }));
         throw serverError;
+      })
+      .then(() => {
+        toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
       });
   }
 
-  if (isUserLoading || loadingTent) {
+  if (isUserLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -549,5 +525,6 @@ export default function OwnerReservationsPage() {
     
 
     
+
 
 
