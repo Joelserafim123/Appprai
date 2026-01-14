@@ -312,6 +312,24 @@ export default function OwnerReservationsPage() {
       });
   };
 
+  const handleCloseBill = (reservationId: string) => {
+    if (!firestore) return;
+    const docRef = doc(firestore, 'reservations', reservationId);
+    updateDoc(docRef, { status: 'payment-pending' })
+    .then(() => {
+        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
+    })
+    .catch(e => {
+       const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+            requestResourceData: { status: 'payment-pending' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw e;
+    })
+  }
+
   const handleItemStatusUpdate = (reservation: Reservation, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
     if (!firestore) return;
 
@@ -481,14 +499,9 @@ export default function OwnerReservationsPage() {
                                 </div>
                             )}
                             {reservation.status === 'checked-in' && (
-                                <div className="grid grid-cols-2 gap-2 w-full">
-                                    <Button asChild size="sm">
-                                        <Link href={`/dashboard/owner-order/${reservation.id}`}>
-                                            <Edit className="mr-2 h-4 w-4" /> Gerenciar Pedido
-                                        </Link>
-                                    </Button>
-                                    <Button size="sm" variant="secondary" onClick={() => setReservationForPayment(reservation)}>
-                                        <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta
+                                <div className="w-full">
+                                    <Button size="sm" variant="secondary" onClick={() => handleCloseBill(reservation.id)} className="w-full">
+                                        <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta do Cliente
                                     </Button>
                                 </div>
                             )}
