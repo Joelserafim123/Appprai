@@ -18,50 +18,19 @@ import { useMemoFirebase } from '@/firebase/provider';
 export default function ChatsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
-  const [tentId, setTentId] = useState<string | null>(null);
-  const [loadingTentId, setLoadingTentId] = useState(true);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isUserLoading) {
-      setLoadingTentId(true);
-      return;
-    }
-    if (firestore && user?.role === 'owner') {
-      setLoadingTentId(true);
-      const getTentId = async () => {
-        const tentsRef = collection(firestore, 'tents');
-        const q = query(tentsRef, where('ownerId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          setTentId(querySnapshot.docs[0].id);
-        }
-        setLoadingTentId(false);
-      };
-      getTentId();
-    } else {
-      setLoadingTentId(false);
-    }
-  }, [firestore, user, isUserLoading]);
-
   const chatsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || loadingTentId) return null;
-
-    if (user.role === 'owner' && !tentId) {
-        return query(collection(firestore, 'chats'), where('tentId', '==', 'nonexistent-id-to-return-empty'));
-    }
+    if (!firestore || !user) return null;
 
     const fieldToQuery = user.role === 'owner' ? 'tentOwnerId' : 'userId';
-    const valueToQuery = user.role === 'owner' ? user.uid : user.uid;
-
-    if (!valueToQuery) return null;
-
+    
     return query(
       collection(firestore, 'chats'),
-      where(fieldToQuery, '==', valueToQuery),
+      where(fieldToQuery, '==', user.uid),
       orderBy('lastMessageTimestamp', 'desc')
     );
-  }, [firestore, user, tentId, loadingTentId]);
+  }, [firestore, user]);
   
   const { data: chats, isLoading: chatsLoading, error } = useCollection<Chat>(chatsQuery);
 
@@ -69,7 +38,7 @@ export default function ChatsPage() {
     setSelectedChatId(chatId);
   }, []);
 
-  if (isUserLoading || chatsLoading || loadingTentId) {
+  if (isUserLoading || chatsLoading) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

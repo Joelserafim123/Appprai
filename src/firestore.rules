@@ -112,8 +112,8 @@ service cloud.firestore {
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
       // Allow listing chats if the query filters by the user's ID (as either customer or owner)
       allow list: if request.auth != null && 
-                  (request.query.where.field == "userId" && request.query.where.value == request.auth.uid || 
-                   request.query.where.field == "tentOwnerId" && request.query.where.value == request.auth.uid);
+                  (request.query.where.field == "userId" && request.query.where.value == request.auth.uid) ||
+                  (request.query.where.field == "tentOwnerId" && request.query.where.value == request.auth.uid);
     }
     
     match /chats/{chatId}/messages/{messageId} {
