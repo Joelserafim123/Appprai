@@ -48,7 +48,7 @@ const haversineDistance = (
   const R = 6371; // Raio da Terra em km
 
   const dLat = toRad(coords2.lat - coords1.lat);
-  const dLon = toRad(coords2.lng - coords1.lng);
+  const dLon = toRad(coords2.lng - coords1.lat);
   const lat1 = toRad(coords1.lat);
   const lat2 = toRad(coords2.lat);
 
@@ -378,6 +378,9 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="h-[80%] flex flex-col p-0">
+                    <SheetHeader className="sr-only">
+                        <SheetTitle>Barracas Próximas</SheetTitle>
+                    </SheetHeader>
                     <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} searchTerm={searchTerm} setSearchTerm={setSearchTerm}/>
                 </SheetContent>
             </Sheet>
