@@ -79,10 +79,10 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       description: existingTent?.description || '',
       beachName: existingTent?.beachName || '',
       minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || null,
-      location: {
-        latitude: existingTent?.location?.latitude,
-        longitude: existingTent?.location?.longitude,
-      },
+      location: existingTent?.location ? {
+        latitude: existingTent.location.latitude,
+        longitude: existingTent.location.longitude,
+      } : { latitude: undefined, longitude: undefined },
       operatingHours: existingTent?.operatingHours || defaultOperatingHours,
     },
   });
@@ -126,17 +126,20 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     setIsSubmitting(true);
 
     const docRef = doc(firestore, 'tents', user.uid); 
-
+    
+    // Combine os dados existentes (para preservar ownerId, slug, etc.) com os novos dados do formulário.
     const tentData = {
-      ...data,
+      ...(existingTent || {}), // Preserva campos existentes
+      ...data,                 // Sobrescreve com os novos dados do formulário
       ownerId: user.uid,
       ownerName: user.displayName,
       slug: generateSlug(data.name),
-      hasAvailableKits: existingTent?.hasAvailableKits || false,
+      hasAvailableKits: existingTent?.hasAvailableKits ?? false,
     };
     
     const operation = existingTent ? 'update' : 'create';
 
+    // Use setDoc com merge: true para criar ou atualizar o documento.
     setDoc(docRef, tentData, { merge: true })
       .then(() => {
         toast({
@@ -339,3 +342,5 @@ export default function MyTentPage() {
   );
 
 }
+
+    
