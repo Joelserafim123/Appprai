@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, use } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -70,7 +70,8 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
     );
 }
 
-export default function TentPage({ params }: { params: { slug: string } }) {
+export default function TentPage({ params }: { params: { slug: string } | Promise<{ slug: string }> }) {
+  const resolvedParams = use(params);
   const { firestore } = useFirebase();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
@@ -102,7 +103,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
     const fetchTent = async () => {
         setLoadingTent(true);
-        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', params.slug));
+        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', resolvedParams.slug));
         try {
             const querySnapshot = await getDocs(tentQuery);
             if (querySnapshot.empty) {
@@ -121,7 +122,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         }
     };
     fetchTent();
-  }, [firestore, params.slug]);
+  }, [firestore, resolvedParams.slug]);
 
 
   const menuQuery = useMemoFirebase(() => {
