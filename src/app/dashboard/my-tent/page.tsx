@@ -5,19 +5,28 @@ import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, CheckCircle2 } from 'lucide-react';
+import { Loader2, Building, MapPin, CheckCircle2, Clock } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import type { Tent } from '@/lib/types';
+import type { Tent, OperatingHours } from '@/lib/types';
+import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+
+const operatingHoursSchema = z.object({
+  isOpen: z.boolean(),
+  open: z.string(),
+  close: z.string(),
+});
 
 const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
@@ -27,10 +36,35 @@ const tentSchema = z.object({
   location: z.object({
     latitude: z.number({ required_error: "A latitude é obrigatória. Use o botão de GPS." }),
     longitude: z.number({ required_error: "A longitude é obrigatória. Use o botão de GPS." }),
-  })
+  }),
+  operatingHours: z.object({
+    monday: operatingHoursSchema,
+    tuesday: operatingHoursSchema,
+    wednesday: operatingHoursSchema,
+    thursday: operatingHoursSchema,
+    friday: operatingHoursSchema,
+    saturday: operatingHoursSchema,
+    sunday: operatingHoursSchema,
+  }),
 });
 
 type TentFormData = z.infer<typeof tentSchema>;
+
+const defaultHours = {
+  isOpen: true,
+  open: '09:00',
+  close: '18:00',
+};
+
+const defaultOperatingHours: OperatingHours = {
+  monday: { ...defaultHours },
+  tuesday: { ...defaultHours },
+  wednesday: { ...defaultHours },
+  thursday: { ...defaultHours },
+  friday: { ...defaultHours },
+  saturday: { ...defaultHours },
+  sunday: { ...defaultHours },
+};
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { firestore } = useFirebase();
@@ -38,7 +72,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<TentFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, control } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
       name: existingTent?.name || '',
@@ -48,9 +82,20 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       location: {
         latitude: existingTent?.location?.latitude,
         longitude: existingTent?.location?.longitude,
-      }
+      },
+      operatingHours: existingTent?.operatingHours || defaultOperatingHours,
     },
   });
+  
+  const daysOfWeek = [
+      { id: 'sunday', label: 'Domingo' },
+      { id: 'monday', label: 'Segunda-feira' },
+      { id: 'tuesday', label: 'Terça-feira' },
+      { id: 'wednesday', label: 'Quarta-feira' },
+      { id: 'thursday', label: 'Quinta-feira' },
+      { id: 'friday', label: 'Sexta-feira' },
+      { id: 'saturday', label: 'Sábado' },
+  ] as const;
 
   const watchedLocation = watch('location');
   const hasLocation = watchedLocation?.latitude && watchedLocation?.longitude;
@@ -152,6 +197,53 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             {errors.location?.latitude && <p className="text-sm text-destructive">{errors.location.latitude.message}</p>}
             {errors.location?.longitude && <p className="text-sm text-destructive">{errors.location.longitude.message}</p>}
        </div>
+
+        <div className="space-y-4 rounded-lg border p-4">
+            <header className="space-y-1">
+                <Label className="flex items-center gap-2"><Clock /> Horário de Funcionamento</Label>
+                <p className="text-sm text-muted-foreground">Defina os dias e horários em que sua barraca está aberta.</p>
+            </header>
+            <div className="space-y-4">
+             {daysOfWeek.map((day) => {
+                const dayKey = `operatingHours.${day.id}` as const;
+                const isDayOpen = watch(`${dayKey}.isOpen`);
+                return (
+                    <div key={day.id} className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                        <Label htmlFor={`${dayKey}.isOpen`} className="col-span-3 font-medium">{day.label}</Label>
+                        <Controller
+                            control={control}
+                            name={`${dayKey}.isOpen`}
+                            render={({ field }) => (
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id={`${dayKey}.isOpen`}
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                        disabled={isSubmitting}
+                                    />
+                                    <label htmlFor={`${dayKey}.isOpen`} className="text-sm">
+                                        {field.value ? 'Aberto' : 'Fechado'}
+                                    </label>
+                                </div>
+                            )}
+                        />
+                        <Input
+                            type="time"
+                            {...register(`${dayKey}.open`)}
+                            disabled={isSubmitting || !isDayOpen}
+                            className={cn(!isDayOpen && "opacity-50")}
+                        />
+                        <Input
+                            type="time"
+                            {...register(`${dayKey}.close`)}
+                            disabled={isSubmitting || !isDayOpen}
+                            className={cn(!isDayOpen && "opacity-50")}
+                        />
+                    </div>
+                )
+             })}
+            </div>
+        </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Informações'}

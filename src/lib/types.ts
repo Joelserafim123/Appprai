@@ -1,6 +1,23 @@
 
 import type { Timestamp } from 'firebase/firestore';
 
+export interface OperatingHoursDay {
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
+export interface OperatingHours {
+  monday: OperatingHoursDay;
+  tuesday: OperatingHoursDay;
+  wednesday: OperatingHoursDay;
+  thursday: OperatingHoursDay;
+  friday: OperatingHoursDay;
+  saturday: OperatingHoursDay;
+  sunday: OperatingHoursDay;
+}
+
+
 export interface Tent {
   id: string;
   slug: string;
@@ -16,6 +33,7 @@ export interface Tent {
   };
   minimumOrderForFeeWaiver?: number;
   hasAvailableKits?: boolean;
+  operatingHours?: OperatingHours;
   distance?: number;
 }
 

@@ -19,13 +19,12 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import type { Tent, Reservation } from '@/lib/types';
+import type { Tent, Reservation, OperatingHoursDay } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
 import { useMemoFirebase } from '@/firebase/provider';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
-
 
 type CartItem = { 
     item: MenuItem | RentalItem; 
@@ -33,6 +32,42 @@ type CartItem = {
     type: 'menu' | 'rental' 
 };
 
+const daysOfWeekMap: Record<string, string> = {
+  sunday: 'Domingo',
+  monday: 'Segunda-feira',
+  tuesday: 'Terça-feira',
+  wednesday: 'Quarta-feira',
+  thursday: 'Quinta-feira',
+  friday: 'Sexta-feira',
+  saturday: 'Sábado',
+};
+
+const dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+
+function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
+    if (!hours) return <p className="text-sm text-muted-foreground">Horário de funcionamento não informado.</p>;
+
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+
+    return (
+        <div className="space-y-2 text-sm">
+            {dayOrder.map(day => {
+                const dayInfo = hours[day as keyof typeof hours] as OperatingHoursDay;
+                if (!dayInfo) return null;
+
+                return (
+                    <div key={day} className={cn("flex justify-between", day === today && "font-bold text-primary")}>
+                        <span>{daysOfWeekMap[day]}</span>
+                        <span>
+                            {dayInfo.isOpen ? `${dayInfo.open} - ${dayInfo.close}` : 'Fechado'}
+                        </span>
+                    </div>
+                )
+            })}
+        </div>
+    );
+}
 
 export default function TentPage({ params }: { params: { slug: string } }) {
   const { firestore } = useFirebase();
@@ -276,9 +311,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
                  <Tabs defaultValue="reserve" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+                    <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
                         <TabsTrigger value="reserve">Aluguel e Horário</TabsTrigger>
                         <TabsTrigger value="menu">Cardápio</TabsTrigger>
+                         <TabsTrigger value="info">Informações</TabsTrigger>
                     </TabsList>
                      <TabsContent value="menu" className="mt-6">
                         <Card>
@@ -371,7 +407,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                                 <div className="mt-4 flex items-center gap-2 sm:mt-0">
                                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', -1)} disabled={isSubmitting || !hasRentalKitInCart}><Minus className="h-4 w-4"/></Button>
                                                     <Input type="number" readOnly value={cart[additionalChair.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting || !hasRentalKitInCart}/>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity}><Plus className="h-4 w-4"/></Button>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity || (cart[additionalChair.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
                                                 </div>
                                             </div>
                                         )}
@@ -379,6 +415,16 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                                     ) : (
                                         <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
                                     )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                         <TabsContent value="info" className="mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Horário de Funcionamento</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <OperatingHoursDisplay hours={tent.operatingHours} />
                                 </CardContent>
                             </Card>
                         </TabsContent>

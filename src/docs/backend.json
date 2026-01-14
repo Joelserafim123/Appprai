@@ -41,9 +41,33 @@
           "required": ["latitude", "longitude"]
         },
         "minimumOrderForFeeWaiver": { "type": ["number", "null"], "description": "Valor mínimo do pedido para isenção de taxas de aluguel." },
-        "hasAvailableKits": { "type": "boolean", "description": "Indica se há kits de aluguel disponíveis." }
+        "hasAvailableKits": { "type": "boolean", "description": "Indica se há kits de aluguel disponíveis." },
+        "operatingHours": {
+          "type": "object",
+          "description": "Horário de funcionamento da barraca.",
+          "properties": {
+            "monday": { "$ref": "#/entities/OperatingHoursDay" },
+            "tuesday": { "$ref": "#/entities/OperatingHoursDay" },
+            "wednesday": { "$ref": "#/entities/OperatingHoursDay" },
+            "thursday": { "$ref": "#/entities/OperatingHoursDay" },
+            "friday": { "$ref": "#/entities/OperatingHoursDay" },
+            "saturday": { "$ref": "#/entities/OperatingHoursDay" },
+            "sunday": { "$ref": "#/entities/OperatingHoursDay" }
+          }
+        }
       },
       "required": ["ownerId", "ownerName", "name", "slug", "description", "beachName", "location"]
+    },
+    "OperatingHoursDay": {
+        "title": "Operating Hours Day",
+        "description": "Define o horário de funcionamento para um único dia.",
+        "type": "object",
+        "properties": {
+            "isOpen": { "type": "boolean" },
+            "open": { "type": "string" },
+            "close": { "type": "string" }
+        },
+        "required": ["isOpen"]
     },
     "MenuItem": {
       "title": "Menu Item",
