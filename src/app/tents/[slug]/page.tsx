@@ -93,12 +93,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Check for active reservations for the current user
+  
   const userReservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // This is a safe query, as it's filtered by the current user's ID.
-    // The security rules should allow this.
     return query(
       collection(firestore, 'reservations'),
       where('userId', '==', user.uid)
@@ -114,7 +111,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
 
   useEffect(() => {
-    if (!firestore) return;
+    if (!firestore || !params.slug) return;
 
     const fetchTent = async () => {
         setLoadingTent(true);
