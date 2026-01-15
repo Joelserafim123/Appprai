@@ -94,11 +94,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // This state will be manually updated after checking for active reservations.
   const [hasActiveReservation, setHasActiveReservation] = useState(false);
   const [loadingActiveReservation, setLoadingActiveReservation] = useState(true);
 
-  // Check for active reservation on component mount or user change
   useEffect(() => {
     const checkActiveReservation = async () => {
       if (!user || !firestore) {
@@ -120,14 +118,16 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         setHasActiveReservation(!querySnapshot.empty);
       } catch (error) {
         console.error("Error checking for active reservation:", error);
-        setHasActiveReservation(false); // Assume no reservation on error
+        setHasActiveReservation(false);
       } finally {
         setLoadingActiveReservation(false);
       }
     };
 
-    checkActiveReservation();
-  }, [user, firestore]);
+    if (!isUserLoading) {
+        checkActiveReservation();
+    }
+  }, [user, firestore, isUserLoading]);
 
 
   useEffect(() => {
