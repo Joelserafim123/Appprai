@@ -94,20 +94,18 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // SAFE QUERY: This query specifically asks only for reservations belonging to the current user.
   const userReservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null; // Wait for user and firestore
-    return query(
-      collection(firestore, 'reservations'),
-      where('userId', '==', user.uid)
-    );
-  }, [firestore, user]);
+    if (!firestore || !user?.uid) {
+      return null;
+    }
+    return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
+  }, [firestore, user?.uid]);
+
 
   const { data: userReservations, isLoading: loadingReservations } = useCollection<Reservation>(userReservationsQuery);
 
   const activeReservation = useMemo(() => {
     if (!userReservations) return null;
-    // An active reservation is one that is not completed or cancelled.
     return userReservations.find(r => r.status !== 'completed' && r.status !== 'cancelled');
   }, [userReservations]);
 
@@ -187,15 +185,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       if (type === 'rental') {
         const rentalItem = item as RentalItem;
         
-        // Apply general stock limit
         if (rentalItem.quantity) {
           newQuantity = Math.min(newQuantity, rentalItem.quantity);
         }
-        // Apply limit for kits
         if (rentalItem.name === 'Kit Guarda-sol + 2 Cadeiras') {
             newQuantity = Math.min(newQuantity, 3);
         }
-        // Apply limit for additional chairs
         if (rentalItem.name === 'Cadeira Adicional') {
             newQuantity = Math.min(newQuantity, 3);
         }
@@ -204,7 +199,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       if (newQuantity === 0) {
         const { [item.id]: _, ...rest } = prev;
         
-        // If removing the kit, also remove additional chairs
         if (item.id === rentalKit?.id) {
            if (additionalChair?.id) {
             const { [additionalChair.id]: __, ...finalRest } = rest;
@@ -316,7 +310,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         name: item.name,
         price: item.price,
         quantity: quantity,
-        status: 'confirmed', // All initial items are confirmed
+        status: 'confirmed', 
       } as ReservationItem)),
       total: finalTotal,
       createdAt: serverTimestamp(),
@@ -577,3 +571,5 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
+
+    
