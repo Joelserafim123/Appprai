@@ -15,18 +15,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Mail, Smartphone, Send } from "lucide-react"
+import { Loader2, Mail, Send } from "lucide-react"
 import { getAuth, sendSignInLinkToEmail } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { PhoneSignIn } from "./phone-signin"
-
 
 const formSchema = z.object({
   email: z.string().email({ message: "E-mail inválido." }),
@@ -38,7 +31,6 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPhoneSignInOpen, setIsPhoneSignInOpen] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -48,16 +40,6 @@ export function LoginForm() {
     },
   })
   
-  const handleAuthSuccess = () => {
-      toast({
-        title: "Login bem-sucedido",
-        description: "Redirecionando...",
-      })
-      const redirectUrl = searchParams.get('redirect');
-      router.push(redirectUrl || '/dashboard');
-      router.refresh(); 
-  }
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firebaseApp) return;
     setIsSubmitting(true);
@@ -104,9 +86,7 @@ export function LoginForm() {
     )
   }
 
-
   return (
-    <Dialog>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
@@ -131,26 +111,5 @@ export function LoginForm() {
           </Button>
         </form>
       </Form>
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
-            OU
-            </span>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-2">
-        <Dialog open={isPhoneSignInOpen} onOpenChange={setIsPhoneSignInOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="w-full" disabled={isSubmitting}>
-              <Smartphone className="mr-2" /> Entrar com Telefone
-            </Button>
-          </DialogTrigger>
-          <PhoneSignIn onAuthSuccess={() => { setIsPhoneSignInOpen(false); handleAuthSuccess(); }} />
-        </Dialog>
-      </div>
-    </Dialog>
   )
 }
