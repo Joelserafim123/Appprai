@@ -52,9 +52,9 @@ export function LoginForm() {
 
     try {
       await sendSignInLinkToEmail(auth, values.email, actionCodeSettings);
-      // The link was successfully sent. Inform the user.
-      // Save the email locally so you don't need to ask the user for it again
-      // if they open the link on the same device.
+      // O link foi enviado com sucesso. Informar o utilizador.
+      // Guardar o e-mail localmente para não precisar de o pedir novamente
+      // se o utilizador abrir o link no mesmo dispositivo.
       window.localStorage.setItem('emailForSignIn', values.email);
       setEmailSent(true);
       toast({

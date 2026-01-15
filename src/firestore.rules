@@ -26,7 +26,9 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       
       // Allow user to create their own document with all necessary fields.
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null 
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.role in ['customer', 'owner'];
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
@@ -34,8 +36,8 @@ service cloud.firestore {
                     && request.resource.data.cpf == resource.data.cpf
                     && request.resource.data.role == resource.data.role;
       
-      // Disallow deleting user documents and listing all users.
-      allow delete, list: if false;
+      // Disallow deleting user documents.
+      allow delete: if false;
     }
 
     //--------------------------------

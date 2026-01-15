@@ -3,24 +3,30 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { getAuth, isSignInWithEmailLink, signInWithEmailLink, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider';
 import { Loader2, ShieldCheck, ShieldX } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import type { UserProfile } from '@/lib/types';
+
 
 function FinishLoginHandler() {
   const router = useRouter();
-  const { firebaseApp } = useFirebase();
+  const searchParams = useSearchParams();
+  const { firebaseApp, firestore } = useFirebase();
   const { toast } = useToast();
   
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !firebaseApp) return;
+    if (typeof window === 'undefined' || !firebaseApp || !firestore) return;
 
     const auth = getAuth(firebaseApp);
     const emailLink = window.location.href;
@@ -28,17 +34,52 @@ function FinishLoginHandler() {
     if (isSignInWithEmailLink(auth, emailLink)) {
       let email = window.localStorage.getItem('emailForSignIn');
       if (!email) {
-        // User opened the link on a different device. To prevent session fixation
-        // attacks, ask the user to provide the email again. For simplicity,
-        // we'll show an error and ask them to restart.
         setStatus('error');
         setErrorMessage('O e-mail para login não foi encontrado. Por favor, tente fazer login novamente no mesmo dispositivo em que iniciou.');
         return;
       }
 
       signInWithEmailLink(auth, email, emailLink)
-        .then((result) => {
+        .then(async (result) => {
           window.localStorage.removeItem('emailForSignIn');
+          const user = result.user;
+
+          // Verificar se é um novo utilizador (primeiro login)
+          if (result.operationType === 'signIn' && user.metadata.creationTime === user.metadata.lastSignInTime) {
+              const displayName = searchParams.get('displayName');
+              const role = searchParams.get('role');
+              const cpf = searchParams.get('cpf');
+
+              if (displayName && role && cpf) {
+                // Atualizar o perfil do Auth
+                await updateProfile(user, { displayName });
+
+                // Criar o documento no Firestore
+                const userProfileData: UserProfile = {
+                    uid: user.uid,
+                    email: user.email!,
+                    displayName: displayName,
+                    role: role as 'customer' | 'owner',
+                    cpf: cpf,
+                };
+                
+                const userDocRef = doc(firestore, "users", user.uid);
+                await setDoc(userDocRef, userProfileData).catch(e => {
+                    const permissionError = new FirestorePermissionError({
+                    path: `users/${user.uid}`,
+                    operation: 'create',
+                    requestResourceData: userProfileData,
+                    });
+                    errorEmitter.emit('permission-error', permissionError);
+                    throw e;
+                });
+                toast({
+                  title: "Conta criada com sucesso!",
+                  description: "Bem-vindo ao BeachPal!",
+                });
+              }
+          }
+
           setStatus('success');
           toast({
             title: "Login bem-sucedido!",
@@ -63,7 +104,7 @@ function FinishLoginHandler() {
         setStatus('error');
         setErrorMessage('Este não é um link de login válido.');
     }
-  }, [firebaseApp, router, toast]);
+  }, [firebaseApp, firestore, router, toast, searchParams]);
 
 
   if (status === 'loading') {
