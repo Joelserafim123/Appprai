@@ -166,7 +166,7 @@
     }
   },
   "auth": {
-    "providers": ["emailLink", "phone"],
+    "providers": ["password"],
     "authDomain": "cadastro-3c63f.firebaseapp.com"
   },
   "firestore": {

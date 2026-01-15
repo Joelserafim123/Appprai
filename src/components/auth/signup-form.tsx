@@ -16,8 +16,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/hooks/use-toast"
-import { User, Mail, Briefcase, UserCircle, Loader2 } from "lucide-react"
-import { getAuth, sendSignInLinkToEmail } from "firebase/auth"
+import { User, Mail, Briefcase, UserCircle, Loader2, Lock } from "lucide-react"
+import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter } from "next/navigation"
@@ -30,6 +30,8 @@ import type { UserProfile } from "@/lib/types"
 const formSchema = z.object({
   displayName: z.string().min(2, { message: "O nome completo deve ter pelo menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, insira um endereço de e-mail válido." }),
+  password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
+  confirmPassword: z.string(),
   role: z.enum(["customer", "owner"], { required_error: "Você deve selecionar uma função." }),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
   cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
@@ -38,7 +40,10 @@ const formSchema = z.object({
   neighborhood: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-})
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem.",
+    path: ["confirmPassword"],
+});
 
 type SignUpFormData = z.infer<typeof formSchema>;
 
@@ -54,6 +59,8 @@ export function SignUpForm() {
     defaultValues: {
       displayName: "",
       email: "",
+      password: "",
+      confirmPassword: "",
       role: "customer",
       cpf: "",
       cep: "",
@@ -110,25 +117,56 @@ export function SignUpForm() {
 
     try {
       const auth = getAuth(app);
-      const actionCodeSettings = {
-        url: `${window.location.origin}/finish-login?displayName=${encodeURIComponent(values.displayName)}&role=${values.role}&cpf=${encodeURIComponent(values.cpf.replace(/\D/g, ''))}`,
-        handleCodeInApp: true,
-      };
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
 
-      await sendSignInLinkToEmail(auth, values.email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', values.email);
+      // Update auth profile
+      await updateProfile(user, { displayName: values.displayName });
+
+      // Create firestore document
+      const userProfileData: UserProfile = {
+          uid: user.uid,
+          email: values.email,
+          displayName: values.displayName,
+          role: values.role,
+          cpf: values.cpf.replace(/\D/g, ''),
+          cep: values.cep,
+          street: values.street,
+          number: values.number,
+          neighborhood: values.neighborhood,
+          city: values.city,
+          state: values.state,
+      };
+      
+      const userDocRef = doc(firestore, "users", user.uid);
+      await setDoc(userDocRef, userProfileData).catch(e => {
+          const permissionError = new FirestorePermissionError({
+          path: `users/${user.uid}`,
+          operation: 'create',
+          requestResourceData: userProfileData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          throw e;
+      });
+
+      // Send verification email
+      await sendEmailVerification(user);
 
       toast({
-        title: "Confirmação de Registo Enviada",
-        description: "Enviámos um link de confirmação para o seu e-mail para ativar a sua conta.",
+        title: "Conta criada com sucesso!",
+        description: "Enviámos um link de verificação para o seu e-mail. Por favor, verifique a sua caixa de entrada.",
       });
-      router.push('/login');
+      router.push('/verify-email');
 
     } catch (error: any) {
+       let description = "Ocorreu um erro ao tentar criar a sua conta.";
+       if (error.code === 'auth/email-already-in-use') {
+         description = "Este endereço de e-mail já está a ser utilizado por outra conta.";
+       }
       toast({
           variant: "destructive",
           title: "Falha ao criar conta",
-          description: "Ocorreu um erro ao tentar enviar o e-mail de confirmação. Por favor, tente novamente.",
+          description: description,
       });
     } finally {
       setIsSubmitting(false);
@@ -196,6 +234,38 @@ export function SignUpForm() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
                   <Input placeholder="seu@email.com" {...field} className="pl-10" disabled={isSubmitting} />
+                </FormControl>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+         <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Senha</FormLabel>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <FormControl>
+                  <Input type="password" placeholder="Crie uma senha" {...field} className="pl-10" disabled={isSubmitting} />
+                </FormControl>
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirmar Senha</FormLabel>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <FormControl>
+                  <Input type="password" placeholder="Confirme sua senha" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />

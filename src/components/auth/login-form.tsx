@@ -15,14 +15,15 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Mail, Send } from "lucide-react"
-import { getAuth, sendSignInLinkToEmail } from "firebase/auth"
+import { Loader2, Mail, Lock } from "lucide-react"
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 
 const formSchema = z.object({
   email: z.string().email({ message: "E-mail inválido." }),
+  password: z.string().min(1, { message: "A senha é obrigatória." }),
 })
 
 export function LoginForm() {
@@ -31,12 +32,12 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: searchParams.get('email') ?? "",
+      password: "",
     },
   })
   
@@ -44,46 +45,30 @@ export function LoginForm() {
     if (!firebaseApp) return;
     setIsSubmitting(true);
     const auth = getAuth(firebaseApp);
-    
-    const actionCodeSettings = {
-        url: `${window.location.origin}/finish-login`,
-        handleCodeInApp: true,
-    };
 
     try {
-      await sendSignInLinkToEmail(auth, values.email, actionCodeSettings);
-      // O link foi enviado com sucesso. Informar o utilizador.
-      // Guardar o e-mail localmente para não precisar de o pedir novamente
-      // se o utilizador abrir o link no mesmo dispositivo.
-      window.localStorage.setItem('emailForSignIn', values.email);
-      setEmailSent(true);
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
-        title: "Link de login enviado!",
-        description: "Verifique seu e-mail para o link de acesso.",
-      })
+        title: "Login bem-sucedido!",
+        description: "Bem-vindo de volta!",
+      });
+      router.push('/dashboard');
     } catch (error: any) {
       console.error(error);
+      let description = "Não foi possível fazer login. Verifique seu e-mail e senha.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = "E-mail ou senha inválidos. Por favor, tente novamente.";
+      } else if (error.code === 'auth/user-disabled') {
+        description = "Esta conta foi desativada.";
+      }
       toast({
         variant: "destructive",
         title: "Falha no Login",
-        description: "Não foi possível enviar o link de login. Tente novamente.",
+        description: description,
       })
     } finally {
         setIsSubmitting(false);
     }
-  }
-  
-  if (emailSent) {
-    return (
-        <div className="text-center space-y-4">
-            <Send className="mx-auto h-12 w-12 text-primary"/>
-            <h3 className="text-xl font-semibold">Verifique seu E-mail</h3>
-            <p className="text-muted-foreground">
-                Enviamos um link mágico de login para <span className="font-bold text-foreground">{form.getValues('email')}</span>. 
-                Clique no link para entrar na sua conta.
-            </p>
-        </div>
-    )
   }
 
   return (
@@ -105,9 +90,25 @@ export function LoginForm() {
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Senha</FormLabel>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <FormControl>
+                    <Input type="password" placeholder="Sua senha" {...field} className="pl-10" disabled={isSubmitting} />
+                  </FormControl>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Entrar com Link Mágico'}
+            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Entrar'}
           </Button>
         </form>
       </Form>
