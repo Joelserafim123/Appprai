@@ -3,12 +3,89 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Nega o acesso de leitura e escrita a todos os documentos por defeito.
-    // As regras explícitas para as suas coleções devem ser adicionadas abaixo.
-    match /{document=**} {
-      allow read, write: if false;
+
+    // Helper functions
+    function isAuth() {
+      return request.auth != null;
     }
 
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    //----------------------------------------------------------------
+    //  USERS
+    //----------------------------------------------------------------
+    // - A user can create their own profile.
+    // - A user can only read or update their own profile.
+    //
+    match /users/{userId} {
+      allow read, update, delete: if isAuth() && isOwner(userId);
+      allow create: if isAuth(); // Anyone can create a user doc, but will be overwritten by signup to have correct UID
+    }
+
+
+    //----------------------------------------------------------------
+    //  TENTS
+    //----------------------------------------------------------------
+    // - Anyone can view tents.
+    // - Tent owners can create and manage their own tent.
+    //
+    match /tents/{tentId} {
+      allow read: if true;
+      allow create, update, delete: if isAuth() && isOwner(tentId);
+      
+      // Menu Items & Rental Items
+      // - Anyone can read.
+      // - Only the tent owner can manage them.
+      match /menuItems/{itemId} {
+        allow read: if true;
+        allow create, update, delete: if isAuth() && isOwner(tentId);
+      }
+
+      match /rentalItems/{itemId} {
+        allow read: if true;
+        allow create, update, delete: if isAuth() && isOwner(tentId);
+      }
+    }
+
+
+    //----------------------------------------------------------------
+    //  RESERVATIONS
+    //----------------------------------------------------------------
+    // - Users can create their own reservations.
+    // - Users can read and update their own reservations.
+    // - Tent owners can read and update reservations for their tent.
+    //
+    match /reservations/{reservationId} {
+      allow create: if isAuth() && isOwner(request.resource.data.userId);
+      allow read, update: if isAuth() && (isOwner(resource.data.userId) || isOwner(resource.data.tentOwnerId));
+
+      // A user can list their own reservations, and a tent owner can list theirs.
+      allow list: if isAuth() && 
+                (
+                    (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid) ||
+                    (request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid)
+                );
+    }
+
+    //----------------------------------------------------------------
+    //  CHATS
+    //----------------------------------------------------------------
+    // - Chat participants can read/write messages.
+    // - A user can list their own chats.
+    //
+    match /chats/{chatId} {
+      allow read, update: if isAuth() && (isOwner(resource.data.userId) || isOwner(resource.data.tentOwnerId));
+      allow list: if isAuth() && 
+                (
+                    (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid) ||
+                    (request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid)
+                );
+
+      match /messages/{messageId} {
+        allow read, create: if isAuth() && (isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.userId) || isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId));
+      }
+    }
   }
 }
