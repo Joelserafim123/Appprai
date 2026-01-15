@@ -228,8 +228,6 @@ export default function OwnerReservationsPage() {
   const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const previousReservationsCount = useRef<number>(0);
-
   const reservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user || user.role !== 'owner') return null;
     return query(
@@ -239,23 +237,6 @@ export default function OwnerReservationsPage() {
   }, [firestore, user]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
-
-  useEffect(() => {
-    if (!reservationsLoading && reservations) {
-        const currentCount = reservations.length;
-        if (previousReservationsCount.current > 0 && currentCount > previousReservationsCount.current) {
-            const newReservation = [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
-             if (newReservation.status === 'confirmed') {
-                toast({
-                    title: "Nova reserva recebida!",
-                    description: `Reserva de ${newReservation.userName} foi confirmada.`,
-                });
-             }
-        }
-        previousReservationsCount.current = currentCount;
-    }
-  }, [reservations, reservationsLoading, toast]);
-
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
@@ -525,6 +506,7 @@ export default function OwnerReservationsPage() {
     
 
     
+
 
 
 
