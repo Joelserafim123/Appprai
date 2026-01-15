@@ -88,7 +88,9 @@ export default function MyReservationsPage() {
             operation: 'update',
             requestResourceData: updateData,
         }));
-        throw e;
+        if (e.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
+        }
     })
   }
   
@@ -102,7 +104,9 @@ export default function MyReservationsPage() {
             operation: 'update',
             requestResourceData: updateData
         }));
-        throw err;
+        if (err.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
+        }
     });
   }
 

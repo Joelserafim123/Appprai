@@ -97,7 +97,9 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                     operation: 'update',
                     requestResourceData: updates,
                 }));
-                throw e;
+                if (e.code !== 'permission-denied') {
+                   toast({ variant: 'destructive', title: 'Erro ao fazer check-in' });
+                }
             })
             .finally(() => setIsSubmitting(false));
     };
@@ -182,7 +184,9 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
                     operation: 'update',
                     requestResourceData: updateData,
                 }));
-                throw e;
+                if (e.code !== 'permission-denied') {
+                   toast({ variant: 'destructive', title: 'Erro ao confirmar pagamento' });
+                }
             })
             .finally(() => setIsSubmitting(false));
     };
@@ -259,16 +263,18 @@ export default function OwnerReservationsPage() {
     
     const updateData = { status: 'cancelled' as ReservationStatus };
     updateDoc(resDocRef, updateData)
+      .then(() => {
+        toast({ title: 'Reserva Cancelada!' });
+      })
       .catch(serverError => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: resDocRef.path,
           operation: 'update',
           requestResourceData: updateData,
         }));
-        throw serverError;
-      })
-      .then(() => {
-        toast({ title: 'Reserva Cancelada!' });
+        if (serverError.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
+        }
       });
   };
 
@@ -277,16 +283,18 @@ export default function OwnerReservationsPage() {
     const docRef = doc(firestore, 'reservations', reservationId);
     const updateData = { status: 'payment-pending' };
     updateDoc(docRef, updateData)
+    .then(() => {
+        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
+    })
     .catch(e => {
        errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: docRef.path,
             operation: 'update',
             requestResourceData: updateData,
         }));
-        throw e;
-    })
-    .then(() => {
-        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
+        if (e.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
+        }
     })
   }
 
@@ -308,16 +316,18 @@ export default function OwnerReservationsPage() {
     
     const updateData = { items: updatedItems, total: newTotal };
     updateDoc(resDocRef, updateData)
+      .then(() => {
+        toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
+      })
       .catch(serverError => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: resDocRef.path,
           operation: 'update',
           requestResourceData: updateData,
         }));
-        throw serverError;
-      })
-      .then(() => {
-        toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
+        if (serverError.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao atualizar item' });
+        }
       });
   }
 

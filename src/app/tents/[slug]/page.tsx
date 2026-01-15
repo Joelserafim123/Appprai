@@ -339,24 +339,27 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       status: 'confirmed',
     };
 
-    const reservationsColRef = collection(firestore, 'reservations');
-    addDoc(reservationsColRef, reservationData).then(() => {
+    try {
+        const reservationsColRef = collection(firestore, 'reservations');
+        await addDoc(reservationsColRef, reservationData);
         toast({
             title: "Reserva Confirmada!",
             description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
         });
         router.push('/dashboard/my-reservations');
-    }).catch(error => {
+    } catch (error: any) {
         const permissionError = new FirestorePermissionError({
-            path: reservationsColRef.path,
+            path: 'reservations',
             operation: 'create',
             requestResourceData: reservationData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        throw error;
-    }).finally(() => {
+        if (error.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao criar reserva' });
+        }
+    } finally {
         setIsSubmitting(false);
-    });
+    }
   };
 
   return (

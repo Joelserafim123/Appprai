@@ -56,31 +56,21 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
     try {
       if (item) {
         const docRef = doc(firestore, 'tents', tentId, 'menuItems', item.id);
-        updateDoc(docRef, data).catch((e) => {
-          const permissionError = new FirestorePermissionError({
-              path: `tents/${tentId}/menuItems/${item.id}`,
-              operation: 'update',
-              requestResourceData: data,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          throw e;
-        });
+        await updateDoc(docRef, data);
         toast({ title: "Item atualizado com sucesso!" });
       } else {
         const collectionRef = collection(firestore, 'tents', tentId, 'menuItems');
-        addDoc(collectionRef, data).catch((e) => {
-           const permissionError = new FirestorePermissionError({
-              path: `tents/${tentId}/menuItems`,
-              operation: 'create',
-              requestResourceData: data,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          throw e;
-        });
+        await addDoc(collectionRef, data);
         toast({ title: "Item adicionado com sucesso!" });
       }
       onFinished();
     } catch (e: any) {
+        const permissionError = new FirestorePermissionError({
+            path: item ? `tents/${tentId}/menuItems/${item.id}` : `tents/${tentId}/menuItems`,
+            operation: item ? 'update' : 'create',
+            requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
         if (e.code !== 'permission-denied') {
             toast({
             variant: 'destructive',
@@ -171,16 +161,14 @@ export default function MenuPage() {
     
     const docRef = doc(firestore, 'tents', user.uid, 'menuItems', itemId);
     try {
-        deleteDoc(docRef).catch((e) => {
-          const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          throw e;
-        });
+        await deleteDoc(docRef);
         toast({ title: 'Item apagado com sucesso!' });
     } catch(e: any) {
+        const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
         if (e.code !== 'permission-denied') {
             toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
         }

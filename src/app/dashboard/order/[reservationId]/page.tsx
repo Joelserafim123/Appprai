@@ -123,23 +123,26 @@ export default function OrderPage() {
             items: arrayUnion(...newItems)
         };
 
-        updateDoc(reservationRef, updateData).then(() => {
+        try {
+            await updateDoc(reservationRef, updateData);
             toast({
                 title: "Pedido Enviado!",
                 description: `Sua solicitação foi enviada para a barraca. Aguarde a confirmação.`,
             });
             router.push('/dashboard/my-reservations');
-        }).catch(error => {
+        } catch (error: any) {
             const permissionError = new FirestorePermissionError({
                 path: reservationRef.path,
                 operation: 'update',
                 requestResourceData: { items: newItems },
             });
             errorEmitter.emit('permission-error', permissionError);
-            throw error;
-        }).finally(() => {
+            if (error.code !== 'permission-denied') {
+                toast({ variant: 'destructive', title: 'Erro ao enviar pedido' });
+            }
+        } finally {
             setIsSubmitting(false);
-        });
+        }
     };
 
 
