@@ -15,145 +15,39 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { KeyRound, Loader2, User, Mail, Smartphone } from "lucide-react"
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
+import { Loader2, Mail, Smartphone, Send } from "lucide-react"
+import { getAuth, sendSignInLinkToEmail } from "firebase/auth"
 import { useFirebase } from "@/firebase/provider"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Separator } from "../ui/separator"
-import { doc, getDoc, setDoc } from "firebase/firestore"
 import { PhoneSignIn } from "./phone-signin"
 
 
 const formSchema = z.object({
   email: z.string().email({ message: "E-mail inválido." }),
-  password: z.string().min(1, { message: "A senha é obrigatória." }),
 })
-
-function ForgotPasswordDialog() {
-  const { firebaseApp } = useFirebase();
-  const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [isSent, setIsSent] = useState(false);
-
-  const handlePasswordReset = async () => {
-    if (!firebaseApp || !email) return;
-    setIsSending(true);
-    const auth = getAuth(firebaseApp);
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast({
-        title: "E-mail de recuperação enviado!",
-        description: "Verifique sua caixa de entrada para o link de redefinição de senha.",
-      });
-      setIsSent(true);
-    } catch (error: any) {
-      let description = "Ocorreu um erro. Por favor, tente novamente.";
-      if (error.code === 'auth/user-not-found') {
-        description = "Nenhum usuário encontrado com este e-mail.";
-      }
-       toast({
-        variant: "destructive",
-        title: "Falha ao enviar e-mail",
-        description,
-      });
-    } finally {
-      setIsSending(false);
-    }
-  }
-
-  if (isSent) {
-    return (
-       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Verifique seu E-mail</DialogTitle>
-          <DialogDescription>
-            Um link para redefinir sua senha foi enviado para <span className="font-semibold">{email}</span>. Siga as instruções no e-mail para continuar.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button>Fechar</Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    )
-  }
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Recuperar Senha</DialogTitle>
-        <DialogDescription>
-          Digite seu endereço de e-mail cadastrado e enviaremos um link para redefinir sua senha.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="space-y-4 py-2">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <div className="relative">
-             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-             <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSending}
-                className="pl-10"
-              />
-          </div>
-        </div>
-      </div>
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="ghost" disabled={isSending}>Cancelar</Button>
-        </DialogClose>
-        <Button onClick={handlePasswordReset} disabled={isSending || !email}>
-          {isSending ? <Loader2 className="animate-spin" /> : "Enviar Link de Recuperação"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  )
-}
-
 
 export function LoginForm() {
   const { toast } = useToast()
-  const { firebaseApp, firestore } = useFirebase();
+  const { firebaseApp } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPhoneSignInOpen, setIsPhoneSignInOpen] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: searchParams.get('email') ?? "",
     },
   })
   
-  useEffect(() => {
-    const emailFromParams = searchParams.get('email');
-    if (emailFromParams) {
-        form.setValue('email', decodeURIComponent(emailFromParams));
-    }
-  }, [searchParams, form]);
-
-
   const handleAuthSuccess = () => {
       toast({
         title: "Login bem-sucedido",
@@ -169,37 +63,47 @@ export function LoginForm() {
     setIsSubmitting(true);
     const auth = getAuth(firebaseApp);
     
+    const actionCodeSettings = {
+        url: `${window.location.origin}/finish-login`,
+        handleCodeInApp: true,
+    };
+
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      handleAuthSuccess();
+      await sendSignInLinkToEmail(auth, values.email, actionCodeSettings);
+      // The link was successfully sent. Inform the user.
+      // Save the email locally so you don't need to ask the user for it again
+      // if they open the link on the same device.
+      window.localStorage.setItem('emailForSignIn', values.email);
+      setEmailSent(true);
+      toast({
+        title: "Link de login enviado!",
+        description: "Verifique seu e-mail para o link de acesso.",
+      })
     } catch (error: any) {
       console.error(error);
-      let description = "Ocorreu um erro inesperado ao tentar fazer login.";
-      
-      const errorCode = error.code || error.message;
-
-      switch (errorCode) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          description = "Credenciais inválidas. Por favor, verifique seu e-mail e senha e tente novamente.";
-          break;
-        case 'auth/too-many-requests':
-          description = "Acesso bloqueado temporariamente devido a muitas tentativas. Por favor, tente novamente mais tarde.";
-          break;
-        default:
-          description = "Não foi possível fazer login. Verifique sua conexão e tente novamente.";
-          break;
-      }
       toast({
         variant: "destructive",
         title: "Falha no Login",
-        description,
+        description: "Não foi possível enviar o link de login. Tente novamente.",
       })
     } finally {
         setIsSubmitting(false);
     }
   }
+  
+  if (emailSent) {
+    return (
+        <div className="text-center space-y-4">
+            <Send className="mx-auto h-12 w-12 text-primary"/>
+            <h3 className="text-xl font-semibold">Verifique seu E-mail</h3>
+            <p className="text-muted-foreground">
+                Enviamos um link mágico de login para <span className="font-bold text-foreground">{form.getValues('email')}</span>. 
+                Clique no link para entrar na sua conta.
+            </p>
+        </div>
+    )
+  }
+
 
   return (
     <Dialog>
@@ -212,7 +116,7 @@ export function LoginForm() {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <FormControl>
                     <Input placeholder="email@exemplo.com" {...field} className="pl-10" disabled={isSubmitting} />
                   </FormControl>
@@ -221,29 +125,9 @@ export function LoginForm() {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex items-center justify-between">
-                  <FormLabel>Senha</FormLabel>
-                  <DialogTrigger asChild>
-                    <Button variant="link" size="sm" type="button" className="text-xs h-auto p-0">Esqueceu a senha?</Button>
-                  </DialogTrigger>
-                </div>
-                <div className="relative">
-                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={isSubmitting}/>
-                  </FormControl>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Entrar'}
+            {isSubmitting ? <Loader2 className="animate-spin" /> : 'Entrar com Link Mágico'}
           </Button>
         </form>
       </Form>
@@ -267,7 +151,6 @@ export function LoginForm() {
           <PhoneSignIn onAuthSuccess={() => { setIsPhoneSignInOpen(false); handleAuthSuccess(); }} />
         </Dialog>
       </div>
-      <ForgotPasswordDialog />
     </Dialog>
   )
 }

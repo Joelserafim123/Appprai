@@ -67,7 +67,7 @@ export function SignUpForm() {
     },
   })
 
-  const { setValue, register } = form;
+  const { setValue } = form;
 
   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
@@ -248,7 +248,7 @@ export function SignUpForm() {
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} className="pl-10" disabled={isSubmitting} />
+                  <Input type="password" placeholder="Crie uma senha forte" {...field} className="pl-10" disabled={isSubmitting} />
                 </FormControl>
               </div>
               <FormMessage />
