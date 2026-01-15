@@ -287,7 +287,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Erro ao Carregar o Mapa</AlertTitle>
             <AlertDescription>
-              Não foi possível carregar o Google Maps. Verifique a chave da API e a conexão com a internet.
+              Não foi possível carregar o Google Maps. Verifique se a sua chave de API está correta e se a "Maps JavaScript API" está ativada na sua consola do Google Cloud.
             </AlertDescription>
           </Alert>
         </div>
