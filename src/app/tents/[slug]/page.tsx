@@ -94,8 +94,9 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // SAFE QUERY: This query specifically asks only for reservations belonging to the current user.
   const userReservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user) return null; // Wait for user and firestore
     return query(
       collection(firestore, 'reservations'),
       where('userId', '==', user.uid)
@@ -106,6 +107,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
   const activeReservation = useMemo(() => {
     if (!userReservations) return null;
+    // An active reservation is one that is not completed or cancelled.
     return userReservations.find(r => r.status !== 'completed' && r.status !== 'cancelled');
   }, [userReservations]);
 
