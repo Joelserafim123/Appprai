@@ -100,7 +100,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   useEffect(() => {
     const checkActiveReservation = async () => {
       if (!user || !firestore) {
-        setHasActiveReservation(false);
         setLoadingActiveReservation(false);
         return;
       }
@@ -591,5 +590,3 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
-
-    
