@@ -27,7 +27,8 @@ service cloud.firestore {
       
       // Allow user to create their own document with basic fields.
       allow create: if request.auth != null 
-                    && request.resource.data.uid == request.auth.uid;
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.role in ['customer', 'owner'];
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
@@ -36,7 +37,7 @@ service cloud.firestore {
                     && request.resource.data.role == resource.data.role;
       
       // Disallow deleting user documents and listing all users.
-      allow delete, list: if false;
+      allow delete: if false;
     }
 
     //--------------------------------
@@ -45,12 +46,20 @@ service cloud.firestore {
     match /tents/{tentId} {
       // Anyone can read tent information.
       allow read: if true;
+
       // Allow creation if the ownerId in the data is the authenticated user.
+      // The tentId must also match the user's UID.
+      allow create: if request.auth != null 
+                    && request.resource.data.ownerId == request.auth.uid 
+                    && tentId == request.auth.uid;
+
       // Allow update if the user is the owner.
-      allow create, update: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.ownerId == request.auth.uid;
+
       // Tent owner can delete their tent.
       allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
     }
+
 
     // Media, MenuItems, RentalItems
     match /tents/{tentId}/{collection}/{itemId} {
@@ -70,22 +79,21 @@ service cloud.firestore {
                     && !hasActiveReservation(request.auth.uid);
       
       // Anyone involved (customer or owner) can read the reservation.
-      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid);
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid);
       
       // Update rules are now more granular.
       allow update: if request.auth != null && (
-        // Case 1: Tent owner can update status, paymentMethod, tableNumber, or cancel.
-        // Also, owner can update the status of individual items.
+        // Case 1: Tent owner can update the reservation.
         (
-          get(/databases/$(database)/documents/tents/$(resource.data.tentId)).data.ownerId == request.auth.uid
+          resource.data.tentOwnerId == request.auth.uid
         ) ||
-        // Case 2: Customer can update.
+        // Case 2: Customer can update specific fields.
         (
           resource.data.userId == request.auth.uid &&
           (
             // They can request payment.
             request.resource.data.status == 'payment-pending' ||
-            // They can add new items.
+            // They can add new items (items array size increases).
             request.resource.data.items.size() > resource.data.items.size() ||
             // They can cancel ONLY if not yet checked-in.
             (
@@ -98,6 +106,40 @@ service cloud.firestore {
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
     }
-    
+     //--------------------------------
+    // Chats
+    //--------------------------------
+    match /chats/{chatId} {
+        // A user or tent owner can read a chat they are a part of.
+        allow read, write: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+
+        // A user can create a chat. The creator must be the userId.
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+
+        // Allow participants to update last message details.
+        allow update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+
+        allow delete: if false;
+    }
+
+    match /chats/{chatId}/messages/{messageId} {
+        // Allow chat participants to read messages.
+        allow read: if request.auth != null && (
+            exists(/databases/$(database)/documents/chats/$(chatId)) && (
+              get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+              get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+            )
+        );
+
+        // Allow chat participants to create messages.
+        allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid && (
+            exists(/databases/$(database)/documents/chats/$(chatId)) && (
+              get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid ||
+              get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid
+            )
+        );
+
+        allow update, delete: if false;
+    }
   }
 }
