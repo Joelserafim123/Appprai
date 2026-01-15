@@ -4,7 +4,7 @@
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, DollarSign, BarChart, ShoppingBag } from 'lucide-react';

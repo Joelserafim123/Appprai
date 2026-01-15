@@ -29,7 +29,7 @@ service cloud.firestore {
       // The role must be either 'customer' or 'owner'.
       allow create: if request.auth != null 
                     && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.role in ['customer', 'owner'];
+                    && 'role' in request.resource.data && request.resource.data.role in ['customer', 'owner'];
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
@@ -107,8 +107,10 @@ service cloud.firestore {
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
 
-      // Allow a user to list only their own reservations.
-      allow list: if request.auth != null && request.query.where[0][2] == request.auth.uid;
+      // Allow a user to list only their own reservations, or a tent owner to list theirs.
+      allow list: if request.auth != null && 
+                  (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid ||
+                  request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid);
     }
      //--------------------------------
     // Chats
