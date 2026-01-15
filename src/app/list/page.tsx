@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -39,8 +40,8 @@ export default function ListPage() {
   useEffect(() => {
     if (tents) {
       const filtered = tents.filter(tent =>
-        tent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tent.beachName.toLowerCase().includes(searchTerm.toLowerCase())
+        (tent.name && tent.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (tent.beachName && tent.beachName.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredTents(filtered);
     }
