@@ -95,7 +95,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check for active reservations
+  // Check for active reservations for the current user
   const userReservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(
