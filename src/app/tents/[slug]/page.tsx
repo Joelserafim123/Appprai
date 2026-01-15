@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -94,21 +94,40 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const userReservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) {
-      return null;
-    }
-    // Secure query: only fetch reservations for the currently logged-in user.
-    return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
-  }, [firestore, user?.uid]);
+  // This state will be manually updated after checking for active reservations.
+  const [hasActiveReservation, setHasActiveReservation] = useState(false);
+  const [loadingActiveReservation, setLoadingActiveReservation] = useState(true);
 
+  // Check for active reservation on component mount or user change
+  useEffect(() => {
+    const checkActiveReservation = async () => {
+      if (!user || !firestore) {
+        setHasActiveReservation(false);
+        setLoadingActiveReservation(false);
+        return;
+      }
+      setLoadingActiveReservation(true);
+      const activeStatuses: Reservation['status'][] = ['confirmed', 'checked-in', 'payment-pending'];
+      const q = query(
+        collection(firestore, 'reservations'),
+        where('userId', '==', user.uid),
+        where('status', 'in', activeStatuses),
+        limit(1)
+      );
 
-  const { data: userReservations, isLoading: loadingReservations } = useCollection<Reservation>(userReservationsQuery);
+      try {
+        const querySnapshot = await getDocs(q);
+        setHasActiveReservation(!querySnapshot.empty);
+      } catch (error) {
+        console.error("Error checking for active reservation:", error);
+        setHasActiveReservation(false); // Assume no reservation on error
+      } finally {
+        setLoadingActiveReservation(false);
+      }
+    };
 
-  const activeReservation = useMemo(() => {
-    if (!userReservations) return null;
-    return userReservations.find(r => r.status !== 'completed' && r.status !== 'cancelled');
-  }, [userReservations]);
+    checkActiveReservation();
+  }, [user, firestore]);
 
 
   useEffect(() => {
@@ -156,7 +175,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
 
 
-  if (loadingTent || isUserLoading || loadingReservations || !tent) {
+  if (loadingTent || isUserLoading || loadingActiveReservation || !tent) {
     return (
        <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -263,7 +282,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         return;
     }
     
-    if (activeReservation) {
+    if (hasActiveReservation) {
         toast({
             variant: "destructive",
             title: "Reserva Ativa Encontrada",
@@ -527,7 +546,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                             <p className="text-2xl font-bold">R$ {finalTotal.toFixed(2)}</p>
                         </div>
                         
-                        {activeReservation ? (
+                        {hasActiveReservation ? (
                             <div className="p-3 bg-destructive/10 rounded-md text-center text-sm text-destructive-foreground">
                                 <AlertTriangle className="mx-auto mb-2 h-5 w-5 text-destructive" />
                                 <p className="font-semibold">Você já tem uma reserva ativa.</p>
@@ -572,7 +591,3 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
-
-    
-
-    
