@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Tent } from "@/lib/types";
@@ -147,7 +146,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   //  IMPORTANTE: Insira a sua chave de API do Google Maps na linha abaixo.
   //  Substitua "SUA_CHAVE_DE_API_AQUI" pela sua chave real.
   // ----------------------------------------------------------------------------------
-  const googleMapsApiKey = "SUA_CHAVE_DE_API_AQUI";
+  const googleMapsApiKey = "AIzaSyC1rvabdE2rNLr15uCiv6FCobdwNKKGZjI";
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
