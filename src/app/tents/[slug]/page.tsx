@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -98,6 +97,8 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   // Check for active reservations for the current user
   const userReservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // This is a safe query, as it's filtered by the current user's ID.
+    // The security rules should allow this.
     return query(
       collection(firestore, 'reservations'),
       where('userId', '==', user.uid)
