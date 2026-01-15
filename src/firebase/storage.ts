@@ -9,7 +9,6 @@ import {
   deleteObject,
   FirebaseStorage,
 } from 'firebase/storage';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Faz upload de um arquivo para um caminho especificado no Firebase Storage.
@@ -23,9 +22,10 @@ export async function uploadFile(
   file: File,
   path: string
 ): Promise<{ downloadURL: string; storagePath: string }> {
-  const fileId = uuidv4();
-  const fileExtension = file.name.split('.').pop() || 'jpg';
-  const fullStoragePath = `${path}/${fileId}.${fileExtension}`;
+  // Use um carimbo de data/hora e o nome original do ficheiro para um nome mais simples e legível.
+  const timestamp = Date.now();
+  const simpleName = file.name.replace(/[^a-zA-Z0-9.]/g, '_'); // Limpa o nome do ficheiro
+  const fullStoragePath = `${path}/${timestamp}-${simpleName}`;
   const fileRef = ref(storage, fullStoragePath);
 
   await uploadBytes(fileRef, file);
