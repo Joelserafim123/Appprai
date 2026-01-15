@@ -98,6 +98,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     if (!firestore || !user?.uid) {
       return null;
     }
+    // Secure query: only fetch reservations for the currently logged-in user.
     return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
   }, [firestore, user?.uid]);
 
@@ -571,5 +572,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
+
+    
 
     
