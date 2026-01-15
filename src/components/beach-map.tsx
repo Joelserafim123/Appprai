@@ -143,11 +143,15 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // ----------------------------------------------------------------------------------
+  //  IMPORTANTE: Insira a sua chave de API do Google Maps na linha abaixo.
+  //  Substitua "SUA_CHAVE_DE_API_AQUI" pela sua chave real.
+  // ----------------------------------------------------------------------------------
+  const googleMapsApiKey = "SUA_CHAVE_DE_API_AQUI";
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: googleMapsApiKey ? googleMapsApiKey : '',
+    googleMapsApiKey: googleMapsApiKey,
     libraries: ['marker']
   });
 
@@ -261,14 +265,14 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   }
 
   const renderMap = () => {
-    if (!googleMapsApiKey) {
+    if (!googleMapsApiKey || googleMapsApiKey === "SUA_CHAVE_DE_API_AQUI") {
       return (
         <div className="flex h-full items-center justify-center bg-muted p-8">
           <Alert variant="destructive" className="max-w-md">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
             <AlertDescription>
-              A chave da API do Google Maps não foi configurada. Adicione sua chave ao ficheiro `.env.local` como `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`.
+              A chave da API do Google Maps não foi configurada. Por favor, edite o ficheiro <code>src/components/beach-map.tsx</code> e adicione a sua chave de API.
             </AlertDescription>
           </Alert>
         </div>
@@ -279,7 +283,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       return (
         <div className="flex h-full items-center justify-center bg-muted p-8">
             <Alert variant="destructive" className="max-w-lg">
-                <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Erro ao Carregar o Google Maps</AlertTitle>
                 <AlertDescription>
                     <p className="mb-4">Ocorreu um problema com a sua chave de API do Google Maps. Por favor, verifique os seguintes pontos na sua <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a>:</p>
