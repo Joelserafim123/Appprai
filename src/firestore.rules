@@ -26,9 +26,13 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       
       // Allow user to create their own document with all necessary fields.
+      // The role must be either 'customer' or 'owner'.
       allow create: if request.auth != null 
                     && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.role in ['customer', 'owner'];
+                    && 'uid' in request.resource.data
+                    && 'email' in request.resource.data
+                    && 'displayName' in request.resource.data
+                    && 'role' in request.resource.data && request.resource.data.role in ['customer', 'owner'];
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
@@ -78,7 +82,7 @@ service cloud.firestore {
                     && request.resource.data.userId == request.auth.uid
                     && !hasActiveReservation(request.auth.uid);
       
-      // Anyone involved (customer or owner) can read the reservation.
+      // Anyone involved (customer or owner) can read their own reservation.
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid);
       
       // Update rules are now more granular.
