@@ -216,24 +216,19 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
 
   useEffect(() => {
-    if (isLoaded && !map) return;
-    handleGetCurrentLocation();
-  }, [isLoaded, map, handleGetCurrentLocation]);
-
-  useEffect(() => {
-    if (map && tents.length > 0 && !isLocating) {
-        const bounds = new window.google.maps.LatLngBounds();
-        sortedTents.forEach(tent => {
-            if (tent.location?.latitude && tent.location?.longitude) {
-            bounds.extend(new window.google.maps.LatLng(tent.location.latitude, tent.location.longitude));
-            }
-        });
-
-        if (!bounds.isEmpty()) {
-            map.fitBounds(bounds, 100); // 100px padding
+    if (map && sortedTents.length > 0) {
+      const bounds = new window.google.maps.LatLngBounds();
+      sortedTents.forEach(tent => {
+        if (tent.location?.latitude && tent.location?.longitude) {
+          bounds.extend(new window.google.maps.LatLng(tent.location.latitude, tent.location.longitude));
         }
+      });
+  
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, 100); // 100px padding
+      }
     }
-  }, [map, tents, isLocating, sortedTents]);
+  }, [map, tents, sortedTents]); // Removed isLocating and handleGetCurrentLocation from deps
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
