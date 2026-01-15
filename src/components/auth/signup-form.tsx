@@ -120,7 +120,11 @@ export function SignUpForm() {
         displayName: values.displayName,
       });
 
-      await sendEmailVerification(user);
+      const actionCodeSettings = {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: true,
+      };
+      await sendEmailVerification(user, actionCodeSettings);
 
       const userProfileData: Omit<UserProfile, 'photoURL'> = {
         uid: user.uid,
