@@ -591,3 +591,5 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
+
+    
