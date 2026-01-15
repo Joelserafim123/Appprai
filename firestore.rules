@@ -25,7 +25,8 @@ service cloud.firestore {
       // Allow user to read their own document.
       allow read: if request.auth != null && request.auth.uid == userId;
       
-      // Allow user to create their own document with basic fields.
+      // Allow user to create their own document with all necessary fields.
+      // The role must be either 'customer' or 'owner'.
       allow create: if request.auth != null 
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.role in ['customer', 'owner'];
@@ -36,7 +37,7 @@ service cloud.firestore {
                     && request.resource.data.cpf == resource.data.cpf
                     && request.resource.data.role == resource.data.role;
       
-      // Disallow deleting user documents and listing all users.
+      // Disallow deleting user documents.
       allow delete: if false;
     }
 
@@ -78,7 +79,7 @@ service cloud.firestore {
                     && request.resource.data.userId == request.auth.uid
                     && !hasActiveReservation(request.auth.uid);
       
-      // Anyone involved (customer or owner) can read the reservation.
+      // Anyone involved (customer or owner) can read their own reservation.
       allow read: if request.auth != null && (resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid);
       
       // Update rules are now more granular.
@@ -105,6 +106,9 @@ service cloud.firestore {
 
       // A reservation cannot be deleted via the client for business logic integrity.
       allow delete: if false;
+
+      // Allow a user to list only their own reservations.
+      allow list: if request.auth != null && request.query.where[0][2] == request.auth.uid;
     }
      //--------------------------------
     // Chats

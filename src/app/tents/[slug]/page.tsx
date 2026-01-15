@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState, useEffect, use } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
 import { addDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
@@ -81,8 +81,7 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
     );
 }
 
-export default function TentPage({ params: rawParams }: { params: { slug: string } }) {
-  const params = use(rawParams);
+export default function TentPage({ params }: { params: { slug: string } }) {
   const { firestore } = useFirebase();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
@@ -99,6 +98,7 @@ export default function TentPage({ params: rawParams }: { params: { slug: string
   // Check for active reservations
   const userReservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // Query specifically for the current user's reservations
     return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
   }, [firestore, user]);
 
