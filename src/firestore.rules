@@ -12,10 +12,9 @@ service cloud.firestore {
     function hasActiveReservation(userId) {
       // Check if a user has any reservation that is not 'completed' or 'cancelled'.
       return exists(
-        /databases/$(database)/documents/reservations/
-          .where("userId", "==", userId)
-          .where("status", "in", ["confirmed", "checked-in", "payment-pending"])
-      );
+        /databases/$(database)/documents/reservations/{reservationId}
+      ) && get(/databases/$(database)/documents/reservations/{reservationId}).data.userId == userId
+        && get(/databases/$(database)/documents/reservations/{reservationId}).data.status in ["confirmed", "checked-in", "payment-pending"];
     }
 
     //--------------------------------
@@ -112,8 +111,8 @@ service cloud.firestore {
 
       // Allow a user to list only their own reservations, or a tent owner to list theirs.
       allow list: if request.auth != null && 
-                  (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid ||
-                  request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid);
+                  ((request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid) ||
+                  (request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid));
     }
      //--------------------------------
     // Chats
