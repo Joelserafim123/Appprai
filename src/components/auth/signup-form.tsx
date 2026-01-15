@@ -372,6 +372,5 @@ export function SignUpForm() {
         </Button>
       </form>
     </Form>
-    </>
   )
 }
