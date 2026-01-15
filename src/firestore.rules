@@ -31,7 +31,8 @@ service cloud.firestore {
                     && 'uid' in request.resource.data
                     && 'email' in request.resource.data
                     && 'displayName' in request.resource.data
-                    && 'role' in request.resource.data && request.resource.data.role in ['customer', 'owner'];
+                    && 'role' in request.resource.data && request.resource.data.role in ['customer', 'owner']
+                    && 'cpf' in request.resource.data;
       
       // Allow user to update their own document.
       // The CPF and role cannot be changed once set.
