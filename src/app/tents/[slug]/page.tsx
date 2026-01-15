@@ -98,8 +98,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
   // Check for active reservations
   const userReservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // Query specifically for the current user's reservations
-    return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
+    return query(
+      collection(firestore, 'reservations'),
+      where('userId', '==', user.uid)
+    );
   }, [firestore, user]);
 
   const { data: userReservations, isLoading: loadingReservations } = useCollection<Reservation>(userReservationsQuery);
@@ -307,7 +309,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       tentId: tent.id,
       tentOwnerId: tent.ownerId,
       tentName: tent.name,
-      tentOwnerName: tent.ownerName || tent.name,
+      tentOwnerName: tent.ownerName,
       tentLocation: tent.location,
       items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
