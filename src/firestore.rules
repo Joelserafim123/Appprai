@@ -108,8 +108,10 @@ service cloud.firestore {
 
       // Allow a user to list only their own reservations, or a tent owner to list theirs.
       allow list: if request.auth != null && 
-                  (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid ||
-                  request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid);
+                  (
+                    (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid) ||
+                    (request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid)
+                  );
     }
      //--------------------------------
     // Chats
