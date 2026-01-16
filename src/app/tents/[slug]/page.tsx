@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { notFound, useRouter, useParams } from 'next/navigation';
@@ -106,16 +107,22 @@ export default function TentPage() {
         return;
       }
       setLoadingActiveReservation(true);
-      const activeStatuses: Reservation['status'][] = ['confirmed', 'checked-in', 'payment-pending'];
+      // This query was simplified to only use the `participantIds` field,
+      // which is guaranteed to be usable with the security rules.
+      // The status and user checks are now performed on the client side.
       const q = query(
         collection(firestore, 'reservations'),
-        where('participantIds', 'array-contains', user.uid),
-        where('status', 'in', activeStatuses)
+        where('participantIds', 'array-contains', user.uid)
       );
 
       getDocs(q)
         .then(querySnapshot => {
-          const hasActiveCustomerReservation = querySnapshot.docs.some(doc => doc.data().userId === user.uid);
+          const activeStatuses: Reservation['status'][] = ['confirmed', 'checked-in', 'payment-pending'];
+          const hasActiveCustomerReservation = querySnapshot.docs.some(doc => {
+              const data = doc.data();
+              // Ensure the reservation belongs to the user and is active
+              return data.userId === user.uid && activeStatuses.includes(data.status);
+          });
           setHasActiveReservation(hasActiveCustomerReservation);
         })
         .catch(error => {
