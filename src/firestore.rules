@@ -1,9 +1,53 @@
-// Regras temporárias (apenas para desenvolvimento)
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true; // Permite tudo
+
+    // Os utilizadores só podem ler e escrever no seu próprio documento de utilizador.
+    // A regra de criação é flexível para permitir a criação de perfis no primeiro login.
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Permite a atualização se for o próprio utilizador e se o CPF não estiver a ser alterado.
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && (!('cpf' in request.resource.data) || resource.data.cpf == request.resource.data.cpf);
+    }
+
+    // As barracas podem ser lidas por qualquer pessoa. Apenas o proprietário pode criar, atualizar ou apagar.
+    match /tents/{tentId} {
+      allow read: if true;
+      // Para criar, o ownerId está no novo documento. Para atualizar/apagar, está no documento existente.
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+
+        // Os itens do menu e de aluguer só podem ser geridos pelo proprietário da barraca.
+        match /menuItems/{menuItemId} {
+            allow read: if true;
+            allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+        }
+
+        match /rentalItems/{rentalItemId} {
+            allow read: if true;
+            allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+        }
+    }
+    
+    // As reservas podem ser criadas pelo utilizador e lidas/atualizadas pelos participantes.
+    match /reservations/{reservationId} {
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow create: if request.auth != null 
+                    && request.auth.uid == request.resource.data.userId
+                    && request.auth.uid != request.resource.data.tentOwnerId; // Impede o proprietário de reservar a sua própria barraca
+    }
+    
+    // As conversas e mensagens só podem ser acedidas pelos participantes.
+    match /chats/{chatId} {
+        allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+
+        match /messages/{messageId} {
+            allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        }
     }
   }
 }

@@ -22,12 +22,10 @@ export default function ChatsPage() {
 
   const chatsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-
-    const fieldToQuery = user.role === 'owner' ? 'tentOwnerId' : 'userId';
     
     return query(
       collection(firestore, 'chats'),
-      where(fieldToQuery, '==', user.uid),
+      where('participantIds', 'array-contains', user.uid),
       orderBy('lastMessageTimestamp', 'desc')
     );
   }, [firestore, user]);

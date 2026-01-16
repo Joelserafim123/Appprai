@@ -127,6 +127,7 @@ export interface Chat {
   tentLogoUrl?: string;
   lastMessage?: string;
   lastMessageTimestamp: Timestamp;
+  participantIds: string[];
 }
 
 export interface ChatMessage {
