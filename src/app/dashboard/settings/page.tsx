@@ -131,7 +131,10 @@ export default function SettingsPage() {
       if (data.neighborhood) firestoreData.neighborhood = data.neighborhood;
       if (data.city) firestoreData.city = data.city;
       if (data.state) firestoreData.state = data.state;
-      if (data.cpf) firestoreData.cpf = data.cpf.replace(/\D/g, '');
+      // Only add CPF if it's not already set (for older users completing profile)
+      if (data.cpf && !user.cpf) {
+        firestoreData.cpf = data.cpf.replace(/\D/g, '');
+      }
       
       const userDocRef = doc(firestore, "users", user.uid);
        setDoc(userDocRef, firestoreData, { merge: true }).catch(e => {
@@ -193,7 +196,7 @@ export default function SettingsPage() {
           <Info className="h-4 w-4" />
           <AlertTitle>Complete o seu perfil</AlertTitle>
           <AlertDescription>
-            Para continuar a usar o BeachPal, por favor preencha e salve as informações do seu perfil. O CPF é obrigatório.
+            Para continuar a usar o BeachPal, por favor preencha e salve as informações do seu perfil.
           </AlertDescription>
         </Alert>
       )}
@@ -203,7 +206,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
             <CardDescription>
-                Atualize as informações da sua conta. A sua função não pode ser alterada após o cadastro inicial.
+                Atualize as informações da sua conta. O e-mail e o CPF não podem ser alterados após o registo.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -239,7 +242,8 @@ export default function SettingsPage() {
                 id="cpf"
                 {...register('cpf')}
                 onChange={handleCpfChange}
-                disabled={isSubmitting || (!!user.cpf && !profileIncomplete)}
+                disabled={isSubmitting || !!user.cpf}
+                readOnly={!!user.cpf}
                 placeholder="000.000.000-00"
               />
                {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
