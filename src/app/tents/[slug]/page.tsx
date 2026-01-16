@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Header } from '@/components/layout/header';
 
 type CartItem = { 
     item: MenuItem | RentalItem; 
@@ -334,7 +335,7 @@ export default function TentPage() {
       reservationTime: reservationTime,
       orderNumber: orderNumber,
       checkinCode: checkinCode,
-      status: 'confirmed' as ReservationStatus,
+      status: 'confirmed' as Reservation['status'],
       ...(tent.location && { tentLocation: tent.location }),
     };
 
