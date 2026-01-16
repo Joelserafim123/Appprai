@@ -29,8 +29,11 @@ service cloud.firestore {
     }
     
     match /reservations/{reservationId} {
-      allow read, update: if resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid;
-      allow create: if isOwner(request.resource.data.userId) && request.resource.data.userId != request.resource.data.tentOwnerId;
+      allow read, update: if request.auth.uid in resource.data.participantIds;
+      allow create: if isOwner(request.resource.data.userId) 
+                      && request.resource.data.userId != request.resource.data.tentOwnerId
+                      && request.resource.data.participantIds.hasAll([request.resource.data.userId, request.resource.data.tentOwnerId])
+                      && request.resource.data.participantIds.size() == 2;
     }
     
     match /chats/{chatId} {

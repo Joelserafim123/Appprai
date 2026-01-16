@@ -236,6 +236,7 @@ export default function OwnerReservationsPage() {
     if (!firestore || !user || user.role !== 'owner') return null;
     return query(
       collection(firestore, 'reservations'),
+      where('participantIds', 'array-contains', user.uid),
       where('tentOwnerId', '==', user.uid)
     );
   }, [firestore, user]);

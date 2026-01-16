@@ -66,7 +66,7 @@ export default function MyReservationsPage() {
     if (!firestore || !user) return null;
     return query(
       collection(firestore, 'reservations'),
-      where('userId', '==', user.uid)
+      where('participantIds', 'array-contains', user.uid)
     );
   }, [firestore, user]);
 

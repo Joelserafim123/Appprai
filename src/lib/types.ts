@@ -112,6 +112,7 @@ export interface Reservation {
   status: ReservationStatus;
   paymentMethod?: PaymentMethod;
   tableNumber?: number;
+  participantIds: string[];
 }
 
 export interface Chat {

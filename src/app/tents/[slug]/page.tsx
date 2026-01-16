@@ -338,6 +338,7 @@ export default function TentPage() {
       orderNumber: orderNumber,
       checkinCode: checkinCode,
       status: 'confirmed' as Reservation['status'],
+      participantIds: [user.uid, tent.ownerId],
       ...(tent.location && { tentLocation: tent.location }),
     };
 

@@ -43,7 +43,7 @@ export default function AnalyticsPage() {
   
   const reservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user || user.role !== 'owner') return null;
-    return query(collection(firestore, 'reservations'), where('tentOwnerId', '==', user.uid));
+    return query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid), where('tentOwnerId', '==', user.uid));
   }, [firestore, user]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
