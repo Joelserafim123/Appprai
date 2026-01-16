@@ -143,11 +143,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ----------------------------------------------------------------------------------
-  //  IMPORTANTE: Insira a sua chave de API do Google Maps na linha abaixo.
-  //  Substitua "SUA_CHAVE_DE_API_AQUI" pela sua chave real.
-  // ----------------------------------------------------------------------------------
-  const googleMapsApiKey = "AIzaSyC1rvabdE2rNLr15uCiv6FCobdwNKKGZjI";
+  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -267,14 +263,14 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   }
 
   const renderMap = () => {
-    if (!googleMapsApiKey || googleMapsApiKey === "SUA_CHAVE_DE_API_AQUI") {
+    if (!googleMapsApiKey) {
       return (
         <div className="flex h-full items-center justify-center bg-muted p-8">
           <Alert variant="destructive" className="max-w-md">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
             <AlertDescription>
-              A chave da API do Google Maps não foi configurada. Por favor, edite o ficheiro <code>src/components/beach-map.tsx</code> e adicione a sua chave de API.
+              A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> ao seu ambiente.
             </AlertDescription>
           </Alert>
         </div>
