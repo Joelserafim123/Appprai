@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
 import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp, limit } from 'firebase/firestore';
+import { addDoc, collection, query, where, getDocs, serverTimestamp, limit, CollectionReference } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -323,7 +323,6 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       tentOwnerId: tent.ownerId,
       tentName: tent.name,
       tentOwnerName: tent.ownerName,
-      tentLocation: tent.location,
       items: Object.values(cart).map(({ item, quantity }) => ({
         itemId: item.id,
         name: item.name,
@@ -336,11 +335,12 @@ export default function TentPage({ params }: { params: { slug: string } }) {
       reservationTime: reservationTime,
       orderNumber: orderNumber,
       checkinCode: checkinCode,
-      status: 'confirmed',
+      status: 'confirmed' as ReservationStatus,
+      ...(tent.location && { tentLocation: tent.location }),
     };
 
     try {
-        const reservationsColRef = collection(firestore, 'reservations');
+        const reservationsColRef = collection(firestore, 'reservations') as CollectionReference<Omit<Reservation, 'id'>>;
         await addDoc(reservationsColRef, reservationData);
         toast({
             title: "Reserva Confirmada!",
@@ -593,3 +593,5 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
+
+    

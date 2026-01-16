@@ -34,9 +34,9 @@ const tentSchema = z.object({
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
   location: z.object({
-    latitude: z.number({ required_error: "A latitude é obrigatória. Use o botão de GPS." }),
-    longitude: z.number({ required_error: "A longitude é obrigatória. Use o botão de GPS." }),
-  }),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+  }).optional(),
   operatingHours: z.object({
     monday: operatingHoursSchema,
     tuesday: operatingHoursSchema,
@@ -91,7 +91,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         description: existingTent.description || '',
         beachName: existingTent.beachName || '',
         minimumOrderForFeeWaiver: existingTent.minimumOrderForFeeWaiver || null,
-        location: existingTent.location,
+        location: existingTent.location || { latitude: undefined, longitude: undefined },
         operatingHours: existingTent.operatingHours || defaultOperatingHours,
       });
     } else {
@@ -147,13 +147,20 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     const docRef = doc(firestore, 'tents', user.uid);
     const slug = generateSlug(data.name);
 
+    // Create a mutable copy for Firestore.
+    const dataForFirestore: Partial<TentFormData> = { ...data };
+
+    // Remove location if it's incomplete to prevent Firestore errors.
+    if (!dataForFirestore.location?.latitude || !dataForFirestore.location?.longitude) {
+      delete dataForFirestore.location;
+    }
+
     if (existingTent) {
       // Update existing tent
       const updateData = {
-        ...data,
+        ...dataForFirestore,
         slug: slug,
         hasAvailableKits: existingTent.hasAvailableKits ?? false,
-        operatingHours: data.operatingHours,
       };
       updateDoc(docRef, updateData)
         .then(() => {
@@ -179,12 +186,11 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     } else {
       // Create new tent
       const newTentData = {
-        ...data,
+        ...dataForFirestore,
         slug: slug,
         ownerId: user.uid,
         ownerName: user.displayName,
         hasAvailableKits: false,
-        operatingHours: data.operatingHours,
       };
       setDoc(docRef, newTentData)
         .then(() => {
@@ -255,8 +261,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                     <p>Localização definida com sucesso!</p>
                 </div>
             )}
-            {errors.location?.latitude && <p className="text-sm text-destructive">{errors.location.latitude.message}</p>}
-            {errors.location?.longitude && <p className="text-sm text-destructive">{errors.location.longitude.message}</p>}
+            {errors.location && <p className="text-sm text-destructive">Por favor, use o botão de GPS para definir a localização.</p>}
        </div>
 
         <div className="space-y-4 rounded-lg border p-4">
@@ -388,3 +393,5 @@ export default function MyTentPage() {
   );
 
 }
+
+    

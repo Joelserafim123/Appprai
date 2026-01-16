@@ -28,7 +28,7 @@ export interface Tent {
   ownerId: string;
   ownerName: string;
   logoUrl?: string;
-  location: {
+  location?: {
     latitude: number;
     longitude: number;
   };
@@ -99,7 +99,7 @@ export interface Reservation {
   tentName: string;
   tentOwnerId: string;
   tentOwnerName: string;
-  tentLocation: {
+  tentLocation?: {
     latitude: number;
     longitude: number;
   };
@@ -133,3 +133,5 @@ export interface ChatMessage {
     text: string;
     timestamp: Timestamp;
 }
+
+    
