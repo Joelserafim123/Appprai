@@ -73,9 +73,11 @@ export default function MyReservationsPage() {
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
   const sortedReservations = useMemo(() => {
-    if (!reservations) return [];
-    return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-  }, [reservations]);
+    if (!reservations || !user) return [];
+    // This page is for customers, so we only show reservations they created.
+    const customerReservations = reservations.filter(r => r.userId === user.uid);
+    return [...customerReservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [reservations, user]);
   
   const handleCloseBill = (reservationId: string) => {
     if (!firestore) return;
@@ -285,3 +287,5 @@ export default function MyReservationsPage() {
     </div>
   );
 }
+
+    
