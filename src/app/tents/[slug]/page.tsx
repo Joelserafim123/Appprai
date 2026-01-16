@@ -1,3 +1,4 @@
+
 'use client';
 
 import { notFound, useRouter, useParams } from 'next/navigation';
@@ -99,7 +100,7 @@ export default function TentPage() {
   const [loadingActiveReservation, setLoadingActiveReservation] = useState(true);
 
   useEffect(() => {
-    const checkActiveReservation = async () => {
+    const checkActiveReservation = () => {
       if (!user || !firestore) {
         setLoadingActiveReservation(false);
         return;
@@ -113,15 +114,21 @@ export default function TentPage() {
         limit(1)
       );
 
-      try {
-        const querySnapshot = await getDocs(q);
-        setHasActiveReservation(!querySnapshot.empty);
-      } catch (error) {
-        console.error("Error checking for active reservation:", error);
-        setHasActiveReservation(false);
-      } finally {
-        setLoadingActiveReservation(false);
-      }
+      getDocs(q)
+        .then(querySnapshot => {
+          setHasActiveReservation(!querySnapshot.empty);
+        })
+        .catch(error => {
+          const permissionError = new FirestorePermissionError({
+            path: 'reservations',
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setHasActiveReservation(false);
+        })
+        .finally(() => {
+          setLoadingActiveReservation(false);
+        });
     };
 
     if (!isUserLoading) {
@@ -133,25 +140,33 @@ export default function TentPage() {
   useEffect(() => {
     if (!firestore || !slug) return;
 
-    const fetchTent = async () => {
+    const fetchTent = () => {
         setLoadingTent(true);
         const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', slug));
-        try {
-            const querySnapshot = await getDocs(tentQuery);
-            if (querySnapshot.empty) {
-                notFound();
-            } else {
-                const tentDoc = querySnapshot.docs[0];
-                const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
-
-                setTent(tentData);
-            }
-        } catch (error) {
-            console.error("Error fetching tent:", error);
-            notFound();
-        } finally {
-            setLoadingTent(false);
-        }
+        
+        getDocs(tentQuery)
+            .then(querySnapshot => {
+                if (querySnapshot.empty) {
+                    notFound();
+                } else {
+                    const tentDoc = querySnapshot.docs[0];
+                    const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
+                    setTent(tentData);
+                }
+            })
+            .catch(error => {
+                const permissionError = new FirestorePermissionError({
+                    path: 'tents',
+                    operation: 'list',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                if (error.code !== 'permission-denied') {
+                    notFound();
+                }
+            })
+            .finally(() => {
+                setLoadingTent(false);
+            });
     };
     fetchTent();
   }, [firestore, slug]);
@@ -283,6 +298,15 @@ export default function TentPage() {
         return;
     }
     
+    if (user.uid === tent.ownerId) {
+       toast({
+        variant: "destructive",
+        title: "Ação não permitida",
+        description: "Você não pode fazer uma reserva na sua própria barraca.",
+      });
+      return;
+    }
+
     if (hasActiveReservation) {
         toast({
             variant: "destructive",
@@ -318,9 +342,9 @@ export default function TentPage() {
     const orderNumber = Math.floor(100000 + Math.random() * 900000).toString();
     const checkinCode = Math.floor(1000 + Math.random() * 9000).toString();
 
-    const reservationData = {
+    const reservationData: Omit<Reservation, 'id'> = {
       userId: user.uid,
-      userName: user.displayName,
+      userName: user.displayName || 'Cliente',
       tentId: tent.id,
       tentOwnerId: tent.ownerId,
       tentName: tent.name,
@@ -343,7 +367,7 @@ export default function TentPage() {
     };
 
     try {
-        const reservationsColRef = collection(firestore, 'reservations') as CollectionReference<Omit<Reservation, 'id'>>;
+        const reservationsColRef = collection(firestore, 'reservations');
         await addDoc(reservationsColRef, reservationData);
         toast({
             title: "Reserva Confirmada!",
@@ -564,7 +588,7 @@ export default function TentPage() {
                             <div className="p-3 bg-muted rounded-md text-center text-sm text-muted-foreground">
                                 <Info className="mx-auto mb-2 h-5 w-5" />
                                 <p className="font-semibold">Esta é a sua barraca.</p>
-                                <p>Para gerenciar, acesse o seu painel.</p>
+                                <p>Você não pode fazer uma reserva na sua própria barraca.</p>
                                 <Button asChild variant="link" className="text-primary p-0 h-auto mt-1">
                                     <Link href="/dashboard">Ir para o Painel</Link>
                                 </Button>

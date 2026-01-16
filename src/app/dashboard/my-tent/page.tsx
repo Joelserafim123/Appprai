@@ -325,25 +325,31 @@ export default function MyTentPage() {
   const [loadingTent, setLoadingTent] = useState(true);
   const { toast } = useToast();
 
-  const fetchTentData = useCallback(async () => {
-    if (!firestore || !user) return;
+  const fetchTentData = useCallback(() => {
+    if (!firestore || !user) {
+        setLoadingTent(false);
+        return;
+    };
     setLoadingTent(true);
-    try {
-        const docRef = doc(firestore, 'tents', user.uid); // ALWAYS use user.uid to fetch
-        const docSnap = await getDoc(docRef);
-        
+    const docRef = doc(firestore, 'tents', user.uid);
+    getDoc(docRef).then(docSnap => {
         if (docSnap.exists()) {
-            const tentData = { id: docSnap.id, ...docSnap.data() } as Tent;
-            setTent(tentData);
+            setTent({ id: docSnap.id, ...docSnap.data() } as Tent);
         } else {
             setTent(null);
         }
-    } catch(e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Erro ao buscar barraca', description: 'Não foi possível carregar os dados da sua barraca.' });
-    } finally {
+    }).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        if (error.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao buscar barraca', description: 'Não foi possível carregar os dados da sua barraca.' });
+        }
+    }).finally(() => {
         setLoadingTent(false);
-    }
+    });
   }, [firestore, user, toast]);
 
   useEffect(() => {
@@ -393,5 +399,3 @@ export default function MyTentPage() {
   );
 
 }
-
-    

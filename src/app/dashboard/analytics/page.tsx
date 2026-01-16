@@ -22,6 +22,8 @@ import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { useMemoFirebase } from '@/firebase/provider';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 type Reservation = {
   id: string;
@@ -86,12 +88,21 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (firestore && user && user.role === 'owner') {
-      const checkTent = async () => {
-        const tentRef = doc(firestore, 'tents', user.uid);
-        const tentSnap = await getDoc(tentRef);
-        setHasTent(tentSnap.exists());
-      };
-      checkTent();
+      const tentRef = doc(firestore, 'tents', user.uid);
+      getDoc(tentRef)
+        .then(tentSnap => {
+            setHasTent(tentSnap.exists());
+        })
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: tentRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            setHasTent(false);
+        });
+    } else {
+        setHasTent(false);
     }
   }, [firestore, user]);
 

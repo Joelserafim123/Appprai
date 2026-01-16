@@ -7,6 +7,8 @@ import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firest
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { UserProfile } from '@/lib/types';
+import { errorEmitter } from './error-emitter';
+import { FirestorePermissionError } from './errors';
 
 interface UserData extends User, Partial<UserProfile> {
     [key: string]: any;
@@ -78,32 +80,40 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   const fetchExtraData = useCallback(async (firebaseUser: User | null): Promise<UserData | null> => {
-    if (!firebaseUser) return null;
-    if (!firestore) return firebaseUser as UserData;
+    if (!firebaseUser || !firestore) return firebaseUser as UserData | null;
 
-    try {
-        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        
+    const userDocRef = doc(firestore, 'users', firebaseUser.uid);
+    
+    return getDoc(userDocRef).then(async (userDoc) => {
         if (userDoc.exists()) {
             return { ...firebaseUser, ...userDoc.data() } as UserData;
         } else {
-             // The document doesn't exist, so let's create a basic one.
             console.warn(`User document for ${firebaseUser.uid} not found. Re-creating...`);
             const newUserProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 displayName: firebaseUser.displayName || 'User',
                 photoURL: firebaseUser.photoURL || '',
-                role: 'customer', // Default role
+                role: 'customer',
             };
-            await setDoc(userDocRef, { ...newUserProfileData });
+            await setDoc(userDocRef, newUserProfileData).catch(error => {
+                 const permissionError = new FirestorePermissionError({
+                    path: userDocRef.path,
+                    operation: 'create',
+                    requestResourceData: newUserProfileData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
             return { ...firebaseUser, ...newUserProfileData } as UserData;
         }
-    } catch (error) {
-        console.error("Error fetching or creating user data in Firestore:", error);
-        return firebaseUser as UserData; // Return basic auth user on error
-    }
+    }).catch(error => {
+        const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        return firebaseUser as UserData;
+    });
   }, [firestore]);
   
   const refresh = useCallback(async () => {
