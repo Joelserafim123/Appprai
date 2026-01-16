@@ -3,45 +3,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    match /users/{userId} {
-      allow read, update: if isOwner(userId);
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
-    }
-
-    match /tents/{tentId} {
-      allow read: if true;
-      allow create, update: if isOwner(tentId);
-      
-      match /menuItems/{itemId} {
-        allow read: if true;
-        allow create, update, delete: if isOwner(tentId);
-      }
-      
-      match /rentalItems/{itemId} {
-        allow read: if true;
-        allow create, update, delete: if isOwner(tentId);
-      }
-    }
-    
-    match /reservations/{reservationId} {
-      allow read, update: if request.auth.uid in resource.data.participantIds;
-      allow create: if isOwner(request.resource.data.userId) 
-                      && request.resource.data.userId != request.resource.data.tentOwnerId
-                      && request.resource.data.participantIds.hasAll([request.resource.data.userId, request.resource.data.tentOwnerId])
-                      && request.resource.data.participantIds.size() == 2;
-    }
-    
-    match /chats/{chatId} {
-      allow read, update: if request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId;
-      
-      match /messages/{messageId} {
-        allow read, create: if request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.userId || request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId;
-      }
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
