@@ -109,14 +109,14 @@ export default function TentPage() {
       const activeStatuses: Reservation['status'][] = ['confirmed', 'checked-in', 'payment-pending'];
       const q = query(
         collection(firestore, 'reservations'),
-        where('userId', '==', user.uid),
-        where('status', 'in', activeStatuses),
-        limit(1)
+        where('participantIds', 'array-contains', user.uid),
+        where('status', 'in', activeStatuses)
       );
 
       getDocs(q)
         .then(querySnapshot => {
-          setHasActiveReservation(!querySnapshot.empty);
+          const hasActiveCustomerReservation = querySnapshot.docs.some(doc => doc.data().userId === user.uid);
+          setHasActiveReservation(hasActiveCustomerReservation);
         })
         .catch(error => {
           const permissionError = new FirestorePermissionError({
