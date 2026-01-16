@@ -3,58 +3,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Users Collection
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth.uid == userId;
-    }
-
-    // Tents Collection
-    match /tents/{tentId} {
-      allow read: if true;
-      allow create, update, delete: if request.auth != null && request.auth.uid == tentId;
-
-      // Menu Items Subcollection
-      match /menuItems/{itemId} {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == tentId;
-      }
-      
-      // Rental Items Subcollection
-      match /rentalItems/{itemId} {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == tentId;
-      }
-    }
-    
-    // Reservations Collection
-    match /reservations/{reservationId} {
-      allow create: if request.auth != null;
-      allow read, update: if request.auth != null && (resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid);
-      
-      // Allow list for user's own reservations or tent owner's reservations
-      allow list: if request.auth != null && 
-                (
-                    (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid) ||
-                    (request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid)
-                );
-    }
-    
-    // Chats Collection
-    match /chats/{chatId} {
-      allow read, update: if request.auth != null && (resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid);
-      allow list: if request.auth != null && 
-            (
-                (request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid) ||
-                (request.query.where[0][0] == 'tentOwnerId' && request.query.where[0][2] == request.auth.uid)
-            );
-            
-      // Messages Subcollection
-      match /messages/{messageId} {
-        allow read, create: if request.auth != null && (get(/databases/$(database)/documents/chats/$(chatId)).data.userId == request.auth.uid || get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId == request.auth.uid);
-      }
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
