@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Tent } from "@/lib/types";
@@ -219,10 +220,21 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
 
   useEffect(() => {
-    if (isLoaded && tents.length > 0) {
-      handleGetCurrentLocation();
+    if (map && tents.length > 0) {
+      const bounds = new google.maps.LatLngBounds();
+      let hasLocations = false;
+      tents.forEach(tent => {
+        if (tent.location?.latitude && tent.location?.longitude) {
+          bounds.extend(new google.maps.LatLng(tent.location.latitude, tent.location.longitude));
+          hasLocations = true;
+        }
+      });
+
+      if (hasLocations) {
+        map.fitBounds(bounds);
+      }
     }
-  }, [isLoaded, tents.length]);
+  }, [map, tents]);
 
   const handleTentSelect = (tent: Tent) => {
     setSelectedTent(tent);
