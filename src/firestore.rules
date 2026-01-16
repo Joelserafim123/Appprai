@@ -7,11 +7,8 @@ service cloud.firestore {
     // Os utilizadores só podem ler e escrever no seu próprio documento de utilizador.
     // A regra de criação é flexível para permitir a criação de perfis no primeiro login.
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null && request.auth.uid == userId;
-      // Permite a atualização se for o próprio utilizador e se o CPF não estiver a ser alterado.
-      allow update: if request.auth != null && request.auth.uid == userId
-                    && (!('cpf' in request.resource.data) || resource.data.cpf == request.resource.data.cpf);
     }
 
     // As barracas podem ser lidas por qualquer pessoa. Apenas o proprietário pode criar, atualizar ou apagar.
@@ -28,6 +25,12 @@ service cloud.firestore {
         }
 
         match /rentalItems/{rentalItemId} {
+            allow read: if true;
+            allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+        }
+
+        // Os avisos só podem ser geridos pelo proprietário da barraca.
+        match /notices/{noticeId} {
             allow read: if true;
             allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
         }
