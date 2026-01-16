@@ -1,4 +1,3 @@
-
 'use client';
 
 import { notFound, useRouter } from 'next/navigation';
@@ -81,6 +80,7 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
 }
 
 export default function TentPage({ params }: { params: { slug: string } }) {
+  const { slug } = params;
   const { firestore } = useFirebase();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
@@ -130,11 +130,10 @@ export default function TentPage({ params }: { params: { slug: string } }) {
 
 
   useEffect(() => {
-    if (!firestore || !params.slug) return;
+    if (!firestore || !slug) return;
 
     const fetchTent = async () => {
         setLoadingTent(true);
-        const slug = params.slug;
         const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', slug));
         try {
             const querySnapshot = await getDocs(tentQuery);
@@ -154,7 +153,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
         }
     };
     fetchTent();
-  }, [firestore, params.slug]);
+  }, [firestore, slug]);
 
 
   const menuQuery = useMemoFirebase(() => {
@@ -277,7 +276,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
             title: "Login Necessário",
             description: "Você precisa estar logado para fazer um pedido.",
         });
-        router.push(`/login?redirect=/tents/${tent.slug}`);
+        router.push(`/login?redirect=/tents/${slug}`);
         return;
     }
     
@@ -441,7 +440,7 @@ export default function TentPage({ params }: { params: { slug: string } }) {
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Aluguel de Itens e Horário</CardTitle>
-                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { !user && <Link href={`/login?redirect=/tents/${tent.slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
+                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { !user && <Link href={`/login?redirect=/tents/${slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                 <div className="space-y-2">
@@ -593,5 +592,3 @@ export default function TentPage({ params }: { params: { slug: string } }) {
     </div>
   );
 }
-
-    
