@@ -30,7 +30,7 @@ service cloud.firestore {
     
     match /reservations/{reservationId} {
       allow read, update: if resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid;
-      allow create: if isOwner(request.resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId) && request.resource.data.userId != request.resource.data.tentOwnerId;
     }
     
     match /chats/{chatId} {

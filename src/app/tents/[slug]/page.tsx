@@ -183,6 +183,8 @@ export default function TentPage() {
     );
   }
 
+  const isOwnerViewingOwnTent = user && user.uid === tent.ownerId;
+
   const menuByCategory = (menuItems || []).reduce((acc, item) => {
     const category = item.category || 'Outros';
     if (!acc[category]) {
@@ -555,6 +557,15 @@ export default function TentPage() {
                                 <p>Finalize sua reserva atual para poder criar uma nova.</p>
                                 <Button asChild variant="link" className="text-destructive p-0 h-auto mt-1">
                                     <Link href="/dashboard/my-reservations">Ver Minhas Reservas</Link>
+                                </Button>
+                            </div>
+                        ) : isOwnerViewingOwnTent ? (
+                            <div className="p-3 bg-muted rounded-md text-center text-sm text-muted-foreground">
+                                <Info className="mx-auto mb-2 h-5 w-5" />
+                                <p className="font-semibold">Esta é a sua barraca.</p>
+                                <p>Para gerenciar, acesse o seu painel.</p>
+                                <Button asChild variant="link" className="text-primary p-0 h-auto mt-1">
+                                    <Link href="/dashboard">Ir para o Painel</Link>
                                 </Button>
                             </div>
                         ) : activeTab === 'reserve' ? (
