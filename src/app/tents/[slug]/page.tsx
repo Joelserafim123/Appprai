@@ -1,7 +1,6 @@
 'use client';
 
-import { notFound, useRouter } from 'next/navigation';
-import { Header } from '@/components/layout/header';
+import { notFound, useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,8 +78,9 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
     );
 }
 
-export default function TentPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default function TentPage() {
+  const params = useParams();
+  const slug = params.slug as string;
   const { firestore } = useFirebase();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
