@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair, MessageSquare, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function DashboardLayout({
@@ -27,6 +27,7 @@ export default function DashboardLayout({
 }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isUserLoading) {
@@ -37,10 +38,12 @@ export default function DashboardLayout({
       router.push('/login');
     } else if (!user.emailVerified) {
       router.push('/verify-email');
+    } else if (user.profileComplete === false && pathname !== '/dashboard/settings') {
+      router.push('/dashboard/settings');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, pathname]);
 
-  if (isUserLoading || !user || !user.emailVerified) {
+  if (isUserLoading || !user || !user.emailVerified || (user.profileComplete === false && pathname !== '/dashboard/settings')) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

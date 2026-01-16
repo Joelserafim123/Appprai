@@ -3,7 +3,7 @@
 
 import { useUser } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, User as UserIcon } from 'lucide-react';
+import { Loader2, User as UserIcon, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -13,12 +13,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { useFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -53,6 +54,8 @@ export default function SettingsPage() {
           cpf: user?.cpf || '',
       }
   });
+
+  const profileIncomplete = user?.profileComplete === false;
 
   useEffect(() => {
     if (user) {
@@ -129,11 +132,15 @@ export default function SettingsPage() {
       if (data.state) firestoreData.state = data.state;
       if (data.cpf) firestoreData.cpf = data.cpf.replace(/\D/g, '');
       
+      if (profileIncomplete) {
+          firestoreData.role = 'customer';
+      }
+      
       const userDocRef = doc(firestore, "users", user.uid);
-       updateDoc(userDocRef, firestoreData).catch(e => {
+       setDoc(userDocRef, firestoreData, { merge: true }).catch(e => {
          const permissionError = new FirestorePermissionError({
           path: userDocRef.path,
-          operation: 'update',
+          operation: profileIncomplete ? 'create' : 'update',
           requestResourceData: firestoreData,
         });
         errorEmitter.emit('permission-error', permissionError);
@@ -184,6 +191,16 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">Gerencie as informações da sua conta.</p>
       </header>
 
+      {profileIncomplete && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Complete o seu perfil</AlertTitle>
+          <AlertDescription>
+            Para continuar a usar o BeachPal, por favor preencha e salve as informações do seu perfil. O CPF é obrigatório.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
@@ -204,7 +221,7 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                     <p className="text-lg font-semibold">{user.displayName?.split(' ')[0]}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
-                    <p className="text-xs font-semibold text-primary capitalize py-1 px-2 bg-primary/10 rounded-full inline-block">{user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</p>
+                    {user.role && <p className="text-xs font-semibold text-primary capitalize py-1 px-2 bg-primary/10 rounded-full inline-block">{user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</p>}
                 </div>
             </div>
 
@@ -225,7 +242,7 @@ export default function SettingsPage() {
                 id="cpf"
                 {...register('cpf')}
                 onChange={handleCpfChange}
-                disabled={isSubmitting || !!user.cpf}
+                disabled={isSubmitting || (!!user.cpf && !profileIncomplete)}
                 placeholder="000.000.000-00"
               />
                {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}

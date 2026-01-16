@@ -51,6 +51,7 @@ export interface UserProfile {
     neighborhood?: string;
     city?: string;
     state?: string;
+    profileComplete?: boolean;
 }
 
 export interface TentMedia {

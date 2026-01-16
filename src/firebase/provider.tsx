@@ -12,6 +12,7 @@ import { FirestorePermissionError } from './errors';
 
 interface UserData extends User, Partial<UserProfile> {
     [key: string]: any;
+    profileComplete?: boolean;
 }
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -84,35 +85,30 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const userDocRef = doc(firestore, 'users', firebaseUser.uid);
     
-    return getDoc(userDocRef).then(async (userDoc) => {
+    return getDoc(userDocRef).then((userDoc) => {
         if (userDoc.exists()) {
-            return { ...firebaseUser, ...userDoc.data() } as UserData;
+            // Profile exists and is considered complete.
+            return { ...firebaseUser, ...userDoc.data(), profileComplete: true } as UserData;
         } else {
-            console.warn(`User document for ${firebaseUser.uid} not found. Re-creating...`);
-            const newUserProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
+            // Profile does not exist. Flag as incomplete. Do not attempt to write.
+            console.warn(`User document for ${firebaseUser.uid} not found. Profile is incomplete.`);
+            const partialProfile: Partial<UserProfile> = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 displayName: firebaseUser.displayName || 'User',
                 photoURL: firebaseUser.photoURL || '',
-                role: 'customer',
             };
-            await setDoc(userDocRef, newUserProfileData).catch(error => {
-                 const permissionError = new FirestorePermissionError({
-                    path: userDocRef.path,
-                    operation: 'create',
-                    requestResourceData: newUserProfileData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            });
-            return { ...firebaseUser, ...newUserProfileData } as UserData;
+            return { ...firebaseUser, ...partialProfile, profileComplete: false } as UserData;
         }
     }).catch(error => {
+        // This catches permission errors on the `getDoc` call itself.
         const permissionError = new FirestorePermissionError({
             path: userDocRef.path,
             operation: 'get',
         });
         errorEmitter.emit('permission-error', permissionError);
-        return firebaseUser as UserData;
+        // Treat as incomplete profile to prevent app crashes.
+        return { ...firebaseUser, profileComplete: false } as UserData;
     });
   }, [firestore]);
   
