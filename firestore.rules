@@ -8,7 +8,7 @@ service cloud.firestore {
     // A regra de criação é flexível para permitir a criação de perfis no primeiro login.
     match /users/{userId} {
       allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
     }
 
     // As barracas podem ser lidas por qualquer pessoa. Apenas o proprietário pode criar, atualizar ou apagar.
