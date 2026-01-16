@@ -72,20 +72,39 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch, control } = useForm<TentFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, control, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
-      name: existingTent?.name || '',
-      description: existingTent?.description || '',
-      beachName: existingTent?.beachName || '',
-      minimumOrderForFeeWaiver: existingTent?.minimumOrderForFeeWaiver || null,
-      location: existingTent?.location ? {
-        latitude: existingTent.location.latitude,
-        longitude: existingTent.location.longitude,
-      } : { latitude: undefined, longitude: undefined },
-      operatingHours: existingTent?.operatingHours || defaultOperatingHours,
+      name: '',
+      description: '',
+      beachName: '',
+      minimumOrderForFeeWaiver: null,
+      location: { latitude: undefined, longitude: undefined },
+      operatingHours: defaultOperatingHours,
     },
   });
+
+  useEffect(() => {
+    if (existingTent) {
+      reset({
+        name: existingTent.name || '',
+        description: existingTent.description || '',
+        beachName: existingTent.beachName || '',
+        minimumOrderForFeeWaiver: existingTent.minimumOrderForFeeWaiver || null,
+        location: existingTent.location,
+        operatingHours: existingTent.operatingHours || defaultOperatingHours,
+      });
+    } else {
+        reset({
+            name: '',
+            description: '',
+            beachName: '',
+            minimumOrderForFeeWaiver: null,
+            location: { latitude: undefined, longitude: undefined },
+            operatingHours: defaultOperatingHours,
+        })
+    }
+  }, [existingTent, reset]);
   
   const daysOfWeek = [
       { id: 'sunday', label: 'Domingo' },
@@ -150,7 +169,9 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             operation: 'update',
             requestResourceData: updateData,
           }));
-          throw e;
+          if (e.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao atualizar a barraca.' });
+          }
         })
         .finally(() => {
           setIsSubmitting(false);
@@ -179,7 +200,9 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             operation: 'create',
             requestResourceData: newTentData,
           }));
-          throw e;
+           if (e.code !== 'permission-denied') {
+            toast({ variant: 'destructive', title: 'Erro ao cadastrar a barraca.' });
+          }
         })
         .finally(() => {
           setIsSubmitting(false);
@@ -367,3 +390,4 @@ export default function MyTentPage() {
 }
 
     
+
