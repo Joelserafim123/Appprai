@@ -3,8 +3,42 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+    
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, update: if isOwner(userId);
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /tents/{tentId} {
+      allow read: if true;
+      allow create, update: if isOwner(tentId);
+      
+      match /menuItems/{itemId} {
+        allow read: if true;
+        allow create, update, delete: if isOwner(tentId);
+      }
+      
+      match /rentalItems/{itemId} {
+        allow read: if true;
+        allow create, update, delete: if isOwner(tentId);
+      }
+    }
+    
+    match /reservations/{reservationId} {
+      allow read, update: if resource.data.userId == request.auth.uid || resource.data.tentOwnerId == request.auth.uid;
+      allow create: if isOwner(request.resource.data.userId);
+    }
+    
+    match /chats/{chatId} {
+      allow read, update: if request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId;
+      
+      match /messages/{messageId} {
+        allow read, create: if request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.userId || request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.tentOwnerId;
+      }
     }
   }
 }
