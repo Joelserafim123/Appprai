@@ -87,10 +87,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     return getDoc(userDocRef).then((userDoc) => {
         if (userDoc.exists()) {
-            // Profile exists and is considered complete.
-            return { ...firebaseUser, ...userDoc.data(), profileComplete: true } as UserData;
+            const profileData = userDoc.data() as UserProfile;
+            const isComplete = profileData.profileComplete === true;
+            return { ...firebaseUser, ...profileData, profileComplete: isComplete } as UserData;
         } else {
-            // Profile does not exist. Flag as incomplete. Do not attempt to write.
             console.warn(`User document for ${firebaseUser.uid} not found. Profile is incomplete.`);
             const partialProfile: Partial<UserProfile> = {
                 uid: firebaseUser.uid,

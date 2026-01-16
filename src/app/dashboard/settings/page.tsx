@@ -122,6 +122,7 @@ export default function SettingsPage() {
       
       const firestoreData: { [key: string]: any } = {
         displayName: data.displayName,
+        profileComplete: true, // Mark profile as complete on save
       };
 
       if (data.cep) firestoreData.cep = data.cep;
@@ -132,15 +133,11 @@ export default function SettingsPage() {
       if (data.state) firestoreData.state = data.state;
       if (data.cpf) firestoreData.cpf = data.cpf.replace(/\D/g, '');
       
-      if (profileIncomplete) {
-          firestoreData.role = 'customer';
-      }
-      
       const userDocRef = doc(firestore, "users", user.uid);
        setDoc(userDocRef, firestoreData, { merge: true }).catch(e => {
          const permissionError = new FirestorePermissionError({
           path: userDocRef.path,
-          operation: profileIncomplete ? 'create' : 'update',
+          operation: 'update', // It will be create or update, but update is safer here
           requestResourceData: firestoreData,
         });
         errorEmitter.emit('permission-error', permissionError);
