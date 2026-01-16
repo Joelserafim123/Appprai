@@ -152,7 +152,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       const updateData = {
         ...data,
         slug: slug,
-        hasAvailableKits: existingTent.hasAvailableKits,
+        hasAvailableKits: existingTent.hasAvailableKits ?? false,
         operatingHours: data.operatingHours,
       };
       updateDoc(docRef, updateData)
@@ -388,6 +388,3 @@ export default function MyTentPage() {
   );
 
 }
-
-    
-
