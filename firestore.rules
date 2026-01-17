@@ -2,9 +2,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /tents/{docId} {
-      allow read: if request.auth != null;
+    // Tents Collection
+    match /tents {
+      // Allow any user (including anonymous) to list all tents.
+      // This is crucial for the map and list pages to work.
+      allow list: if true;
     }
 
+    match /tents/{tentId} {
+      // Allow any user to get a single tent's data.
+      allow get: if true;
+
+      // Only the authenticated owner can create, update, or delete their own tent document.
+      allow write: if request.auth != null && request.auth.uid == tentId;
+
+      // Tents Subcollections (Menu and Rentals)
+      match /{subcollection}/{docId} {
+        // Anyone can read menu and rental items.
+        allow read: if true;
+        // Only the tent owner can modify them.
+        allow write: if request.auth != null && request.auth.uid == tentId;
+      }
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      // Users can only create, read, or update their own user document.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Reservations Collection
+    match /reservations/{reservationId} {
+      // A user can create a reservation for themselves.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Only participants (the customer or the tent owner) can read or update a reservation.
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+    }
+
+    // Chats Collection
+    match /chats/{chatId} {
+      // Only participants can read or write to a chat document.
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
+
+      // Messages Subcollection
+      match /messages/{messageId} {
+         // Only participants of the parent chat can read or write messages.
+        allow read, write: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.hasAny([request.auth.uid]);
+      }
+    }
   }
 }
