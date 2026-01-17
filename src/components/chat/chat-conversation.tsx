@@ -2,20 +2,15 @@
 
 import type { UserData } from '@/firebase/provider';
 import type { Chat, ChatMessage } from '@/lib/types';
-import { useFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, orderBy, query, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Send, User as UserIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials, cn } from '@/lib/utils';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { useMemoFirebase } from '@/firebase/provider';
+import { cn } from '@/lib/utils';
+import { mockMessages } from '@/lib/mock-data';
 
 interface ChatConversationProps {
   chat: Chat;
@@ -23,20 +18,20 @@ interface ChatConversationProps {
 }
 
 export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
-  const { firestore } = useFirebase();
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const scrollAreaViewport = useRef<HTMLDivElement>(null);
 
-  const messagesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'chats', chat.id, 'messages'),
-      orderBy('timestamp', 'asc')
-    );
-  }, [firestore, chat.id]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(true);
 
-  const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
+  useEffect(() => {
+    setMessagesLoading(true);
+    setTimeout(() => {
+        setMessages(mockMessages[chat.id] || []);
+        setMessagesLoading(false);
+    }, 300);
+  }, [chat.id]);
 
   useEffect(() => {
     if (scrollAreaViewport.current) {
@@ -49,47 +44,23 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !firestore) return;
+    if (!newMessage.trim()) return;
 
     setIsSending(true);
     const messageText = newMessage.trim();
     setNewMessage('');
 
-    const messageData = {
+    const messageData: ChatMessage = {
+      id: `mock-msg-${Date.now()}`,
       senderId: currentUser.uid,
       text: messageText,
-      timestamp: serverTimestamp(),
+      timestamp: { toDate: () => new Date() } as any,
     };
     
-    const updateData = {
-        lastMessage: messageText,
-        lastMessageTimestamp: serverTimestamp(),
-    };
-
-    const chatDocRef = doc(firestore, 'chats', chat.id);
-    const messagesColRef = collection(firestore, 'chats', chat.id, 'messages');
-
-    addDoc(messagesColRef, messageData).catch(error => {
-      const permissionError = new FirestorePermissionError({
-          path: messagesColRef.path,
-          operation: 'create',
-          requestResourceData: messageData
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      throw error;
-    });
-
-    updateDoc(chatDocRef, updateData).catch(error => {
-      const permissionError = new FirestorePermissionError({
-          path: chatDocRef.path,
-          operation: 'update',
-          requestResourceData: updateData
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      throw error;
-    });
-
-    setIsSending(false);
+    setTimeout(() => {
+        setMessages(prev => [...prev, messageData]);
+        setIsSending(false);
+    }, 500);
   };
 
   const getSenderAvatar = (senderId: string) => {
@@ -123,7 +94,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
               </div>
             ) : (
               messages?.map((message) => {
-                const isCurrentUser = message.senderId === currentUser.uid;
+                const isCurrentUser = message.senderId === currentUser.uid || (currentUser.isAnonymous && message.senderId === 'owner1'); // Demo logic
                 return (
                   <div
                     key={message.id}

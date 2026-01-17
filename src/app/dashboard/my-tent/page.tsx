@@ -1,8 +1,6 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase';
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, MapPin, CheckCircle2, Clock } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -10,16 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import type { Tent, OperatingHours } from '@/lib/types';
-import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { mockTents } from '@/lib/mock-data';
 
 const operatingHoursSchema = z.object({
   isOpen: z.boolean(),
@@ -66,7 +62,6 @@ const defaultOperatingHours: OperatingHours = {
 };
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
-  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -118,10 +113,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const watchedLocation = watch('location');
   const hasLocation = watchedLocation?.latitude && watchedLocation?.longitude;
 
-  const generateSlug = (name: string) => {
-    return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
-  };
-
   const handleGetCurrentLocation = () => {
     if(navigator.geolocation) {
         setIsLocating(true);
@@ -140,79 +131,15 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   }
 
   const onSubmit = (data: TentFormData) => {
-    if (!firestore || !user) return;
     setIsSubmitting(true);
-
-    const docRef = doc(firestore, 'tents', user.uid);
-    const slug = generateSlug(data.name);
-
-    // Create a mutable copy for Firestore.
-    const dataForFirestore: Partial<TentFormData> = { ...data };
-
-    // Remove location if it's incomplete to prevent Firestore errors.
-    if (!dataForFirestore.location?.latitude || !dataForFirestore.location?.longitude) {
-      delete dataForFirestore.location;
-    }
-
-    if (existingTent) {
-      // Update existing tent
-      const updateData = {
-        ...dataForFirestore,
-        slug: slug,
-        hasAvailableKits: existingTent.hasAvailableKits ?? false,
-      };
-      updateDoc(docRef, updateData)
-        .then(() => {
-          toast({
-            title: 'Barraca atualizada!',
+    setTimeout(() => {
+        toast({
+            title: `Barraca ${existingTent ? 'atualizada' : 'cadastrada'}! (Demonstração)`,
             description: 'Suas informações foram salvas.',
-          });
-          onFinished();
-        })
-        .catch((e) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: updateData,
-          }));
-          if (e.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao atualizar a barraca.' });
-          }
-        })
-        .finally(() => {
-          setIsSubmitting(false);
         });
-    } else {
-      // Create new tent
-      const newTentData = {
-        ...dataForFirestore,
-        slug: slug,
-        ownerId: user.uid,
-        ownerName: user.displayName,
-        hasAvailableKits: false,
-      };
-      setDoc(docRef, newTentData)
-        .then(() => {
-          toast({
-            title: 'Barraca cadastrada!',
-            description: 'Sua barraca agora está visível no mapa.',
-          });
-          onFinished();
-        })
-        .catch((e) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'create',
-            requestResourceData: newTentData,
-          }));
-           if (e.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao cadastrar a barraca.' });
-          }
-        })
-        .finally(() => {
-          setIsSubmitting(false);
-        });
-    }
+        setIsSubmitting(false);
+        onFinished();
+    }, 1000);
   };
 
 
@@ -319,45 +246,30 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
 export default function MyTentPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
   const [tent, setTent] = useState<Tent | null>(null);
   const [loadingTent, setLoadingTent] = useState(true);
-  const { toast } = useToast();
 
   const fetchTentData = useCallback(() => {
-    if (!firestore || !user) {
+    if (!user) {
         setLoadingTent(false);
         return;
     };
     setLoadingTent(true);
-    const docRef = doc(firestore, 'tents', user.uid);
-    getDoc(docRef).then(docSnap => {
-        if (docSnap.exists()) {
-            setTent({ id: docSnap.id, ...docSnap.data() } as Tent);
-        } else {
-            setTent(null);
-        }
-    }).catch(error => {
-        const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        if (error.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao buscar barraca', description: 'Não foi possível carregar os dados da sua barraca.' });
-        }
-    }).finally(() => {
+    setTimeout(() => {
+        // For demo, we imagine the owner is 'owner1'
+        const ownerTent = mockTents.find(t => t.ownerId === 'owner1');
+        setTent(ownerTent || null);
         setLoadingTent(false);
-    });
-  }, [firestore, user, toast]);
+    }, 500);
+  }, [user]);
 
   useEffect(() => {
-    if (!isUserLoading && firestore && user) {
+    if (!isUserLoading && user) {
         fetchTentData();
     } else if (!isUserLoading) {
         setLoadingTent(false);
     }
-  }, [firestore, user, isUserLoading, fetchTentData]);
+  }, [user, isUserLoading, fetchTentData]);
 
 
   if (isUserLoading || loadingTent) {

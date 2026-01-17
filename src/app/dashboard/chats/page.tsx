@@ -1,9 +1,6 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, getDocs, doc, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, MessageSquare, User as UserIcon } from 'lucide-react';
 import { useMemo, useState, useEffect, useCallback } from 'react';
@@ -11,25 +8,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
-import { getInitials } from '@/lib/utils';
-import { useMemoFirebase } from '@/firebase/provider';
+import { mockChats } from '@/lib/mock-data';
 
 export default function ChatsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
-  const chatsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    
-    return query(
-      collection(firestore, 'chats'),
-      where('participantIds', 'array-contains', user.uid),
-      orderBy('lastMessageTimestamp', 'desc')
-    );
-  }, [firestore, user]);
-  
-  const { data: chats, isLoading: chatsLoading, error } = useCollection<Chat>(chatsQuery);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(true);
+
+  useEffect(() => {
+    setChatsLoading(true);
+    setTimeout(() => {
+        // For demo, filter chats where the current user is a participant
+        // Assuming user is either 'customer1' or 'owner1'
+        const userChats = mockChats.filter(c => c.participantIds.includes('customer1') || c.participantIds.includes('owner1'));
+        setChats(userChats as Chat[]);
+        setChatsLoading(false);
+    }, 500);
+  }, []);
 
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);
@@ -45,10 +42,6 @@ export default function ChatsPage() {
 
   if (!user) {
     return <p>Por favor, faça login para ver suas conversas.</p>;
-  }
-  
-  if (error) {
-      return <p className='text-destructive'>Erro ao carregar conversas: {error.message}</p>
   }
   
   const selectedChat = chats?.find(c => c.id === selectedChatId) ?? null;

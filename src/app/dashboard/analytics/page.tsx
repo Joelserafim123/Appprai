@@ -1,9 +1,6 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, DollarSign, BarChart, ShoppingBag } from 'lucide-react';
@@ -20,17 +17,9 @@ import { ChartTooltipContent, ChartContainer, ChartConfig, ChartTooltip } from '
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
-import { useMemoFirebase } from '@/firebase/provider';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
+import { mockReservations, mockTents } from '@/lib/mock-data';
+import type { Reservation } from '@/lib/types';
 
-type Reservation = {
-  id: string;
-  total: number;
-  createdAt: Timestamp;
-  status: 'confirmed' | 'cancelled' | 'completed';
-  tentOwnerId: string;
-};
 
 const chartConfig = {
   revenue: {
@@ -41,20 +30,24 @@ const chartConfig = {
 
 export default function AnalyticsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
   
-  const reservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || user.role !== 'owner') return null;
-    return query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid));
-  }, [firestore, user]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [reservationsLoading, setReservationsLoading] = useState(true);
 
-  const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+  useEffect(() => {
+      setReservationsLoading(true);
+      setTimeout(() => {
+        // Assuming the logged in user is owner1 for demo
+        const ownerReservations = mockReservations.filter(r => r.tentOwnerId === 'owner1');
+        setReservations(ownerReservations as Reservation[]);
+        setReservationsLoading(false);
+      }, 500);
+  }, []);
 
   const analyticsData = useMemo(() => {
     if (!reservations || !user) return null;
 
-    const ownerReservations = reservations.filter(r => r.tentOwnerId === user.uid);
-    const completedReservations = ownerReservations.filter(r => r.status === 'completed');
+    const completedReservations = reservations.filter(r => r.status === 'completed');
 
     const totalRevenue = completedReservations.reduce((acc, res) => acc + res.total, 0);
     const totalReservations = completedReservations.length;
@@ -87,24 +80,14 @@ export default function AnalyticsPage() {
   const [hasTent, setHasTent] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (firestore && user && user.role === 'owner') {
-      const tentRef = doc(firestore, 'tents', user.uid);
-      getDoc(tentRef)
-        .then(tentSnap => {
-            setHasTent(tentSnap.exists());
-        })
-        .catch(error => {
-            const permissionError = new FirestorePermissionError({
-                path: tentRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setHasTent(false);
-        });
+    if (user && user.role === 'owner') {
+       // Assuming user is owner1 for demo
+      const ownerTent = mockTents.find(t => t.ownerId === 'owner1');
+      setHasTent(!!ownerTent);
     } else {
         setHasTent(false);
     }
-  }, [firestore, user]);
+  }, [user]);
 
 
   if (isUserLoading || hasTent === null) {
@@ -130,10 +113,6 @@ export default function AnalyticsPage() {
               </Button>
           </div>
       )
-  }
-
-  if (error) {
-    return <p className="text-destructive">Erro ao carregar análises: {error.message}</p>;
   }
   
   if (reservationsLoading) {

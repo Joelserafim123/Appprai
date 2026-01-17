@@ -2,23 +2,15 @@
 
 import { useParams, useRouter, notFound } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { useDoc } from '@/firebase/firestore/use-doc';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { doc, collection, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
-import { Loader2, Minus, Plus, Info, Utensils, Scan } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Loader2, Minus, Plus, Utensils, Scan } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { Reservation, MenuItem, ReservationItem } from '@/lib/types';
-import { useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { cn } from '@/lib/utils';
-
+import { mockReservations, mockMenuItems } from '@/lib/mock-data';
 
 type OrderCartItem = { 
     item: MenuItem; 
@@ -28,26 +20,26 @@ type OrderCartItem = {
 export default function OrderPage() {
     const { reservationId } = useParams();
     const { user } = useUser();
-    const { firestore } = useFirebase();
     const router = useRouter();
     const { toast } = useToast();
 
     const [cart, setCart] = useState<Record<string, OrderCartItem>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const reservationRef = useMemoFirebase(() => {
-        if (!firestore || !reservationId) return null;
-        return doc(firestore, 'reservations', reservationId as string);
-    }, [firestore, reservationId]);
-
-    const { data: reservation, isLoading: loadingReservation, error: reservationError } = useDoc<Reservation>(reservationRef);
+    const [reservation, setReservation] = useState<Reservation | null>(null);
+    const [loadingReservation, setLoadingReservation] = useState(true);
     
-    const menuQuery = useMemoFirebase(() => {
-        if (!reservation || !firestore) return null;
-        return collection(firestore, 'tents', reservation.tentId, 'menuItems');
-    }, [reservation, firestore]);
+    const menuItems = mockMenuItems;
+    const loadingMenu = false;
 
-    const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuQuery);
+    useEffect(() => {
+        setLoadingReservation(true);
+        setTimeout(() => {
+            const foundReservation = mockReservations.find(r => r.id === reservationId);
+            setReservation(foundReservation as Reservation || null);
+            setLoadingReservation(false);
+        }, 500);
+    }, [reservationId]);
     
     if (loadingReservation || loadingMenu) {
         return (
@@ -58,11 +50,11 @@ export default function OrderPage() {
         );
     }
     
-    if (!reservation || reservationError) {
+    if (!reservation) {
         notFound();
     }
     
-    if (user && reservation.userId !== user.uid) {
+    if (user && reservation.userId !== 'customer1' && reservation.userId !== 'customer2') { // Mocking user check
         return <p>Você não tem permissão para ver este pedido.</p>
     }
     
@@ -107,41 +99,17 @@ export default function OrderPage() {
     const isCartEmpty = Object.keys(cart).length === 0;
 
     const handleAddItemsToReservation = async () => {
-        if (!firestore || isCartEmpty || !reservationRef) return;
+        if (isCartEmpty) return;
         setIsSubmitting(true);
     
-        const newItems: ReservationItem[] = Object.values(cart).map(({ item, quantity }) => ({
-            itemId: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: quantity,
-            status: 'pending',
-        }));
-    
-        const updateData = {
-            items: arrayUnion(...newItems)
-        };
-
-        try {
-            await updateDoc(reservationRef, updateData);
+        setTimeout(() => {
             toast({
-                title: "Pedido Enviado!",
+                title: "Pedido Enviado! (Demonstração)",
                 description: `Sua solicitação foi enviada para a barraca. Aguarde a confirmação.`,
             });
-            router.push('/dashboard/my-reservations');
-        } catch (error: any) {
-            const permissionError = new FirestorePermissionError({
-                path: reservationRef.path,
-                operation: 'update',
-                requestResourceData: { items: newItems },
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            if (error.code !== 'permission-denied') {
-                toast({ variant: 'destructive', title: 'Erro ao enviar pedido' });
-            }
-        } finally {
             setIsSubmitting(false);
-        }
+            router.push('/dashboard/my-reservations');
+        }, 1000);
     };
 
 

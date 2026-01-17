@@ -1,14 +1,11 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Utensils, Plus, Trash, Edit } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,10 +14,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
-import { useMemoFirebase } from '@/firebase/provider';
+import { mockMenuItems, mockTents } from '@/lib/mock-data';
 
 type MenuItem = {
   id: string;
@@ -39,8 +34,7 @@ const menuItemSchema = z.object({
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
-function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: MenuItem, onFinished: () => void }) {
-  const { firestore } = useFirebase();
+function MenuItemForm({ item, onFinished }: { item?: MenuItem, onFinished: (itemData: MenuItem) => void }) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, control, formState: { errors } } = useForm<MenuItemFormData>({
@@ -49,37 +43,14 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
   });
 
   const onSubmit = async (data: MenuItemFormData) => {
-    if (!firestore) return;
     setIsSubmitting(true);
     
-    try {
-      if (item) {
-        const docRef = doc(firestore, 'tents', tentId, 'menuItems', item.id);
-        await updateDoc(docRef, data);
-        toast({ title: "Item atualizado com sucesso!" });
-      } else {
-        const collectionRef = collection(firestore, 'tents', tentId, 'menuItems');
-        await addDoc(collectionRef, data);
-        toast({ title: "Item adicionado com sucesso!" });
-      }
-      onFinished();
-    } catch (e: any) {
-        const permissionError = new FirestorePermissionError({
-            path: item ? `tents/${tentId}/menuItems/${item.id}` : `tents/${tentId}/menuItems`,
-            operation: item ? 'update' : 'create',
-            requestResourceData: data,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        if (e.code !== 'permission-denied') {
-            toast({
-            variant: 'destructive',
-            title: 'Erro ao salvar o item.',
-            description: 'Por favor, tente novamente.'
-            });
-        }
-    } finally {
+    setTimeout(() => {
+        const fullItemData = { ...data, id: item?.id || `mock-${Date.now()}` };
+        toast({ title: `Item ${item ? 'atualizado' : 'adicionado'} com sucesso! (Demonstração)` });
+        onFinished(fullItemData);
         setIsSubmitting(false);
-    }
+    }, 500);
   };
 
   return (
@@ -130,57 +101,44 @@ function MenuItemForm({ tentId, item, onFinished }: { tentId: string, item?: Men
 
 export default function MenuPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [hasTent, setHasTent] = useState<boolean | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
 
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+
   useEffect(() => {
-    if (firestore && user && user.role === 'owner') {
-      const tentRef = doc(firestore, 'tents', user.uid);
-      getDoc(tentRef)
-        .then(tentSnap => {
-            setHasTent(tentSnap.exists());
-        })
-        .catch(error => {
-            const permissionError = new FirestorePermissionError({
-                path: tentRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setHasTent(false);
-        });
+    if (user && user.role === 'owner') {
+        const ownerTent = mockTents.find(t => t.ownerId === 'owner1'); // Assuming user is owner1 for demo
+        setHasTent(!!ownerTent);
     } else {
         setHasTent(false);
     }
-  }, [firestore, user]);
+  }, [user]);
 
-  const menuQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !hasTent) return null;
-    return collection(firestore, 'tents', user.uid, 'menuItems');
-  }, [firestore, user, hasTent]);
-
-  const { data: menu, isLoading: menuLoading, error } = useCollection<MenuItem>(menuQuery);
+  useEffect(() => {
+    setMenuLoading(true);
+    setTimeout(() => {
+        setMenu(mockMenuItems);
+        setMenuLoading(false);
+    }, 500);
+  }, []);
   
   const deleteItem = async (itemId: string) => {
-    if (!firestore || !user) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
-    
-    const docRef = doc(firestore, 'tents', user.uid, 'menuItems', itemId);
-    try {
-        await deleteDoc(docRef);
-        toast({ title: 'Item apagado com sucesso!' });
-    } catch(e: any) {
-        const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        if (e.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
-        }
+    setMenu(prev => prev.filter(item => item.id !== itemId));
+    toast({ title: 'Item apagado com sucesso! (Demonstração)' });
+  }
+
+  const handleFormFinished = (itemData: MenuItem) => {
+    if (editingItem) {
+        setMenu(prev => prev.map(item => item.id === itemData.id ? itemData : item));
+    } else {
+        setMenu(prev => [...prev, itemData]);
     }
+    setIsFormOpen(false);
   }
 
   const openEditForm = (item: MenuItem) => {
@@ -192,7 +150,6 @@ export default function MenuPage() {
     setEditingItem(undefined);
     setIsFormOpen(true);
   }
-
 
   if (isUserLoading || hasTent === null) {
     return (
@@ -226,10 +183,6 @@ export default function MenuPage() {
             </div>
         );
     }
-
-  if (error) {
-      return <p className='text-destructive'>Erro ao carregar cardápio: {error.message}</p>
-  }
 
   return (
     <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -290,7 +243,7 @@ export default function MenuPage() {
                 <DialogHeader>
                     <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm tentId={user.uid} item={editingItem} onFinished={() => setIsFormOpen(false)} />
+                <MenuItemForm item={editingItem} onFinished={handleFormFinished} />
             </DialogContent>
         )}
     </Dialog>

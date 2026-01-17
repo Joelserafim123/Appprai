@@ -1,25 +1,20 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, doc, addDoc, updateDoc, deleteDoc, getDocs, writeBatch, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
-import { useMemoFirebase } from '@/firebase/provider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { mockRentalItems, mockTents } from '@/lib/mock-data';
 
 type RentalItem = {
   id: string;
@@ -36,8 +31,7 @@ const rentalItemSchema = z.object({
 
 type RentalItemFormData = z.infer<typeof rentalItemSchema>;
 
-function RentalItemForm({ tentId, item, onFinished, hasKit }: { tentId: string, item?: RentalItem, onFinished: () => void, hasKit: boolean }) {
-  const { firestore } = useFirebase();
+function RentalItemForm({ item, onFinished, hasKit }: { item?: RentalItem, onFinished: (itemData: RentalItem) => void, hasKit: boolean }) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, control, formState: { errors } } = useForm<RentalItemFormData>({
@@ -46,39 +40,13 @@ function RentalItemForm({ tentId, item, onFinished, hasKit }: { tentId: string, 
   });
 
   const onSubmit = async (data: RentalItemFormData) => {
-    if (!firestore) return;
     setIsSubmitting(true);
-    
-    const operation = item ? 'update' : 'create';
-    const collectionRef = collection(firestore, 'tents', tentId, 'rentalItems');
-    const docRef = item ? doc(collectionRef, item.id) : doc(collectionRef);
-
-    const batch = writeBatch(firestore);
-    const tentRef = doc(firestore, 'tents', tentId);
-    
-    if (data.name === 'Kit Guarda-sol + 2 Cadeiras') {
-        batch.update(tentRef, { hasAvailableKits: data.quantity > 0 });
-    }
-
-    if (item) {
-        batch.update(docRef, data);
-    } else {
-        batch.set(docRef, data);
-    }
-    
-    batch.commit().then(() => {
-        toast({ title: `Item de aluguel ${item ? 'atualizado' : 'adicionado'} com sucesso!` });
-        onFinished();
-    }).catch (e => {
-         errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: operation,
-            requestResourceData: data,
-        }));
-        throw e;
-    }).finally(() => {
+    setTimeout(() => {
+        const fullItemData = { ...data, id: item?.id || `mock-${Date.now()}` };
+        toast({ title: `Item de aluguel ${item ? 'atualizado' : 'adicionado'} com sucesso! (Demonstração)` });
+        onFinished(fullItemData);
         setIsSubmitting(false);
-    });
+    }, 500);
   };
 
   return (
@@ -124,63 +92,44 @@ function RentalItemForm({ tentId, item, onFinished, hasKit }: { tentId: string, 
 
 export default function RentalItemsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [hasTent, setHasTent] = useState<boolean | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
 
+  const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
+  const [rentalsLoading, setRentalsLoading] = useState(true);
+
   useEffect(() => {
-    if (firestore && user && user.role === 'owner') {
-      const tentRef = doc(firestore, 'tents', user.uid);
-      getDoc(tentRef)
-        .then(tentSnap => {
-            setHasTent(tentSnap.exists());
-        })
-        .catch(error => {
-            const permissionError = new FirestorePermissionError({
-                path: tentRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setHasTent(false);
-        });
+    if (user && user.role === 'owner') {
+        const ownerTent = mockTents.find(t => t.ownerId === 'owner1'); // Assuming user is owner1 for demo
+        setHasTent(!!ownerTent);
     } else {
         setHasTent(false);
     }
-  }, [firestore, user]);
+  }, [user]);
 
-  const rentalsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !hasTent) return null;
-    return collection(firestore, 'tents', user.uid, 'rentalItems');
-  }, [firestore, user, hasTent]);
+  useEffect(() => {
+    setRentalsLoading(true);
+    setTimeout(() => {
+        setRentalItems(mockRentalItems);
+        setRentalsLoading(false);
+    }, 500);
+  }, []);
 
-  const { data: rentalItems, isLoading: rentalsLoading, error } = useCollection<RentalItem>(rentalsQuery);
-  
   const deleteItem = async (itemToDelete: RentalItem) => {
-    if (!firestore || !user) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
-    
-    const docRef = doc(firestore, 'tents', user.uid, 'rentalItems', itemToDelete.id);
-    
-    const batch = writeBatch(firestore);
-    batch.delete(docRef);
+    setRentalItems(prev => prev.filter(i => i.id !== itemToDelete.id));
+    toast({ title: 'Item apagado com sucesso! (Demonstração)' });
+  }
 
-    if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
-        const tentRef = doc(firestore, 'tents', user.uid);
-        batch.update(tentRef, { hasAvailableKits: false });
+  const handleFormFinished = (itemData: RentalItem) => {
+    if (editingItem) {
+        setRentalItems(prev => prev.map(item => item.id === itemData.id ? itemData : item));
+    } else {
+        setRentalItems(prev => [...prev, itemData]);
     }
-    
-    batch.commit().then(() => {
-        toast({ title: 'Item apagado com sucesso!' });
-    }).catch (e => {
-        const permissionError = new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw e;
-    });
+    setIsFormOpen(false);
   }
 
   const openEditForm = (item: RentalItem) => {
@@ -227,10 +176,6 @@ export default function RentalItemsPage() {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
-  }
-  
-  if (error) {
-      return <p className='text-destructive'>Erro ao carregar itens de aluguel: {error.message}</p>
   }
 
   return (
@@ -287,7 +232,7 @@ export default function RentalItemsPage() {
               <DialogHeader>
                   <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
               </DialogHeader>
-              <RentalItemForm tentId={user.uid} item={editingItem} onFinished={() => setIsFormOpen(false)} hasKit={!!hasKit} />
+              <RentalItemForm item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} />
           </DialogContent>
         }
     </Dialog>

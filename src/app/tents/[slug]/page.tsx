@@ -10,17 +10,11 @@ import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCar
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { addDoc, collection, query, where, getDocs, serverTimestamp, limit, CollectionReference } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
-import { useCollection } from '@/firebase/firestore/use-collection';
 import type { Tent, OperatingHoursDay, Reservation } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import type { MenuItem, RentalItem, ReservationItem } from '@/lib/types';
-import { useMemoFirebase } from '@/firebase/provider';
+import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
 import {
@@ -35,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
+import { mockTents, mockMenuItems, mockRentalItems } from '@/lib/mock-data';
 
 type CartItem = { 
     item: MenuItem | RentalItem; 
@@ -82,7 +77,6 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
 export default function TentPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const { firestore } = useFirebase();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
@@ -99,89 +93,28 @@ export default function TentPage() {
   const [loadingActiveReservation, setLoadingActiveReservation] = useState(true);
 
   useEffect(() => {
-    const checkActiveReservation = () => {
-      if (!user || user.isAnonymous || !firestore) {
-        setLoadingActiveReservation(false);
-        return;
-      }
-      setLoadingActiveReservation(true);
-      const q = query(
-        collection(firestore, 'reservations'),
-        where('participantIds', 'array-contains', user.uid)
-      );
-
-      getDocs(q)
-        .then(querySnapshot => {
-          const activeStatuses: Reservation['status'][] = ['confirmed', 'checked-in', 'payment-pending'];
-          const hasActiveCustomerReservation = querySnapshot.docs.some(doc => {
-              const data = doc.data();
-              return data.userId === user.uid && activeStatuses.includes(data.status);
-          });
-          setHasActiveReservation(hasActiveCustomerReservation);
-        })
-        .catch(error => {
-          const permissionError = new FirestorePermissionError({
-            path: 'reservations',
-            operation: 'list',
-          });
-          errorEmitter.emit('permission-error', permissionError);
-          setHasActiveReservation(false);
-        })
-        .finally(() => {
-          setLoadingActiveReservation(false);
-        });
-    };
-
-    if (!isUserLoading) {
-        checkActiveReservation();
-    }
-  }, [user, firestore, isUserLoading]);
+    // In a mock environment, we can assume the user has no active reservations.
+    setHasActiveReservation(false);
+    setLoadingActiveReservation(false);
+  }, [user]);
 
 
   useEffect(() => {
-    if (!firestore || !slug || !user) return;
+    setLoadingTent(true);
+    // Simulate network delay
+    setTimeout(() => {
+        const foundTent = mockTents.find((t) => t.slug === slug);
+        if (foundTent) {
+            setTent(foundTent);
+        }
+        setLoadingTent(false);
+    }, 500);
+  }, [slug]);
 
-    const fetchTent = () => {
-        setLoadingTent(true);
-        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', slug), limit(1));
-        
-        getDocs(tentQuery)
-            .then(querySnapshot => {
-                if (querySnapshot.empty) {
-                    notFound();
-                } else {
-                    const tentDoc = querySnapshot.docs[0];
-                    const tentData = { id: tentDoc.id, ...tentDoc.data() } as Tent;
-                    setTent(tentData);
-                }
-            })
-            .catch(error => {
-                const permissionError = new FirestorePermissionError({
-                    path: `tents where slug == ${slug}`,
-                    operation: 'list',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            })
-            .finally(() => {
-                setLoadingTent(false);
-            });
-    };
-    fetchTent();
-  }, [firestore, slug, user]);
-
-
-  const menuQuery = useMemoFirebase(() => {
-    if (!tent || !firestore) return null;
-    return collection(firestore, 'tents', tent.id, 'menuItems');
-  }, [tent, firestore]);
-
-  const rentalsQuery = useMemoFirebase(() => {
-    if (!tent || !firestore) return null;
-    return collection(firestore, 'tents', tent.id, 'rentalItems');
-  }, [tent, firestore]);
-  
-  const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuQuery);
-  const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalsQuery);
+  const menuItems = mockMenuItems;
+  const rentalItems = mockRentalItems;
+  const loadingMenu = false;
+  const loadingRentals = false;
   
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
@@ -337,58 +270,18 @@ export default function TentPage() {
         return;
     }
     
-    if (!firestore) return;
-    
     setIsSubmitting(true);
 
-    const orderNumber = Math.floor(100000 + Math.random() * 900000).toString();
-    const checkinCode = Math.floor(1000 + Math.random() * 9000).toString();
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    setIsSubmitting(false);
 
-    const reservationData: Omit<Reservation, 'id'> = {
-      userId: user.uid,
-      userName: user.displayName || 'Cliente',
-      tentId: tent.id,
-      tentOwnerId: tent.ownerId,
-      tentName: tent.name,
-      tentOwnerName: tent.ownerName,
-      items: Object.values(cart).map(({ item, quantity }) => ({
-        itemId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: quantity,
-        status: 'confirmed', 
-      } as ReservationItem)),
-      total: finalTotal,
-      createdAt: serverTimestamp(),
-      reservationTime: reservationTime,
-      orderNumber: orderNumber,
-      checkinCode: checkinCode,
-      status: 'confirmed' as Reservation['status'],
-      participantIds: [user.uid, tent.ownerId],
-      ...(tent.location && { tentLocation: tent.location }),
-    };
-
-    try {
-        const reservationsColRef = collection(firestore, 'reservations');
-        await addDoc(reservationsColRef, reservationData);
-        toast({
-            title: "Reserva Confirmada!",
-            description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
-        });
-        router.push('/dashboard/my-reservations');
-    } catch (error: any) {
-        const permissionError = new FirestorePermissionError({
-            path: 'reservations',
-            operation: 'create',
-            requestResourceData: reservationData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        if (error.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao criar reserva' });
-        }
-    } finally {
-        setIsSubmitting(false);
-    }
+    toast({
+        title: "Reserva Confirmada! (Demonstração)",
+        description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
+    });
+    router.push('/dashboard/my-reservations');
   };
 
   return (

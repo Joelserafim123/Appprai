@@ -1,20 +1,14 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, Tent, Plus, CreditCard, User, X, Hourglass, MapPin, Check } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useMemoFirebase } from '@/firebase/provider';
 import type { Reservation, ReservationStatus, ReservationItemStatus, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -33,6 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { mockReservations } from '@/lib/mock-data';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -58,61 +53,39 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 export default function MyReservationsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
   const { toast } = useToast();
+  
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [reservationsLoading, setReservationsLoading] = useState(true);
 
-  const reservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(
-      collection(firestore, 'reservations'),
-      where('participantIds', 'array-contains', user.uid)
-    );
-  }, [firestore, user]);
-
-  const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+  useEffect(() => {
+    setReservationsLoading(true);
+    // Simulate fetching data
+    setTimeout(() => {
+        // In a real app with login, you'd filter by user.uid. For this demo, we'll imagine the logged-in user is 'customer1'.
+        const userReservations = mockReservations.filter(r => r.userId === 'customer1' || r.userId === 'customer2');
+        setReservations(userReservations as Reservation[]);
+        setReservationsLoading(false);
+    }, 500);
+  }, []);
 
   const sortedReservations = useMemo(() => {
-    if (!reservations || !user) return [];
-    // This page is for customers, so we only show reservations they created.
-    const customerReservations = reservations.filter(r => r.userId === user.uid);
-    return [...customerReservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-  }, [reservations, user]);
+    if (!reservations) return [];
+    return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [reservations]);
   
   const handleCloseBill = (reservationId: string) => {
-    if (!firestore) return;
-    const docRef = doc(firestore, 'reservations', reservationId);
-    const updateData = { status: 'payment-pending' };
-    updateDoc(docRef, updateData)
-    .catch(e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: updateData,
-        }));
-        if (e.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
-        }
-    })
+    setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'payment-pending' } : r));
+    toast({ title: "Conta Fechada (Demonstração)", description: "Aguardando confirmação de pagamento do cliente." });
   }
   
   const handleCancelReservation = (reservationId: string) => {
-    if (!firestore) return;
-    const resDocRef = doc(firestore, 'reservations', reservationId);
-    const updateData = { status: 'cancelled' };
-    updateDoc(resDocRef, updateData).catch(err => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: resDocRef.path,
-            operation: 'update',
-            requestResourceData: updateData
-        }));
-        if (err.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
-        }
-    });
+     setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'cancelled' } : r));
+     toast({ title: "Reserva Cancelada (Demonstração)"});
   }
 
 
-  if (isUserLoading || (reservationsLoading && !reservations)) {
+  if (isUserLoading || reservationsLoading) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -122,10 +95,6 @@ export default function MyReservationsPage() {
 
   if (!user) {
     return <p>Por favor, faça login para ver suas reservas.</p>;
-  }
-  
-  if (error) {
-      return <p className='text-destructive'>Erro ao carregar reservas: {error.message}</p>
   }
 
   return (

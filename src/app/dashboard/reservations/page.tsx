@@ -1,25 +1,18 @@
 'use client';
 
 import { useUser } from '@/firebase/provider';
-import { useFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, Timestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Edit, Receipt, Search, ShieldQuestion, Download } from 'lucide-react';
-import { useMemo, useState, useEffect, Fragment, useRef } from 'react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Search } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { useMemoFirebase } from '@/firebase/provider';
-import type { Reservation, ReservationStatus, PaymentMethod, ReservationItem, ReservationItemStatus } from '@/lib/types';
+import type { Reservation, ReservationStatus, PaymentMethod, ReservationItemStatus } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import Link from 'next/link';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
+import { mockReservations } from '@/lib/mock-data';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -42,65 +36,37 @@ const statusConfig: Record<ReservationStatus, { text: string; variant: "default"
   'cancelled': { text: 'Cancelada', variant: 'destructive' }
 };
 
-const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: string }> = {
-  'pending': { text: 'Pendente', color: 'text-amber-800' },
-  'confirmed': { text: 'Confirmado', color: 'text-green-600' },
-  'cancelled': { text: 'Cancelado', color: 'text-red-600' },
-}
-
 const paymentMethodLabels: Record<PaymentMethod, string> = {
     card: 'Cartão',
     cash: 'Dinheiro',
     pix: 'PIX'
 }
 
-function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
-    const { firestore } = useFirebase();
+function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: (id: string) => void }) {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputCode, setInputCode] = useState('');
     
     const isCheckinExpired = useMemo(() => {
         if (!reservation.reservationTime) return false;
-        
         const [hours, minutes] = reservation.reservationTime.split(':').map(Number);
         const reservationDate = reservation.createdAt.toDate();
         reservationDate.setHours(hours, minutes, 0, 0);
-
         const toleranceLimit = new Date(reservationDate.getTime() + 16 * 60 * 1000); 
         return new Date() > toleranceLimit;
     }, [reservation.reservationTime, reservation.createdAt]);
 
     const handleConfirmCheckIn = () => {
-        if (!firestore) return;
-        
         if (inputCode !== reservation.checkinCode) {
             toast({ variant: 'destructive', title: 'Código de Check-in Inválido' });
             return;
         }
-
         setIsSubmitting(true);
-        const docRef = doc(firestore, 'reservations', reservation.id);
-        const updates = {
-            status: 'checked-in' as ReservationStatus,
-        };
-
-        updateDoc(docRef, updates)
-            .then(() => {
-                toast({ title: 'Check-in realizado com sucesso!' });
-                onFinished();
-            })
-            .catch(e => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: docRef.path,
-                    operation: 'update',
-                    requestResourceData: updates,
-                }));
-                if (e.code !== 'permission-denied') {
-                   toast({ variant: 'destructive', title: 'Erro ao fazer check-in' });
-                }
-            })
-            .finally(() => setIsSubmitting(false));
+        setTimeout(() => {
+            toast({ title: 'Check-in realizado com sucesso! (Demonstração)' });
+            onFinished(reservation.id);
+            setIsSubmitting(false);
+        }, 500);
     };
     
     if (isCheckinExpired) {
@@ -156,38 +122,22 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     );
 }
 
-function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
-    const { firestore } = useFirebase();
+function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: (id: string, method: PaymentMethod) => void }) {
     const { toast } = useToast();
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleConfirmPayment = () => {
-        if (!firestore || !paymentMethod) {
+        if (!paymentMethod) {
             toast({ variant: 'destructive', title: 'Selecione um método de pagamento.'});
             return;
         };
-
         setIsSubmitting(true);
-        const docRef = doc(firestore, 'reservations', reservation.id);
-        
-        const updateData = { status: 'completed' as ReservationStatus, paymentMethod };
-        updateDoc(docRef, updateData)
-            .then(() => {
-                toast({ title: 'Pagamento Confirmado!' });
-                onFinished();
-            })
-            .catch(e => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: docRef.path,
-                    operation: 'update',
-                    requestResourceData: updateData,
-                }));
-                if (e.code !== 'permission-denied') {
-                   toast({ variant: 'destructive', title: 'Erro ao confirmar pagamento' });
-                }
-            })
-            .finally(() => setIsSubmitting(false));
+        setTimeout(() => {
+            toast({ title: 'Pagamento Confirmado! (Demonstração)' });
+            onFinished(reservation.id, paymentMethod);
+            setIsSubmitting(false);
+        }, 500);
     };
 
     return (
@@ -225,27 +175,29 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
 
 export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
   const { toast } = useToast();
+  
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [reservationsLoading, setReservationsLoading] = useState(true);
+  
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const reservationsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || user.role !== 'owner') return null;
-    return query(
-      collection(firestore, 'reservations'),
-      where('participantIds', 'array-contains', user.uid)
-    );
-  }, [firestore, user]);
 
-  const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
+  useEffect(() => {
+    setReservationsLoading(true);
+    setTimeout(() => {
+        // For demo, we imagine the owner is 'owner1'
+        const ownerReservations = mockReservations.filter(r => r.tentOwnerId === 'owner1');
+        setReservations(ownerReservations as Reservation[]);
+        setReservationsLoading(false);
+    }, 500);
+  }, []);
 
   const filteredReservations = useMemo(() => {
-    if (!reservations || !user) return [];
+    if (!reservations) return [];
     
-    const ownerReservations = reservations.filter(r => r.tentOwnerId === user.uid);
-    let sorted = [...ownerReservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    let sorted = [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     
     if (searchTerm) {
         return sorted.filter(res => 
@@ -254,84 +206,52 @@ export default function OwnerReservationsPage() {
         );
     }
     return sorted;
-  }, [reservations, searchTerm, user]);
+  }, [reservations, searchTerm]);
 
 
   const handleCancelReservation = (reservationId: string) => {
-    if (!firestore) return;
-    const resDocRef = doc(firestore, 'reservations', reservationId);
-    
-    const updateData = { status: 'cancelled' as ReservationStatus };
-    updateDoc(resDocRef, updateData)
-      .then(() => {
-        toast({ title: 'Reserva Cancelada!' });
-      })
-      .catch(serverError => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: resDocRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        }));
-        if (serverError.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
-        }
-      });
+    setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'cancelled' } : r));
+    toast({ title: 'Reserva Cancelada! (Demonstração)' });
   };
 
   const handleCloseBill = (reservationId: string) => {
-    if (!firestore) return;
-    const docRef = doc(firestore, 'reservations', reservationId);
-    const updateData = { status: 'payment-pending' };
-    updateDoc(docRef, updateData)
-    .then(() => {
-        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
-    })
-    .catch(e => {
-       errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-            requestResourceData: updateData,
-        }));
-        if (e.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
-        }
-    })
+    setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'payment-pending' } : r));
+    toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
   }
 
-  const handleItemStatusUpdate = (reservation: Reservation, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
-    if (!firestore) return;
+  const handleItemStatusUpdate = (reservationId: string, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
+    setReservations(prev => prev.map(res => {
+        if (res.id === reservationId) {
+            const updatedItems = [...res.items];
+            const itemToUpdate = updatedItems[itemIndex];
+            
+            if (!itemToUpdate || itemToUpdate.status !== 'pending') return res;
 
-    const resDocRef = doc(firestore, 'reservations', reservation.id);
-    const updatedItems = [...reservation.items];
-    const itemToUpdate = updatedItems[itemIndex];
-    
-    if (!itemToUpdate || itemToUpdate.status !== 'pending') return;
+            updatedItems[itemIndex] = { ...itemToUpdate, status: newStatus };
+            
+            let newTotal = res.total;
+            if (newStatus === 'confirmed') {
+                newTotal += itemToUpdate.price * itemToUpdate.quantity;
+            }
 
-    updatedItems[itemIndex] = { ...itemToUpdate, status: newStatus };
-    
-    let newTotal = reservation.total;
-    if (newStatus === 'confirmed') {
-        newTotal += itemToUpdate.price * itemToUpdate.quantity;
-    }
-    
-    const updateData = { items: updatedItems, total: newTotal };
-    updateDoc(resDocRef, updateData)
-      .then(() => {
-        toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
-      })
-      .catch(serverError => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: resDocRef.path,
-          operation: 'update',
-          requestResourceData: updateData,
-        }));
-        if (serverError.code !== 'permission-denied') {
-            toast({ variant: 'destructive', title: 'Erro ao atualizar item' });
+            return { ...res, items: updatedItems, total: newTotal };
         }
-      });
+        return res;
+    }));
+    toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }! (Demonstração)` });
   }
 
-  if (isUserLoading) {
+  const onCheckInFinished = (id: string) => {
+    setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'checked-in' } : r));
+    setReservationForCheckIn(null);
+  }
+
+  const onPaymentFinished = (id: string, method: PaymentMethod) => {
+    setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'completed', paymentMethod: method } : r));
+    setReservationForPayment(null);
+  }
+
+  if (isUserLoading || reservationsLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -342,19 +262,6 @@ export default function OwnerReservationsPage() {
   if (!user || user.role !== 'owner') {
     return <p>Acesso negado. Esta página é apenas para donos de barracas.</p>;
   }
-  
-  if (error) {
-      return <p className='text-destructive'>Erro ao carregar reservas: {error.message}</p>
-  }
-  
-  if (reservationsLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
 
   return (
     <Dialog>
@@ -411,8 +318,8 @@ export default function OwnerReservationsPage() {
                                             <li key={`pending-${item.originalIndex}`} className="flex justify-between items-center">
                                                 <span>{item.quantity}x {item.name}</span>
                                                 <div className="flex gap-1">
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => handleItemStatusUpdate(reservation, item.originalIndex, 'confirmed')}><Check className="w-4 h-4"/></Button>
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleItemStatusUpdate(reservation, item.originalIndex, 'cancelled')}><X className="w-4 h-4"/></Button>
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => handleItemStatusUpdate(reservation.id, item.originalIndex, 'confirmed')}><Check className="w-4 h-4"/></Button>
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleItemStatusUpdate(reservation.id, item.originalIndex, 'cancelled')}><X className="w-4 h-4"/></Button>
                                                 </div>
                                             </li>
                                         ))}
@@ -503,10 +410,10 @@ export default function OwnerReservationsPage() {
         </div>
         
         <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
-            {reservationForPayment && <PaymentDialog reservation={reservationForPayment} onFinished={() => setReservationForPayment(null)} />}
+            {reservationForPayment && <PaymentDialog reservation={reservationForPayment} onFinished={onPaymentFinished} />}
         </Dialog>
         <Dialog open={!!reservationForCheckIn} onOpenChange={(open) => !open && setReservationForCheckIn(null)}>
-            {reservationForCheckIn && <CheckInDialog reservation={reservationForCheckIn} onFinished={() => setReservationForCheckIn(null)} />}
+            {reservationForCheckIn && <CheckInDialog reservation={reservationForCheckIn} onFinished={onCheckInFinished} />}
         </Dialog>
 
     </Dialog>
