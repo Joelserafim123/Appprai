@@ -2,8 +2,57 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /tents/{document=**} {
-      allow read: if request.auth != null;
+    
+    // As regras de leitura para as barracas são públicas.
+    // Qualquer pessoa pode listar a coleção de barracas ou ler um documento individual.
+    // Isto é necessário para que os visitantes do site possam ver as barracas no mapa.
+    match /tents/{path=**} {
+      allow read: if true;
+    }
+
+    // As regras de escrita para as barracas e suas sub-coleções são restritas.
+    match /tents/{tentId} {
+      // Apenas o dono da barraca pode criar, atualizar ou apagar o seu documento.
+      allow write: if request.auth != null && request.auth.uid == tentId;
+
+      // Apenas o dono da barraca pode gerir o seu cardápio e itens de aluguel.
+      match /menuItems/{menuItemId} {
+        allow write: if request.auth != null && request.auth.uid == tentId;
+      }
+      match /rentalItems/{rentalItemId} {
+        allow write: if request.auth != null && request.auth.uid == tentId;
+      }
+    }
+
+    // As regras para os perfis de utilizador.
+    match /users/{userId} {
+      // Qualquer utilizador autenticado pode criar um perfil.
+      allow create: if request.auth != null;
+      // Apenas o próprio utilizador pode ler ou atualizar o seu perfil.
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // As regras para as reservas.
+    match /reservations/{reservationId} {
+      // Um utilizador autenticado pode criar uma reserva para si mesmo.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      
+      // Um utilizador pode ler a sua própria reserva, e o dono de uma barraca pode ler as reservas da sua barraca.
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
+
+      // Apenas os participantes (cliente ou dono da barraca) podem atualizar uma reserva.
+      allow update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+    }
+    
+    // As regras para os chats.
+    match /chats/{chatId} {
+      // Apenas os participantes de um chat podem ler, criar ou atualizar o chat.
+      allow read, create, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      
+      // Apenas os participantes de um chat podem ler ou enviar mensagens.
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      }
     }
   }
 }
