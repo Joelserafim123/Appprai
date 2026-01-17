@@ -139,7 +139,7 @@ export default function TentPage() {
 
 
   useEffect(() => {
-    if (!firestore || !slug) return;
+    if (!firestore || !slug || !user) return;
 
     const fetchTent = () => {
         setLoadingTent(true);
@@ -167,7 +167,7 @@ export default function TentPage() {
             });
     };
     fetchTent();
-  }, [firestore, slug]);
+  }, [firestore, slug, user]);
 
 
   const menuQuery = useMemoFirebase(() => {

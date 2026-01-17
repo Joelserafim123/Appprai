@@ -12,12 +12,12 @@ import { Logo } from '@/components/icons';
 
 export default function Home() {
   const { firestore } = useFirebase();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
   
   const tentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'tents'));
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 

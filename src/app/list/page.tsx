@@ -24,17 +24,17 @@ export default function ListPage() {
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
 
   const tentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, 'tents'));
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 
   useEffect(() => {
-    if (!isUserLoading && user && !user.isAnonymous && user.role === 'owner') {
+    if (user && !user.isAnonymous && user.role === 'owner') {
       router.push('/dashboard');
     }
-  }, [user, isUserLoading, router]);
+  }, [user, router]);
 
   useEffect(() => {
     if (tents) {
