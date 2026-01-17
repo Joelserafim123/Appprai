@@ -13,19 +13,25 @@ service cloud.firestore {
 
     // As barracas podem ser lidas por qualquer pessoa. Apenas o proprietário pode criar, atualizar ou apagar.
     match /tents/{tentId} {
-      allow read: if true;
+      allow get, list: if true;
       // Para criar, o ownerId está no novo documento. Para atualizar/apagar, está no documento existente.
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
 
         // Os itens do menu e de aluguer só podem ser geridos pelo proprietário da barraca.
         match /menuItems/{menuItemId} {
-            allow read: if true;
+            allow get, list: if true;
             allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
         }
 
         match /rentalItems/{rentalItemId} {
-            allow read: if true;
+            allow get, list: if true;
+            allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+        }
+
+        // Os avisos só podem ser geridos pelo proprietário da barraca.
+        match /notices/{noticeId} {
+            allow get, list: if true;
             allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
         }
     }
