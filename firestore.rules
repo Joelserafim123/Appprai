@@ -1,20 +1,62 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+  
+    // --- FUNÇÕES DE AJUDA ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
     
-    // Regra de Depuração: Permite a qualquer pessoa listar a coleção de barracas.
-    // Isto serve para isolar o erro de permissão de "list".
-    match /tents {
-      allow list: if true;
+    function isOwner(resourceId) {
+      return isAuthenticated() && request.auth.uid == resourceId;
+    }
+    
+    function isParticipant(resource) {
+      return isAuthenticated() && resource.data.participantIds.hasAny([request.auth.uid]);
+    }
+    
+    // --- REGRAS PÚBLICAS ---
+    // Permite que qualquer pessoa leia dados da coleção 'tents' e de todas as suas sub-coleções (menu, aluguéis, etc.).
+    // Isto é essencial para que as páginas públicas do site (mapa, lista, detalhes da barraca) funcionem para todos os visitantes.
+    match /tents/{path=**} {
+      allow read: if true;
+    }
+    
+    // --- REGRAS DE ESCRITA (PROTEGIDAS) ---
+    
+    // BARRACAS: Apenas o dono pode criar, atualizar ou apagar o documento da sua própria barraca.
+    match /tents/{tentId} {
+      allow write: if isOwner(tentId);
     }
 
-    // Regra de Depuração: Permite a qualquer pessoa ler documentos individuais de barracas.
-    match /tents/{tentId} {
-      allow get: if true;
-
-      // Permite também a leitura de sub-coleções para que a página da barraca funcione.
-      match /{subcollection}/{docId} {
-        allow get: if true;
+    // SUB-COLEÇÕES DE BARRACAS: Apenas o dono pode modificar os itens de menu e aluguel da sua barraca.
+    match /tents/{tentId}/{subcollection}/{itemId} {
+       allow write: if isOwner(tentId);
+    }
+    
+    // UTILIZADORES: Os utilizadores podem ler e atualizar o seu próprio perfil. Qualquer utilizador autenticado pode criar um perfil.
+    match /users/{userId} {
+      allow read, update: if isOwner(userId);
+      allow create: if isAuthenticated();
+    }
+    
+    // RESERVAS: Os participantes (cliente e dono da barraca) podem ler/atualizar. Utilizadores autenticados podem criar.
+    match /reservations/{reservationId} {
+        allow read, update: if isParticipant(resource);
+        allow create: if isAuthenticated();
+    }
+    
+    // CHATS E MENSAGENS:
+    match /chats/{chatId} {
+      // Os participantes podem ler/atualizar o documento do chat. Utilizadores autenticados podem criar chats.
+      allow read, update: if isParticipant(resource);
+      allow create: if isAuthenticated();
+      
+      // As mensagens podem ser lidas pelos participantes e criadas pelo remetente.
+      match /messages/{messageId} {
+         allow read: if isParticipant(get(/databases/$(database)/documents/chats/$(chatId)));
+         allow create: if isAuthenticated() && request.auth.uid == request.resource.data.senderId;
       }
     }
   }
