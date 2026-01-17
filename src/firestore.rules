@@ -1,36 +1,8 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Os utilizadores só podem ler e escrever no seu próprio documento de utilizador.
-    // A regra de criação é flexível para permitir a criação de perfis no primeiro login.
-    match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-    }
-
-    // Regra aberta para a coleção 'tents' para fins de desenvolvimento.
     match /tents/{document=**} {
-      allow read, write: if true;
-    }
-    
-    // As reservas podem ser criadas pelo utilizador e lidas/atualizadas pelos participantes.
-    match /reservations/{reservationId} {
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
-      allow create: if request.auth != null 
-                    && request.auth.uid == request.resource.data.userId
-                    && request.auth.uid != request.resource.data.tentOwnerId; // Impede o proprietário de reservar a sua própria barraca
-    }
-    
-    // As conversas e mensagens só podem ser acedidas pelos participantes.
-    match /chats/{chatId} {
-        allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
-
-        match /messages/{messageId} {
-            allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
-        }
+      allow read, write: if request.auth != null;
     }
   }
 }
