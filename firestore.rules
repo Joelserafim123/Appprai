@@ -2,53 +2,54 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Tents Collection Rules
-    match /tents/{tentId} {
-      // Allow anyone to GET a single tent document and its subcollections.
-      allow get: if true;
-      match /{allPaths=**} {
-        allow get: if true;
-      }
-
-      // Write rules for the tent document itself, restricted to the owner.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId;
-      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
-
-      // Write rules for subcollections, restricted to the owner.
-      match /menuItems/{menuItemId} {
-        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
-      }
-      match /rentalItems/{rentalItemId} {
-        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
-      }
+    // --- PUBLIC DATA (READ-ONLY) ---
+    // Anyone can read any document and subcollection within the 'tents' collection.
+    // This single rule covers 'get' on documents and 'list' on collections.
+    match /tents/{path=**} {
+      allow read: if true;
     }
 
-    // Crucial Rule: Explicitly allow anyone to LIST the 'tents' collection.
-    // This is separate from the single-document rules above.
-    match /tents {
-      allow list: if true;
+    // --- SECURED WRITES ---
+
+    // Tents Collection: Only owners can write to their own tent document.
+    match /tents/{tentId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+    }
+
+    // Tent Subcollections: Only the parent tent owner can write to these.
+    match /tents/{tentId}/menuItems/{menuItemId} {
+      allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+    }
+    match /tents/{tentId}/rentalItems/{rentalItemId} {
+      allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
     }
 
     // Users Collection
     match /users/{userId} {
       allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null; // Anyone can create their own user document.
     }
     
     // Chats Collection
     match /chats/{chatId} {
+      // Participants can read/write the chat document itself.
       allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
       
+      // Messages Subcollection
       match /messages/{messageId} {
-        allow read: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        // Participants can read messages.
+        allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        // Only the sender can create a message.
         allow create: if request.auth != null && request.auth.uid == request.resource.data.senderId;
       }
     }
 
     // Reservations Collection
     match /reservations/{reservationId} {
+        // The user creating the reservation must be the one specified in the document.
         allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+        // Only participants (customer and tent owner) can read or update the reservation.
         allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
   }
