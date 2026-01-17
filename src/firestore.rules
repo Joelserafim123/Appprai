@@ -1,73 +1,55 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- Public Read Rules ---
+    // Allow public read access to tents and all their subcollections (menus, etc.)
+    match /tents/{document=**} {
+      allow read: if true;
+    }
 
-    // Users can only read and update their own profile.
+    // --- Write & Granular Rules ---
+
+    // Tents Collection
+    match /tents/{tentId} {
+      // Write rules for the tent document itself
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+
+      // Write rules for subcollections
+      match /menuItems/{menuItemId} {
+        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      }
+
+      match /rentalItems/{rentalItemId} {
+        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      }
+
+      match /notices/{noticeId} {
+        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      }
+    }
+
+    // Users Collection
     match /users/{userId} {
       allow read, update: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
     }
-
-    // --- Rules for Tents and Subcollections ---
-    match /tents/{tentId} {
-      // Anyone can get a single tent document.
-      allow get: if true;
-
-      // --- Write rules for the tent document ---
-      // Owner can create their tent.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-      // Owner can update their tent, but cannot change the ownerId.
-      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId && request.resource.data.ownerId == resource.data.ownerId;
-      // Owner can delete their tent.
-      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
-
-      // --- Subcollections ---
-      match /menuItems/{menuItemId} {
-        // Anyone can read menu items. `read` covers `get` and `list`.
-        allow read: if true;
-        // Only the tent owner can write to menu items.
-        allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
-      }
-
-      match /rentalItems/{rentalItemId} {
-        // Anyone can read rental items.
-        allow read: if true;
-        // Only the tent owner can write to rental items.
-        allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
-      }
-
-      match /notices/{noticeId} {
-        // Anyone can read notices.
-        allow read: if true;
-        // Only the tent owner can write to notices.
-        allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
-      }
-    }
-
-    // Allow anyone to list the 'tents' collection. This is required for the public map/list pages.
-    match /tents {
-      allow list: if true;
-    }
     
-    // --- Chat rules ---
+    // Chats Collection
     match /chats/{chatId} {
-      // Only participants of the chat can read or write to it.
       allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
       
       match /messages/{messageId} {
-        // Only participants can read messages.
         allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
-        // Only the sender can create a message.
         allow create: if request.auth != null && request.auth.uid == request.resource.data.senderId;
       }
     }
 
-    // --- Reservation rules ---
+    // Reservations Collection
     match /reservations/{reservationId} {
-        // A user can create a reservation if they are logged in and are the user creating it.
         allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-        
-        // Only participants (customer and tent owner) can read or update a reservation.
         allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
   }
