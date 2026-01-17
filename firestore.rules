@@ -13,15 +13,15 @@ service cloud.firestore {
         allow get: if true;
     }
 
-    // Regra para ESCREVER em uma barraca e suas sub-coleções. Apenas o dono.
+    // Regras para ESCREVER em uma barraca e suas sub-coleções. Apenas o dono.
     match /tents/{tentId} {
       allow write: if request.auth != null && request.auth.uid == tentId;
-      match /menuItems/{menuItemId} {
-        allow write: if request.auth != null && request.auth.uid == tentId;
-      }
-      match /rentalItems/{rentalItemId} {
-        allow write: if request.auth != null && request.auth.uid == tentId;
-      }
+    }
+    match /tents/{tentId}/menuItems/{menuItemId} {
+      allow write: if request.auth != null && request.auth.uid == tentId;
+    }
+    match /tents/{tentId}/rentalItems/{rentalItemId} {
+      allow write: if request.auth != null && request.auth.uid == tentId;
     }
 
     // As regras para os perfis de utilizador.
