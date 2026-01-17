@@ -14,7 +14,7 @@ service cloud.firestore {
     match /tents/{tentId} {
       // Write rules for the tent document itself
       allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId && request.resource.data.ownerId == resource.data.ownerId;
+      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId;
       allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
 
       // Write rules for subcollections
