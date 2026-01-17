@@ -2,18 +2,13 @@
 
 import type { Tent } from "@/lib/types";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, MapPin, List, Search } from "lucide-react";
+import { AlertTriangle, Loader2, MapPin, List } from "lucide-react";
 import Link from "next/link";
-import { ScrollArea } from "./ui/scroll-area";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Input } from "./ui/input";
 
 
 const containerStyle = {
@@ -59,88 +54,12 @@ const haversineDistance = (
   return R * c;
 };
 
-function TentList({ tents, selectedTent, onTentSelect, onLocate, isLocating, searchTerm, setSearchTerm }: { tents: Tent[], selectedTent: Tent | null, onTentSelect: (tent: Tent) => void, onLocate: () => void, isLocating: boolean, searchTerm: string, setSearchTerm: (term: string) => void }) {
-
-  return (
-    <>
-      <div className="border-b p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-bold">Barracas Próximas</h2>
-            <p className="text-sm text-muted-foreground">Ordenado por proximidade</p>
-          </div>
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={onLocate}
-            disabled={isLocating}
-            aria-label="Usar minha localização atual"
-            className="rounded-full"
-          >
-            {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
-          </Button>
-        </div>
-         <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Filtrar barracas..."
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-      </div>
-      <ScrollArea className="flex-1">
-        <div className="space-y-4 p-4">
-          {tents.length > 0 ? tents.map((tent) => (
-            <Card
-              key={tent.id}
-              onClick={() => onTentSelect(tent)}
-              className={`cursor-pointer transition-all ${selectedTent?.id === tent.id ? "border-primary ring-2 ring-primary" : "hover:bg-muted/50"
-                }`}
-            >
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  {tent.name}
-                  <span className={cn(
-                    'text-xs font-semibold',
-                    tent.hasAvailableKits ? 'text-green-600' : 'text-red-600'
-                  )}>
-                    {tent.hasAvailableKits ? '(Disponível)' : '(Aluguéis Indisponíveis)'}
-                  </span>
-                </CardTitle>
-                <CardDescription className="flex items-center pt-1 text-xs">
-                  {tent.beachName}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{tent.distance != null ? `${tent.distance.toFixed(2)} km de distância` : 'Distância indisponível'}</span>
-                  </div>
-                  <Button asChild variant="link" size="sm" className="p-0 h-auto">
-                    <Link href={`/tents/${tent.slug}`}>Ver Cardápio</Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )) : <p className="p-4 text-center text-sm text-muted-foreground">Nenhuma barraca encontrada.</p>}
-        </div>
-      </ScrollArea>
-    </>
-  );
-}
-
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [isLocating, setIsLocating] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
-  const isMobile = useIsMobile();
-  const [searchTerm, setSearchTerm] = useState('');
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -198,20 +117,14 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   const sortedTents = useMemo(() => {
     if (!tents) return [];
     
-    const withDistance = tents
+    return tents
       .filter(tent => tent.location?.latitude && tent.location?.longitude)
       .map(tent => ({
         ...tent,
         distance: haversineDistance({ lat: mapCenter.lat, lng: mapCenter.lng }, { lat: tent.location.latitude, lng: tent.location.longitude }),
-      }));
-
-    const filtered = withDistance.filter(tent =>
-        tent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tent.beachName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-    return filtered.sort((a, b) => a.distance - b.distance);
-  }, [tents, mapCenter, searchTerm]);
+      }))
+      .sort((a, b) => a.distance - b.distance);
+  }, [tents, mapCenter]);
 
 
   useEffect(() => {
@@ -235,9 +148,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
     setSelectedTent(tent);
     if (tent.location?.latitude && tent.location?.longitude) {
       map?.panTo({ lat: tent.location.latitude, lng: tent.location.longitude });
-    }
-    if (isMobile) {
-      setIsSheetOpen(false);
     }
   };
 
@@ -369,28 +279,15 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
           transform: translateY(-20px);
         }
       `}</style>
-      <div className="md:grid h-full grid-cols-1 md:grid-cols-[350px_1fr]">
-        <div className="hidden md:flex flex-col border-r">
-          <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} searchTerm={searchTerm} setSearchTerm={setSearchTerm}/>
-        </div>
-
-        <div className="relative h-full w-full bg-muted">
+      <div className="relative h-full w-full bg-muted">
           {renderMap()}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 md:hidden">
-             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetTrigger asChild>
-                    <Button className="shadow-lg">
-                        <List className="mr-2 h-4 w-4"/>
-                        Ver Barracas
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="h-[80%] flex flex-col p-0">
-                    <SheetHeader className="sr-only">
-                        <SheetTitle>Barracas Próximas</SheetTitle>
-                    </SheetHeader>
-                    <TentList tents={sortedTents} selectedTent={selectedTent} onTentSelect={handleTentSelect} onLocate={handleGetCurrentLocation} isLocating={isLocating} searchTerm={searchTerm} setSearchTerm={setSearchTerm}/>
-                </SheetContent>
-            </Sheet>
+            <Button asChild className="shadow-lg">
+                <Link href="/list">
+                    <List className="mr-2 h-4 w-4"/>
+                    Ver Barracas em Lista
+                </Link>
+            </Button>
           </div>
           <Button
             size="icon"
@@ -402,8 +299,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
           </Button>
         </div>
-
-      </div>
     </div>
   );
 }
