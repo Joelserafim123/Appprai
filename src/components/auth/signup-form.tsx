@@ -1,6 +1,6 @@
 "use client"
 
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
@@ -16,12 +16,14 @@ import { Loader2 } from "lucide-react"
 import type { UserProfile } from "@/lib/types"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 
 const signupSchema = z.object({
   displayName: z.string().min(3, "O nome é obrigatório."),
   email: z.string().email("Por favor, insira um email válido."),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
+  role: z.enum(['customer', 'owner'], { required_error: "Você deve escolher um tipo de conta." }),
 })
 
 type SignupFormValues = z.infer<typeof signupSchema>
@@ -35,9 +37,13 @@ export function SignUpForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
+    defaultValues: {
+      role: 'customer',
+    }
   })
 
   const onSubmit = async (data: SignupFormValues) => {
@@ -60,7 +66,7 @@ export function SignUpForm() {
             uid: user.uid,
             email: user.email!,
             displayName: data.displayName,
-            role: 'customer',
+            role: data.role,
             profileComplete: false,
       };
 
@@ -114,6 +120,33 @@ export function SignUpForm() {
         <Input id="password" type="password" {...register("password")} />
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
       </div>
+
+       <div className="space-y-2">
+        <Label>Tipo de Conta</Label>
+        <Controller
+          name="role"
+          control={control}
+          render={({ field }) => (
+            <RadioGroup
+              onValueChange={field.onChange}
+              defaultValue={field.value}
+              className="flex space-x-4 pt-2"
+              disabled={isLoading}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="customer" id="customer" />
+                <Label htmlFor="customer" className="font-normal">Quero alugar e pedir</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="owner" id="owner" />
+                <Label htmlFor="owner" className="font-normal">Sou dono de barraca</Label>
+              </div>
+            </RadioGroup>
+          )}
+        />
+        {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
+      </div>
+
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Cadastrar
