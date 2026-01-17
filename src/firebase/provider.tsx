@@ -4,7 +4,7 @@
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useCallback } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { UserProfile } from '@/lib/types';
 import { errorEmitter } from './error-emitter';
@@ -83,6 +83,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchExtraData = useCallback(async (firebaseUser: User | null): Promise<UserData | null> => {
     if (!firebaseUser || !firestore) return firebaseUser as UserData | null;
 
+    // Anonymous users don't have a user document and their profile is never "complete".
+    if (firebaseUser.isAnonymous) {
+        return { ...firebaseUser, profileComplete: false } as UserData;
+    }
+
     const userDocRef = doc(firestore, 'users', firebaseUser.uid);
     
     return getDoc(userDocRef).then((userDoc) => {
@@ -125,9 +130,17 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUserState(s => ({ ...s, isUserLoading: true }));
-      const userData = await fetchExtraData(firebaseUser);
-      setUserState({ user: userData, isUserLoading: false, userError: null });
+      if (firebaseUser) {
+        setUserState(s => ({ ...s, isUserLoading: true }));
+        const userData = await fetchExtraData(firebaseUser);
+        setUserState({ user: userData, isUserLoading: false, userError: null });
+      } else {
+        // If there's no user, sign them in anonymously.
+        signInAnonymously(auth).catch((error) => {
+          console.error("Anonymous sign-in failed:", error);
+          setUserState({ user: null, isUserLoading: false, userError: error });
+        });
+      }
     }, (error) => {
       console.error("Auth state change error:", error);
       setUserState({ user: null, isUserLoading: false, userError: error });
