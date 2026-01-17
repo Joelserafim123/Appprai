@@ -279,7 +279,7 @@ export default function MyReservationsPage() {
             <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
             <p className="mt-2 text-sm text-muted-foreground">Você ainda não fez nenhuma reserva.</p>
             <Button asChild className="mt-6">
-                <Link href="/">Encontrar uma barraca</Link>
+                <Link href="/list">Encontrar uma barraca</Link>
             </Button>
         </div>
       )}

@@ -159,7 +159,7 @@ export default function DashboardLayout({
            <SidebarMenu>
                <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip={{ children: 'Voltar ao site', side: 'right' }}>
-                         <Link href="/">
+                         <Link href="/list">
                             <Briefcase />
                             <span>Voltar ao site</span>
                          </Link>

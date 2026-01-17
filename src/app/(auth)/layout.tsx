@@ -20,7 +20,7 @@ export default function AuthLayout({
     <main className="min-h-screen w-full lg:grid lg:grid-cols-2">
       <div className="flex flex-col items-center justify-center py-12 px-4">
         <div className="mx-auto grid w-full max-w-sm gap-6">
-          <Link href="/" className="mx-auto">
+          <Link href="/list" className="mx-auto">
              <Logo userName={isUserLoading ? undefined : firstName} />
              <span className="sr-only">BeachPal Home</span>
           </Link>
