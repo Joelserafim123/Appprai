@@ -2,51 +2,52 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regra para LISTAR a coleção de barracas. Qualquer um pode fazer isso.
-    match /tents {
-      allow list: if true;
-    }
-    
-    // Regra para LER uma barraca específica e suas sub-coleções. Qualquer um pode fazer isso.
-    match /tents/{tentId}/{path=**} {
-        allow get: if true;
+
+    // Regra #1: Acesso de Leitura Público para Barracas
+    // Permite que qualquer utilizador (autenticado ou não) leia (`get`, `list`)
+    // qualquer documento dentro da coleção `tents` e todas as suas sub-coleções.
+    match /tents/{path=**} {
+      allow read: if true;
     }
 
-    // Regras para ESCREVER em uma barraca e suas sub-coleções. Apenas o dono.
+    // Regra #2: Acesso de Escrita para Donos de Barracas
+    // Apenas o dono da barraca pode escrever (criar, editar, apagar) nos seus
+    // próprios documentos de barraca e sub-coleções.
     match /tents/{tentId} {
       allow write: if request.auth != null && request.auth.uid == tentId;
-    }
-    match /tents/{tentId}/menuItems/{menuItemId} {
-      allow write: if request.auth != null && request.auth.uid == tentId;
-    }
-    match /tents/{tentId}/rentalItems/{rentalItemId} {
-      allow write: if request.auth != null && request.auth.uid == tentId;
+
+      match /menuItems/{menuItemId} {
+        allow write: if request.auth != null && request.auth.uid == tentId;
+      }
+      match /rentalItems/{rentalItemId} {
+        allow write: if request.auth != null && request.auth.uid == tentId;
+      }
     }
 
-    // As regras para os perfis de utilizador.
+    // Regra #3: Perfis de Utilizador
+    // Um utilizador autenticado pode criar o seu perfil.
+    // Apenas o próprio utilizador pode ler ou atualizar o seu perfil.
     match /users/{userId} {
-      // Qualquer utilizador autenticado pode criar um perfil.
       allow create: if request.auth != null;
-      // Apenas o próprio utilizador pode ler ou atualizar o seu perfil.
       allow read, update: if request.auth != null && request.auth.uid == userId;
     }
 
-    // As regras para as reservas.
+    // Regra #4: Reservas
     match /reservations/{reservationId} {
       // Um utilizador autenticado pode criar uma reserva para si mesmo.
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
       
-      // Um utilizador pode ler a sua própria reserva, e o dono de uma barraca pode ler as reservas da sua barraca.
+      // O cliente pode ler a sua própria reserva.
+      // O dono da barraca pode ler as reservas da sua barraca.
       allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
 
       // Apenas os participantes (cliente ou dono da barraca) podem atualizar uma reserva.
       allow update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
     
-    // As regras para os chats.
+    // Regra #5: Chats
     match /chats/{chatId} {
-      // Apenas os participantes de um chat podem ler, criar ou atualizar o chat.
+      // Apenas os participantes de um chat podem ler, criar ou atualizar os metadados do chat.
       allow read, create, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
       
       // Apenas os participantes de um chat podem ler ou enviar mensagens.
