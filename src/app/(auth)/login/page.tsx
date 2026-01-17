@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { SocialLogins } from "@/components/auth/social-logins"
+import { LoginForm } from "@/components/auth/login-form"
 
 export default function LoginPage() {
   return (
@@ -14,17 +14,17 @@ export default function LoginPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Acesse Sua Conta</CardTitle>
         <CardDescription>
-          Use sua conta Google para acessar a plataforma de forma rápida e segura.
+          Use seu email e senha para acessar a plataforma.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6">
-          <SocialLogins />
+          <LoginForm />
         </div>
         <div className="mt-4 text-center text-sm">
           Não tem uma conta?{" "}
           <Link href="/signup" className="underline text-primary font-medium">
-            Cadastre-se com o Google
+            Cadastre-se
           </Link>
         </div>
       </CardContent>

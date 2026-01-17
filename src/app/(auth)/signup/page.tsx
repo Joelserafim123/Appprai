@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { SocialLogins } from "@/components/auth/social-logins"
+import { SignUpForm } from "@/components/auth/signup-form"
 
 export default function SignUpPage() {
   return (
@@ -14,12 +14,12 @@ export default function SignUpPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Crie sua Conta</CardTitle>
         <CardDescription>
-          Use sua conta Google para se cadastrar no BeachPal. É rápido e fácil!
+          Preencha os campos abaixo para criar sua conta.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6">
-          <SocialLogins />
+          <SignUpForm />
         </div>
         <div className="mt-4 text-center text-sm">
           Já tem uma conta?{" "}
