@@ -1,39 +1,24 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
+  experimental: {
+    // This is required to fix a Next.js issue with cross-origin requests in a dev environment.
+    // The warning about this will become an error in a future version.
+    allowedDevOrigins: [
+        'https://6000-firebase-studio-1767846791168.cluster-j6d3cbsvdbe5uxnhqrfzzeyj7i.cloudworkstations.dev'
+    ],
   },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'placehold.co',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
         hostname: 'picsum.photos',
-        port: '',
-        pathname: '/**',
       },
-    ],
-  },
-  devIndicators: {
-    allowedDevOrigins: [
-      'https://6000-firebase-studio-1767846791168.cluster-j6d3cbsvdbe5uxnhqrfzzeyj7i.cloudworkstations.dev',
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc',
+      }
     ],
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
