@@ -1,8 +1,65 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /tents/{document=**} {
-      allow read, write: if request.auth != null;
+
+    // Users can only read and update their own profile.
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+
+    // Tents and their subcollections have different rules.
+    match /tents/{tentId} {
+      // Anyone can read the public tent information.
+      allow get, list: if true;
+      
+      // Only the owner can create, update, or delete their tent.
+      allow write: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      
+      // Rules for menu items within a tent.
+      match /menuItems/{menuItemId} {
+        // Anyone can read the menu.
+        allow get, list: if true;
+        // Only the owner of the tent can manage menu items.
+        allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
+      }
+      
+      // Rules for rental items within a tent.
+      match /rentalItems/{rentalItemId} {
+        // Anyone can read rental item info.
+        allow get, list: if true;
+        // Only the owner of the tent can manage rental items.
+        allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
+      }
+
+      // Rules for notices within a tent
+      match /notices/{noticeId} {
+        // Anyone can read notices.
+        allow get, list: if true;
+        // Only the owner of the tent can manage notices.
+        allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
+      }
+    }
+    
+    match /chats/{chatId} {
+      // Only participants of the chat can read or write to it
+      allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      
+      match /messages/{messageId} {
+        // Only participants can read messages
+        allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        // Only the sender can create a message
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.senderId;
+      }
+    }
+
+    // Rules for reservations
+    match /reservations/{reservationId} {
+        // A user can create a reservation if they are logged in.
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+        
+        // Only participants (customer and tent owner) can read or update a reservation.
+        allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
   }
 }
