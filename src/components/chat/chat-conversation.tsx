@@ -1,7 +1,6 @@
-
 'use client';
 
-import type { UserData } from '@/firebase/auth/use-user';
+import type { UserData } from '@/firebase/provider';
 import type { Chat, ChatMessage } from '@/lib/types';
 import { useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';

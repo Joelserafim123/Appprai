@@ -1,17 +1,18 @@
-
 'use client';
 
 import { Header } from '@/components/layout/header';
 import { BeachMap } from '@/components/beach-map';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query } from 'firebase/firestore';
-import { useFirebase } from '@/firebase/provider';
+import { useFirebase, useUser } from '@/firebase/provider';
 import { Loader2 } from 'lucide-react';
 import { useMemoFirebase } from '@/firebase/provider';
 import type { Tent as TentType } from '@/lib/types';
+import { Logo } from '@/components/icons';
 
 export default function Home() {
   const { firestore } = useFirebase();
+  const { isUserLoading } = useUser();
   
   const tentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -21,9 +22,10 @@ export default function Home() {
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 
 
-  if (loadingTents || !tents) {
+  if (isUserLoading || loadingTents || !tents) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
+        <Logo />
         <div className="flex items-center gap-2">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <p className="text-muted-foreground">Carregando mapa...</p>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useForm } from "react-hook-form"
@@ -71,7 +70,7 @@ export function SignUpForm() {
       await updateProfile(user, { displayName: values.displayName });
 
       // Create firestore document with minimal info
-      const userProfileData = {
+      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
           uid: user.uid,
           email: values.email,
           displayName: values.displayName,

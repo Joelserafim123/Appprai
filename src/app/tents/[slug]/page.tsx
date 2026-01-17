@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { notFound, useRouter, useParams } from 'next/navigation';
@@ -102,14 +100,11 @@ export default function TentPage() {
 
   useEffect(() => {
     const checkActiveReservation = () => {
-      if (!user || !firestore) {
+      if (!user || user.isAnonymous || !firestore) {
         setLoadingActiveReservation(false);
         return;
       }
       setLoadingActiveReservation(true);
-      // This query was simplified to only use the `participantIds` field,
-      // which is guaranteed to be usable with the security rules.
-      // The status and user checks are now performed on the client side.
       const q = query(
         collection(firestore, 'reservations'),
         where('participantIds', 'array-contains', user.uid)
@@ -120,7 +115,6 @@ export default function TentPage() {
           const activeStatuses: Reservation['status'][] = ['confirmed', 'checked-in', 'payment-pending'];
           const hasActiveCustomerReservation = querySnapshot.docs.some(doc => {
               const data = doc.data();
-              // Ensure the reservation belongs to the user and is active
               return data.userId === user.uid && activeStatuses.includes(data.status);
           });
           setHasActiveReservation(hasActiveCustomerReservation);
@@ -149,7 +143,7 @@ export default function TentPage() {
 
     const fetchTent = () => {
         setLoadingTent(true);
-        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', slug));
+        const tentQuery = query(collection(firestore, 'tents'), where('slug', '==', slug), limit(1));
         
         getDocs(tentQuery)
             .then(querySnapshot => {
@@ -163,13 +157,10 @@ export default function TentPage() {
             })
             .catch(error => {
                 const permissionError = new FirestorePermissionError({
-                    path: 'tents',
+                    path: `tents where slug == ${slug}`,
                     operation: 'list',
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                if (error.code !== 'permission-denied') {
-                    notFound();
-                }
             })
             .finally(() => {
                 setLoadingTent(false);
@@ -196,13 +187,17 @@ export default function TentPage() {
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
 
 
-  if (loadingTent || isUserLoading || loadingActiveReservation || !tent) {
+  if (loadingTent || isUserLoading || loadingActiveReservation) {
     return (
        <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-muted-foreground">Carregando barraca...</p>
       </div>
     );
+  }
+  
+  if(!tent) {
+    notFound();
   }
 
   const isOwnerViewingOwnTent = user && user.uid === tent.ownerId;
@@ -295,7 +290,7 @@ export default function TentPage() {
   }
 
   const handleCreateReservation = async () => {
-    if (!user) {
+    if (!user || user.isAnonymous) {
         toast({
             variant: "destructive",
             title: "Login Necessário",
@@ -475,7 +470,7 @@ export default function TentPage() {
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Aluguel de Itens e Horário</CardTitle>
-                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { !user && <Link href={`/login?redirect=/tents/${slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
+                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                 <div className="space-y-2">

@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -126,7 +125,7 @@ export function Header() {
                     <span>Lista</span>
                 </Link>
             </Button>
-          {user ? (
+          {user && !user.isAnonymous ? (
             <>
               <span className="font-medium text-sm hidden sm:inline">
                 Olá, {user.displayName?.split(' ')[0]}

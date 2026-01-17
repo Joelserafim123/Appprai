@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -32,7 +31,7 @@ export default function ListPage() {
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 
   useEffect(() => {
-    if (!isUserLoading && user?.role === 'owner') {
+    if (!isUserLoading && user && !user.isAnonymous && user.role === 'owner') {
       router.push('/dashboard');
     }
   }, [user, isUserLoading, router]);
@@ -47,7 +46,7 @@ export default function ListPage() {
     }
   }, [searchTerm, tents, setFilteredTents]);
 
-  if (isUserLoading || loadingTents || (user && user.role === 'owner')) {
+  if (isUserLoading || loadingTents) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Logo />

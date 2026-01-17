@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -287,5 +286,3 @@ export default function MyReservationsPage() {
     </div>
   );
 }
-
-    

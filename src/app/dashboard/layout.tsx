@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Header } from '@/components/layout/header';
@@ -34,7 +33,7 @@ export default function DashboardLayout({
       return; 
     }
 
-    if (!user) {
+    if (!user || user.isAnonymous) {
       router.push('/login');
     } else if (!user.emailVerified) {
       router.push('/verify-email');
@@ -43,7 +42,7 @@ export default function DashboardLayout({
     }
   }, [user, isUserLoading, router, pathname]);
 
-  if (isUserLoading || !user || !user.emailVerified || (user.profileComplete === false && pathname !== '/dashboard/settings')) {
+  if (isUserLoading || !user || user.isAnonymous || !user.emailVerified || (user.profileComplete === false && pathname !== '/dashboard/settings')) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

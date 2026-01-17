@@ -1,5 +1,3 @@
-
-
 import type { Timestamp } from 'firebase/firestore';
 
 export interface OperatingHoursDay {
@@ -28,7 +26,7 @@ export interface Tent {
   ownerId: string;
   ownerName: string;
   logoUrl?: string;
-  location?: {
+  location: {
     latitude: number;
     longitude: number;
   };
@@ -136,5 +134,3 @@ export interface ChatMessage {
     text: string;
     timestamp: Timestamp;
 }
-
-    

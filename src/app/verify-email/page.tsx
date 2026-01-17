@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useFirebase, useUser } from '@/firebase/provider';
@@ -17,7 +16,6 @@ export default function VerifyEmailPage() {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
 
-  // This effect will automatically redirect the user if their email becomes verified.
   useEffect(() => {
     if (!isUserLoading && user?.emailVerified) {
       toast({
@@ -28,23 +26,19 @@ export default function VerifyEmailPage() {
     }
   }, [user, isUserLoading, router, toast]);
 
-  // This effect periodically reloads the user data to check for verification status change.
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (user) {
-        // user.reload() is a client-side only method to get the latest user data from Firebase Auth
-        await user.reload(); 
-        const auth = getAuth(firebaseApp);
-        // After reload, onAuthStateChanged in the provider will trigger with the fresh user state.
-        // We can also force a refresh of our user context if needed.
-        if (auth.currentUser?.emailVerified) {
+      const auth = getAuth(firebaseApp);
+      if (auth.currentUser && !auth.currentUser.emailVerified) {
+        await auth.currentUser.reload();
+        if (auth.currentUser.emailVerified) {
             refresh();
         }
       }
-    }, 5000); // Check every 5 seconds
+    }, 5000); 
 
     return () => clearInterval(interval);
-  }, [user, firebaseApp, refresh]);
+  }, [firebaseApp, refresh]);
 
   const handleResendVerification = async () => {
     const auth = getAuth(firebaseApp);
@@ -70,13 +64,10 @@ export default function VerifyEmailPage() {
   };
 
   const handleManualCheck = () => {
-    // The refresh function from useUser will reload user data from Firestore
-    // and re-check the auth state.
     refresh();
   };
 
   if (isUserLoading || user?.emailVerified) {
-    // Show a loading spinner while the initial user state is loading or while redirecting.
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -84,10 +75,9 @@ export default function VerifyEmailPage() {
     );
   }
   
-  if (!user) {
-    // If there is no user and we are not loading, redirect to login.
+  if (!user || user.isAnonymous) {
     router.push('/login');
-    return null; // Return null to prevent rendering anything on this path
+    return null; 
   }
 
 

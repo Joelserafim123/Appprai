@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useForm } from "react-hook-form"
@@ -52,7 +51,8 @@ export function LoginForm() {
         title: "Login bem-sucedido!",
         description: "Bem-vindo de volta!",
       });
-      router.push('/dashboard');
+      const redirectUrl = searchParams.get('redirect') || '/dashboard';
+      router.push(redirectUrl);
     } catch (error: any) {
       console.error(error);
       let description = "Não foi possível fazer login. Verifique seu e-mail e senha.";

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -30,6 +29,7 @@ type Reservation = {
   total: number;
   createdAt: Timestamp;
   status: 'confirmed' | 'cancelled' | 'completed';
+  tentOwnerId: string;
 };
 
 const chartConfig = {
@@ -61,7 +61,6 @@ export default function AnalyticsPage() {
     const averageOrderValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
 
     const dailyRevenue = completedReservations.reduce((acc, res) => {
-      // Ensure createdAt is a valid Timestamp before calling toDate()
       if (res.createdAt && typeof res.createdAt.toDate === 'function') {
         const date = format(res.createdAt.toDate(), 'yyyy-MM-dd');
         if (!acc[date]) {

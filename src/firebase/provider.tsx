@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useCallback } from 'react';
@@ -83,9 +82,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchExtraData = useCallback(async (firebaseUser: User | null): Promise<UserData | null> => {
     if (!firebaseUser || !firestore) return firebaseUser as UserData | null;
 
-    // Anonymous users don't have a user document and their profile is never "complete".
     if (firebaseUser.isAnonymous) {
-        return { ...firebaseUser, profileComplete: false } as UserData;
+        return firebaseUser as UserData;
     }
 
     const userDocRef = doc(firestore, 'users', firebaseUser.uid);
@@ -93,7 +91,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return getDoc(userDocRef).then((userDoc) => {
         if (userDoc.exists()) {
             const profileData = userDoc.data() as UserProfile;
-            const isComplete = profileData.profileComplete === true;
+            const isComplete = !!(profileData.displayName && profileData.cpf);
             return { ...firebaseUser, ...profileData, profileComplete: isComplete } as UserData;
         } else {
             console.warn(`User document for ${firebaseUser.uid} not found. Profile is incomplete.`);
@@ -106,13 +104,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return { ...firebaseUser, ...partialProfile, profileComplete: false } as UserData;
         }
     }).catch(error => {
-        // This catches permission errors on the `getDoc` call itself.
         const permissionError = new FirestorePermissionError({
             path: userDocRef.path,
             operation: 'get',
         });
         errorEmitter.emit('permission-error', permissionError);
-        // Treat as incomplete profile to prevent app crashes.
         return { ...firebaseUser, profileComplete: false } as UserData;
     });
   }, [firestore]);
@@ -135,7 +131,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const userData = await fetchExtraData(firebaseUser);
         setUserState({ user: userData, isUserLoading: false, userError: null });
       } else {
-        // If there's no user, sign them in anonymously.
         signInAnonymously(auth).catch((error) => {
           console.error("Anonymous sign-in failed:", error);
           setUserState({ user: null, isUserLoading: false, userError: error });
@@ -191,11 +186,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
 type MemoFirebase <T> = T & {__memo?: boolean};
 
-export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
+export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const memoized = useMemo(factory, deps);
   
   if(typeof memoized !== 'object' || memoized === null) return memoized;
   (memoized as MemoFirebase<T>).__memo = true;
   
-  return memoized;
+  return memoized as T;
 }
