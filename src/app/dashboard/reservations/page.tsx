@@ -236,17 +236,17 @@ export default function OwnerReservationsPage() {
     if (!firestore || !user || user.role !== 'owner') return null;
     return query(
       collection(firestore, 'reservations'),
-      where('participantIds', 'array-contains', user.uid),
-      where('tentOwnerId', '==', user.uid)
+      where('participantIds', 'array-contains', user.uid)
     );
   }, [firestore, user]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
   const filteredReservations = useMemo(() => {
-    if (!reservations) return [];
+    if (!reservations || !user) return [];
     
-    let sorted = [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    const ownerReservations = reservations.filter(r => r.tentOwnerId === user.uid);
+    let sorted = [...ownerReservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     
     if (searchTerm) {
         return sorted.filter(res => 
@@ -255,7 +255,7 @@ export default function OwnerReservationsPage() {
         );
     }
     return sorted;
-  }, [reservations, searchTerm]);
+  }, [reservations, searchTerm, user]);
 
 
   const handleCancelReservation = (reservationId: string) => {

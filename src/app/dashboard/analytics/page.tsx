@@ -45,15 +45,16 @@ export default function AnalyticsPage() {
   
   const reservationsQuery = useMemoFirebase(() => {
     if (!firestore || !user || user.role !== 'owner') return null;
-    return query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid), where('tentOwnerId', '==', user.uid));
+    return query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid));
   }, [firestore, user]);
 
   const { data: reservations, isLoading: reservationsLoading, error } = useCollection<Reservation>(reservationsQuery);
 
   const analyticsData = useMemo(() => {
-    if (!reservations) return null;
+    if (!reservations || !user) return null;
 
-    const completedReservations = reservations.filter(r => r.status === 'completed');
+    const ownerReservations = reservations.filter(r => r.tentOwnerId === user.uid);
+    const completedReservations = ownerReservations.filter(r => r.status === 'completed');
 
     const totalRevenue = completedReservations.reduce((acc, res) => acc + res.total, 0);
     const totalReservations = completedReservations.length;
@@ -82,7 +83,7 @@ export default function AnalyticsPage() {
       averageOrderValue,
       chartData,
     };
-  }, [reservations]);
+  }, [reservations, user]);
   
   const [hasTent, setHasTent] = useState<boolean | null>(null);
 
