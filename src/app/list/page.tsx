@@ -2,27 +2,26 @@
 
 import { Header } from '@/components/layout/header';
 import { BeachMap } from '@/components/beach-map';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query } from 'firebase/firestore';
-import { useFirebase, useUser } from '@/firebase/provider';
 import { Loader2 } from 'lucide-react';
-import { useMemoFirebase } from '@/firebase/provider';
 import type { Tent as TentType } from '@/lib/types';
 import { Logo } from '@/components/icons';
+import { mockTents } from '@/lib/mock-data';
+import { useState, useEffect } from 'react';
 
 export default function ListPage() {
-  const { firestore } = useFirebase();
-  const { user, isUserLoading } = useUser();
-  
-  const tentsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'tents'));
-  }, [firestore, user]);
+  const [tents, setTents] = useState<TentType[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
+  useEffect(() => {
+    // Simulate fetching data to show the loading state
+    const timer = setTimeout(() => {
+      setTents(mockTents);
+      setIsLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
-
-  if (isUserLoading || loadingTents || !tents) {
+  if (isLoading || !tents) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Logo />

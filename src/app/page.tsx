@@ -1,13 +1,10 @@
 'use client';
 
 import { Header } from '@/components/layout/header';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query } from 'firebase/firestore';
-import { useFirebase, useUser } from '@/firebase/provider';
+import { useUser } from '@/firebase/provider';
 import { Loader2, Search } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Logo } from '@/components/icons';
-import { useMemoFirebase } from '@/firebase/provider';
 import type { Tent as TentType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -15,20 +12,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link';
 import { useSearchStore } from '@/hooks/use-search';
 import { Button } from '@/components/ui/button';
+import { mockTents } from '@/lib/mock-data';
 
 export default function HomePage() {
-  const { firestore } = useFirebase();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
 
-  const tentsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'tents'));
-  }, [firestore, user]);
+  const [tents, setTents] = useState<TentType[] | null>(null);
+  const [loadingTents, setLoadingTents] = useState(true);
 
-  const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
+  useEffect(() => {
+    // Simulate fetching data
+    const timer = setTimeout(() => {
+      setTents(mockTents);
+      setLoadingTents(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (user && !user.isAnonymous && user.role === 'owner') {
