@@ -1,9 +1,10 @@
 
 export const firebaseConfig = {
-  "projectId": "cadastro-3c63f",
-  "appId": "1:344820186473:web:3d53cee9849eb2ef9211f8",
-  "storageBucket": "cadastro-3c63f.appspot.com",
-  "apiKey": "AIzaSyDDRF22vXkiHT0T1NLWuqfj66xJ7TaPsDo",
-  "authDomain": "cadastro-3c63f.firebaseapp.com",
-  "messagingSenderId": "344820186473"
+  apiKey: "AIzaSyD3I4LHBJbHD-Gqtc2HjhAoS-6gs6yI0HI",
+  authDomain: "cadastro-3c63f-e1d52.firebaseapp.com",
+  projectId: "cadastro-3c63f",
+  storageBucket: "cadastro-3c63f.firebasestorage.app",
+  messagingSenderId: "344820186473",
+  appId: "1:344820186473:web:6951f05ced8008999211f8",
+  measurementId: "G-KS34KNMLVQ"
 };
