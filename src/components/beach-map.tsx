@@ -281,14 +281,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
       `}</style>
       <div className="relative h-full w-full bg-muted">
           {renderMap()}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 md:hidden">
-            <Button asChild className="shadow-lg">
-                <Link href="/list">
-                    <List className="mr-2 h-4 w-4"/>
-                    Ver Barracas em Lista
-                </Link>
-            </Button>
-          </div>
           <Button
             size="icon"
             className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg"

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List, Edit } from 'lucide-react';
+import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List } from 'lucide-react';
 import { useUser } from '@/firebase/provider';
 import { getAuth, signOut } from 'firebase/auth';
 import { useFirebase } from '@/firebase/provider';
@@ -122,7 +122,7 @@ export function Header() {
            <Button asChild variant="outline">
                 <Link href="/list">
                     <List className="mr-2 h-4 w-4"/>
-                    <span>Lista</span>
+                    <span>Ver Barracas</span>
                 </Link>
             </Button>
           {user && !user.isAnonymous ? (
