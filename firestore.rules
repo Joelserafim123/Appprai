@@ -2,33 +2,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Public Read Rules ---
-    // Allow public read access to tents and all their subcollections (menus, etc.)
-    match /tents/{document=**} {
-      allow read: if true;
-    }
-
-    // --- Write & Granular Rules ---
-
-    // Tents Collection
+    // Tents Collection Rules
     match /tents/{tentId} {
-      // Write rules for the tent document itself
+      // Allow anyone to GET a single tent document and its subcollections.
+      allow get: if true;
+      match /{allPaths=**} {
+        allow get: if true;
+      }
+
+      // Write rules for the tent document itself, restricted to the owner.
       allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
       allow update: if request.auth != null && request.auth.uid == resource.data.ownerId;
       allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
 
-      // Write rules for subcollections
+      // Write rules for subcollections, restricted to the owner.
       match /menuItems/{menuItemId} {
         allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
       }
-
       match /rentalItems/{rentalItemId} {
         allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
       }
+    }
 
-      match /notices/{noticeId} {
-        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
-      }
+    // Crucial Rule: Explicitly allow anyone to LIST the 'tents' collection.
+    // This is separate from the single-document rules above.
+    match /tents {
+      allow list: if true;
     }
 
     // Users Collection
@@ -42,7 +41,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
       
       match /messages/{messageId} {
-        allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        allow read: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
         allow create: if request.auth != null && request.auth.uid == request.resource.data.senderId;
       }
     }
