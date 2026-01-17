@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { SocialLogins } from "@/components/auth/social-logins"
 
 export default function SignUpPage() {
   return (
@@ -18,7 +19,20 @@ export default function SignUpPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <SignUpForm />
+        <div className="grid gap-6">
+          <SocialLogins />
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Ou crie com e-mail
+              </span>
+            </div>
+          </div>
+          <SignUpForm />
+        </div>
         <div className="mt-4 text-center text-sm">
           Já tem uma conta?{" "}
           <Link href="/login" className="underline text-primary font-medium">
