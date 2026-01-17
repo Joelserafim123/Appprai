@@ -10,8 +10,8 @@ service cloud.firestore {
 
     // Tents and their subcollections have different rules.
     match /tents/{tentId} {
-      // Anyone can read the public tent information.
-      allow get, list: if true;
+      // Anyone can GET a single tent. LIST is handled separately.
+      allow get: if true;
       
       // Owner can create their tent, but not change ownerId on update.
       allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
@@ -40,6 +40,11 @@ service cloud.firestore {
         // Only the owner of the tent can manage notices.
         allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
       }
+    }
+    
+    // Allow anyone to LIST the tents collection for the map/list pages.
+    match /tents {
+      allow list: if true;
     }
     
     match /chats/{chatId} {
