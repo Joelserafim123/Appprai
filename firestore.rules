@@ -3,30 +3,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regra #1: Acesso de Leitura Público para Barracas
-    // Permite que qualquer utilizador (autenticado ou não) leia (`get`, `list`)
-    // qualquer documento dentro da coleção `tents` e todas as suas sub-coleções.
-    match /tents/{path=**} {
-      allow read: if true;
+    // --- BARRACAS (TENTS) ---
+    // Regra #1A: Permitir que qualquer pessoa LISTE a coleção de barracas.
+    // Isto é necessário para exibir as barracas no mapa/lista pública.
+    match /tents {
+      allow list: if true;
     }
 
-    // Regra #2: Acesso de Escrita para Donos de Barracas
-    // Apenas o dono da barraca pode escrever (criar, editar, apagar) nos seus
-    // próprios documentos de barraca e sub-coleções.
+    // Regra #1B: Permitir que qualquer pessoa LEIA (get) os dados de uma barraca individual.
+    // Regra #2: Permitir que apenas o dono da barraca ESCREVA (crie, atualize, apague) na sua barraca.
     match /tents/{tentId} {
+      allow get: if true;
       allow write: if request.auth != null && request.auth.uid == tentId;
 
+      // Regras para sub-coleções de barracas (Cardápio e Itens de Aluguel)
       match /menuItems/{menuItemId} {
+        allow read: if true; // `read` permite `get` e `list` para o cardápio da barraca
         allow write: if request.auth != null && request.auth.uid == tentId;
       }
       match /rentalItems/{rentalItemId} {
+        allow read: if true; // `read` permite `get` e `list` para os itens de aluguel da barraca
         allow write: if request.auth != null && request.auth.uid == tentId;
       }
     }
 
     // Regra #3: Perfis de Utilizador
-    // Um utilizador autenticado pode criar o seu perfil.
-    // Apenas o próprio utilizador pode ler ou atualizar o seu perfil.
     match /users/{userId} {
       allow create: if request.auth != null;
       allow read, update: if request.auth != null && request.auth.uid == userId;
@@ -34,23 +35,15 @@ service cloud.firestore {
 
     // Regra #4: Reservas
     match /reservations/{reservationId} {
-      // Um utilizador autenticado pode criar uma reserva para si mesmo.
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      
-      // O cliente pode ler a sua própria reserva.
-      // O dono da barraca pode ler as reservas da sua barraca.
       allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
-
-      // Apenas os participantes (cliente ou dono da barraca) podem atualizar uma reserva.
       allow update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
     
     // Regra #5: Chats
     match /chats/{chatId} {
-      // Apenas os participantes de um chat podem ler, criar ou atualizar os metadados do chat.
       allow read, create, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
       
-      // Apenas os participantes de um chat podem ler ou enviar mensagens.
       match /messages/{messageId} {
         allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
