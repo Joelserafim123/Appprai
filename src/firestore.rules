@@ -23,7 +23,7 @@ service cloud.firestore {
 
       // --- Subcollections ---
       match /menuItems/{menuItemId} {
-        // Anyone can read menu items.
+        // Anyone can read menu items. `read` covers `get` and `list`.
         allow read: if true;
         // Only the tent owner can write to menu items.
         allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
