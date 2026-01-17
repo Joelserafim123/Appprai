@@ -3,19 +3,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // As regras de leitura para as barracas são públicas.
-    // Qualquer pessoa pode listar a coleção de barracas ou ler um documento individual.
-    // Isto é necessário para que os visitantes do site possam ver as barracas no mapa.
-    match /tents/{path=**} {
-      allow read: if true;
+    // Regra para LISTAR a coleção de barracas. Qualquer um pode fazer isso.
+    match /tents {
+      allow list: if true;
+    }
+    
+    // Regra para LER uma barraca específica e suas sub-coleções. Qualquer um pode fazer isso.
+    match /tents/{tentId}/{path=**} {
+        allow get: if true;
     }
 
-    // As regras de escrita para as barracas e suas sub-coleções são restritas.
+    // Regra para ESCREVER em uma barraca e suas sub-coleções. Apenas o dono.
     match /tents/{tentId} {
-      // Apenas o dono da barraca pode criar, atualizar ou apagar o seu documento.
       allow write: if request.auth != null && request.auth.uid == tentId;
-
-      // Apenas o dono da barraca pode gerir o seu cardápio e itens de aluguel.
       match /menuItems/{menuItemId} {
         allow write: if request.auth != null && request.auth.uid == tentId;
       }
