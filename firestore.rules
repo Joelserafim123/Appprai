@@ -13,7 +13,6 @@ service cloud.firestore {
     // Regras para a coleção de barracas (tents)
     match /tents/{tentId} {
       // PERMITE a leitura (get e list) pública para que todos possam ver as barracas.
-      // Esta é a correção principal para o seu erro.
       allow read: if true; 
       
       // Apenas o proprietário pode criar ou atualizar a sua barraca.
