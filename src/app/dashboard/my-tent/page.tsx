@@ -200,37 +200,39 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                 const dayKey = `operatingHours.${day.id}` as const;
                 const isDayOpen = watch(`${dayKey}.isOpen`);
                 return (
-                    <div key={day.id} className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                        <Label htmlFor={`${dayKey}.isOpen`} className="col-span-3 font-medium">{day.label}</Label>
-                        <Controller
-                            control={control}
-                            name={`${dayKey}.isOpen`}
-                            render={({ field }) => (
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id={`${dayKey}.isOpen`}
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                        disabled={isSubmitting}
-                                    />
-                                    <label htmlFor={`${dayKey}.isOpen`} className="text-sm">
-                                        {field.value ? 'Aberto' : 'Fechado'}
-                                    </label>
-                                </div>
-                            )}
-                        />
-                        <Input
-                            type="time"
-                            {...register(`${dayKey}.open`)}
-                            disabled={isSubmitting || !isDayOpen}
-                            className={cn(!isDayOpen && "opacity-50")}
-                        />
-                        <Input
-                            type="time"
-                            {...register(`${dayKey}.close`)}
-                            disabled={isSubmitting || !isDayOpen}
-                            className={cn(!isDayOpen && "opacity-50")}
-                        />
+                    <div key={day.id} className="space-y-2 rounded-md border p-3">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor={`${dayKey}.isOpen`} className="font-medium">{day.label}</Label>
+                            <Controller
+                                control={control}
+                                name={`${dayKey}.isOpen`}
+                                render={({ field }) => (
+                                    <div className="flex items-center gap-2">
+                                        <Checkbox
+                                            id={`${dayKey}.isOpen`}
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                            disabled={isSubmitting}
+                                        />
+                                        <label htmlFor={`${dayKey}.isOpen`} className="text-sm">
+                                            {field.value ? 'Aberto' : 'Fechado'}
+                                        </label>
+                                    </div>
+                                )}
+                            />
+                        </div>
+                        <div className={cn("grid grid-cols-2 gap-4", !isDayOpen && "pointer-events-none opacity-50")}>
+                            <Input
+                                type="time"
+                                {...register(`${dayKey}.open`)}
+                                disabled={isSubmitting || !isDayOpen}
+                            />
+                            <Input
+                                type="time"
+                                {...register(`${dayKey}.close`)}
+                                disabled={isSubmitting || !isDayOpen}
+                            />
+                        </div>
                     </div>
                 )
              })}

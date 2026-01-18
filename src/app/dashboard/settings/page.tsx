@@ -254,8 +254,8 @@ export default function SettingsPage() {
                 {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 space-y-2">
                     <Label htmlFor="street">Rua</Label>
                     <Input id="street" {...register('street')} disabled={isSubmitting} />
                     {errors.street && <p className="text-sm text-destructive">{errors.street.message}</p>}
@@ -271,8 +271,8 @@ export default function SettingsPage() {
                 <Input id="neighborhood" {...register('neighborhood')} disabled={isSubmitting} />
                 {errors.neighborhood && <p className="text-sm text-destructive">{errors.neighborhood.message}</p>}
             </div>
-            <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 space-y-2">
                     <Label htmlFor="city">Cidade</Label>
                     <Input id="city" {...register('city')} disabled={isSubmitting} />
                     {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
