@@ -74,11 +74,6 @@ export default function MyReservationsPage() {
     return [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
   }, [reservations]);
   
-  const handleCloseBill = (reservationId: string) => {
-    setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'payment-pending' } : r));
-    toast({ title: "Conta Fechada (Demonstração)", description: "Aguardando confirmação de pagamento do cliente." });
-  }
-  
   const handleCancelReservation = (reservationId: string) => {
      setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'cancelled' } : r));
      toast({ title: "Reserva Cancelada (Demonstração)"});
@@ -188,16 +183,11 @@ export default function MyReservationsPage() {
                           </Button>
                       )}
                       {reservation.status === 'checked-in' && (
-                          <>
-                              <Button asChild className='flex-1'>
-                                  <Link href={`/dashboard/order/${reservation.id}`}>
-                                      <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
-                                  </Link>
-                              </Button>
-                              <Button onClick={() => handleCloseBill(reservation.id)} variant="secondary" className='flex-1'>
-                                  <CreditCard className="mr-2 h-4 w-4"/> Fechar Conta
-                              </Button>
-                          </>
+                          <Button asChild className='flex-1'>
+                              <Link href={`/dashboard/order/${reservation.id}`}>
+                                  <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
+                              </Link>
+                          </Button>
                       )}
                       {reservation.status === 'confirmed' && (
                         <AlertDialog>
