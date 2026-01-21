@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Tent } from "@/lib/types";
@@ -237,13 +238,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
               position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
               onClick={() => handleTentSelect(tent)}
               icon={getMarkerIcon(tent)}
-              label={{
-                text: tent.name,
-                color: 'black',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                className: 'map-marker-label'
-              }}
             />
           )
         ))}
@@ -274,11 +268,6 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
 
   return (
     <div className="h-full w-full">
-       <style jsx global>{`
-        .map-marker-label {
-          transform: translateY(-20px);
-        }
-      `}</style>
       <div className="relative h-full w-full bg-muted">
           {renderMap()}
           <Button

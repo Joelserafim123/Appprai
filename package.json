@@ -36,7 +36,6 @@
     "@radix-ui/react-tabs": "latest",
     "@radix-ui/react-toast": "latest",
     "@radix-ui/react-tooltip": "latest",
-    "@react-google-maps/api": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",
     "date-fns": "latest",
