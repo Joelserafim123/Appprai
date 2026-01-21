@@ -1,81 +1,18 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // =====================================================================
-    // REGRAS PARA PERFIS DE UTILIZADOR (users)
-    // =====================================================================
-    match /users/{userId} {
-      // Um utilizador autenticado pode criar o seu próprio perfil.
-      allow create: if request.auth != null && request.auth.uid == userId;
-
-      // Um utilizador só pode ler e atualizar os seus próprios dados.
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-
-      // Um utilizador não pode apagar o seu perfil (medida de segurança).
-      allow delete: if false;
-    }
-
-    // =====================================================================
-    // REGRAS PARA BARRACAS (tents)
-    // =====================================================================
-    match /tents/{tentId} {
-      // QUALQUER PESSOA (autenticada ou não) pode ler a lista de barracas e
-      // os dados de uma barraca individual. Essencial para o mapa e a lista.
-      allow read: if true; // 'read' abrange 'get' (documento único) e 'list' (coleção)
-
-      // Um utilizador autenticado pode CRIAR uma barraca se for o dono dela.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
-
-      // Apenas o proprietário pode ATUALIZAR ou APAGAR a sua própria barraca.
-      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
-
-      // --- Sub-coleção de Itens do Cardápio ---
-      match /menuItems/{itemId} {
-        // O cardápio é público.
-        allow read: if true;
-        // Apenas o dono da barraca pode escrever (criar, editar, apagar) no cardápio.
-        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
-      }
-
-      // --- Sub-coleção de Itens de Aluguer ---
-      match /rentalItems/{itemId} {
-        // Os itens de aluguer são públicos.
-        allow read: if true;
-        // Apenas o dono da barraca pode gerir os itens de aluguer.
-        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
-      }
-    }
-
-    // =====================================================================
-    // REGRAS PARA RESERVAS (reservations)
-    // =====================================================================
-    match /reservations/{reservationId} {
-      // Um utilizador autenticado só pode criar uma reserva para si mesmo.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-
-      // Apenas os participantes da reserva (cliente e dono da barraca) podem ler ou atualizar.
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
-
-      // Reservas não podem ser apagadas, apenas canceladas (via atualização de status).
-      allow delete: if false;
-    }
-
-    // =====================================================================
-    // REGRAS PARA CONVERSAS (chats)
-    // =====================================================================
-    match /chats/{chatId} {
-      // Apenas participantes podem criar, ler ou atualizar a conversa.
-      allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
-
-      // --- Sub-coleção de Mensagens ---
-      match /messages/{messageId} {
-        // Apenas participantes podem ler ou enviar mensagens na conversa.
-        // CORREÇÃO: A condição aqui estava errada. Deve verificar se o UID do utilizador está na lista de participantes.
-        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
-      }
+    
+    // Regras para a coleção tents
+    match /tents/{document} {
+      
+      // Permitir leitura apenas para usuários autenticados
+      allow read: if request.auth != null;
+      
+      // Se quiser permitir apenas usuários com email verificado:
+      // allow read: if request.auth.token.email_verified == true;
+      
+      // Se quiser permitir apenas para um UID específico:
+      // allow read: if request.auth.uid == "41egpnF7ZxM5eMcaSB9PlTyBIJo2";
     }
   }
 }
