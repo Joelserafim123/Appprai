@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, MapPin, CheckCircle2, Clock } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
@@ -15,7 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Tent, OperatingHours } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { mockTents } from '@/lib/mock-data';
+import { collection, query, where, limit, addDoc, updateDoc, doc } from 'firebase/firestore';
+
 
 const operatingHoursSchema = z.object({
   isOpen: z.boolean(),
@@ -29,9 +30,9 @@ const tentSchema = z.object({
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
   location: z.object({
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
-  }).optional(),
+    latitude: z.number({ required_error: 'A localização GPS é obrigatória.'}),
+    longitude: z.number({ required_error: 'A localização GPS é obrigatória.'}),
+  }),
   operatingHours: z.object({
     monday: operatingHoursSchema,
     tuesday: operatingHoursSchema,
@@ -63,6 +64,7 @@ const defaultOperatingHours: OperatingHours = {
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
+  const { db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
@@ -73,7 +75,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       description: '',
       beachName: '',
       minimumOrderForFeeWaiver: null,
-      location: { latitude: undefined, longitude: undefined },
+      location: undefined,
       operatingHours: defaultOperatingHours,
     },
   });
@@ -85,7 +87,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         description: existingTent.description || '',
         beachName: existingTent.beachName || '',
         minimumOrderForFeeWaiver: existingTent.minimumOrderForFeeWaiver || null,
-        location: existingTent.location || { latitude: undefined, longitude: undefined },
+        location: existingTent.location || undefined,
         operatingHours: existingTent.operatingHours || defaultOperatingHours,
       });
     } else {
@@ -94,7 +96,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             description: '',
             beachName: '',
             minimumOrderForFeeWaiver: null,
-            location: { latitude: undefined, longitude: undefined },
+            location: undefined,
             operatingHours: defaultOperatingHours,
         })
     }
@@ -129,17 +131,44 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         toast({ variant: 'destructive', title: "Erro de localização", description: "Geolocalização não é suportada neste navegador." });
     }
   }
+  
+  const createSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/ /g, '-')
+      .replace(/[^\w-]+/g, '');
+  };
 
-  const onSubmit = (data: TentFormData) => {
+
+  const onSubmit = async (data: TentFormData) => {
     setIsSubmitting(true);
-    setTimeout(() => {
-        toast({
-            title: `Barraca ${existingTent ? 'atualizada' : 'cadastrada'}! (Demonstração)`,
-            description: 'Suas informações foram salvas.',
-        });
-        setIsSubmitting(false);
+
+    try {
+        if(existingTent) {
+            // Update
+            const tentRef = doc(db, 'tents', existingTent.id);
+            await updateDoc(tentRef, data);
+            toast({ title: "Barraca atualizada com sucesso!" });
+        } else {
+            // Create
+            const tentsCollection = collection(db, 'tents');
+            const slug = createSlug(data.name);
+            await addDoc(tentsCollection, {
+                ...data,
+                slug,
+                ownerId: user.uid,
+                ownerName: user.displayName,
+                hasAvailableKits: false // default value
+            });
+            toast({ title: "Barraca cadastrada com sucesso!" });
+        }
         onFinished();
-    }, 1000);
+    } catch(error) {
+        console.error("Error saving tent data: ", error);
+        toast({ variant: 'destructive', title: "Erro ao salvar", description: 'Não foi possível salvar os dados da barraca.' });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
 
@@ -248,31 +277,15 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
 export default function MyTentPage() {
   const { user, isUserLoading } = useUser();
-  const [tent, setTent] = useState<Tent | null>(null);
-  const [loadingTent, setLoadingTent] = useState(true);
+  const { db } = useFirebase();
 
-  const fetchTentData = useCallback(() => {
-    if (!user) {
-        setLoadingTent(false);
-        return;
-    };
-    setLoadingTent(true);
-    setTimeout(() => {
-        // For demo, we imagine the owner is 'owner1'
-        const ownerTent = mockTents.find(t => t.ownerId === 'owner1');
-        setTent(ownerTent || null);
-        setLoadingTent(false);
-    }, 500);
-  }, [user]);
-
-  useEffect(() => {
-    if (!isUserLoading && user) {
-        fetchTentData();
-    } else if (!isUserLoading) {
-        setLoadingTent(false);
-    }
-  }, [user, isUserLoading, fetchTentData]);
-
+  const tentQuery = useMemoFirebase(
+    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    [db, user]
+  );
+  const { data: tents, isLoading: loadingTent, error } = useCollection<Tent>(tentQuery);
+  const tent = tents?.[0] || null;
+  
 
   if (isUserLoading || loadingTent) {
     return (
@@ -304,7 +317,7 @@ export default function MyTentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TentForm user={user} existingTent={tent} onFinished={fetchTentData} />
+          <TentForm user={user} existingTent={tent} onFinished={() => {}} />
         </CardContent>
       </Card>
       

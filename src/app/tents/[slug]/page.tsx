@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { Tent, OperatingHoursDay, Reservation } from '@/lib/types';
@@ -29,7 +29,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
-import { mockTents, mockMenuItems, mockRentalItems } from '@/lib/mock-data';
+import { collection, query, where, limit, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+
 
 type CartItem = { 
     item: MenuItem | RentalItem; 
@@ -79,43 +80,34 @@ export default function TentPage() {
   const slug = params.slug as string;
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const { db } = useFirebase();
   const { toast } = useToast();
   
-  const [tent, setTent] = useState<Tent | null>(null);
-  const [loadingTent, setLoadingTent] = useState(true);
   const [reservationTime, setReservationTime] = useState<string>('');
   const [activeTab, setActiveTab] = useState('reserve');
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
   
-  const [hasActiveReservation, setHasActiveReservation] = useState(false);
-  const [loadingActiveReservation, setLoadingActiveReservation] = useState(true);
+  // Fetch Tent
+  const tentQuery = useMemoFirebase(() => slug ? query(collection(db, 'tents'), where('slug', '==', slug), limit(1)) : null, [db, slug]);
+  const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
+  const tent = tents?.[0];
 
-  useEffect(() => {
-    // In a mock environment, we can assume the user has no active reservations.
-    setHasActiveReservation(false);
-    setLoadingActiveReservation(false);
-  }, [user]);
-
-
-  useEffect(() => {
-    setLoadingTent(true);
-    // Simulate network delay
-    setTimeout(() => {
-        const foundTent = mockTents.find((t) => t.slug === slug);
-        if (foundTent) {
-            setTent(foundTent);
-        }
-        setLoadingTent(false);
-    }, 500);
-  }, [slug]);
-
-  const menuItems = mockMenuItems;
-  const rentalItems = mockRentalItems;
-  const loadingMenu = false;
-  const loadingRentals = false;
+  // Fetch Menu and Rental Items
+  const menuItemsQuery = useMemoFirebase(() => tent ? collection(db, 'tents', tent.id, 'menuItems') : null, [db, tent]);
+  const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
   
+  const rentalItemsQuery = useMemoFirebase(() => tent ? collection(db, 'tents', tent.id, 'rentalItems') : null, [db, tent]);
+  const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
+
+  // Check for active reservations
+  const activeReservationQuery = useMemoFirebase(() => user ? query(collection(db, 'reservations'), where('userId', '==', user.uid), where('status', 'in', ['confirmed', 'checked-in', 'payment-pending'])) : null, [db, user]);
+  const { data: activeReservations, isLoading: loadingActiveReservation } = useCollection<Reservation>(activeReservationQuery);
+  const hasActiveReservation = useMemo(() => activeReservations && activeReservations.length > 0, [activeReservations]);
+
+
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
 
@@ -272,16 +264,104 @@ export default function TentPage() {
     
     setIsSubmitting(true);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsSubmitting(false);
+    try {
+        const reservationData = {
+            userId: user.uid,
+            userName: user.displayName,
+            userPhotoURL: user.photoURL || null,
+            tentId: tent.id,
+            tentName: tent.name,
+            tentOwnerId: tent.ownerId,
+            tentOwnerName: tent.ownerName,
+            tentLogoUrl: tent.logoUrl || null,
+            tentLocation: tent.location,
+            items: Object.values(cart).map(({ item, quantity }) => ({
+                itemId: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: quantity,
+                status: 'confirmed'
+            })),
+            total: finalTotal,
+            createdAt: serverTimestamp(),
+            reservationTime,
+            orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
+            checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
+            status: 'confirmed',
+            participantIds: [user.uid, tent.ownerId],
+        };
 
-    toast({
-        title: "Reserva Confirmada! (Demonstração)",
-        description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
-    });
-    router.push('/dashboard/my-reservations');
+        await addDoc(collection(db, 'reservations'), reservationData);
+        
+        toast({
+            title: "Reserva Confirmada!",
+            description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
+        });
+        router.push('/dashboard/my-reservations');
+
+    } catch(error) {
+        console.error("Error creating reservation: ", error);
+        toast({
+            variant: 'destructive',
+            title: "Erro ao criar reserva",
+            description: "Não foi possível completar sua reserva. Tente novamente."
+        })
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+  
+    const handleStartChat = async () => {
+    if (!user || user.isAnonymous) {
+      toast({
+        variant: 'destructive',
+        title: 'Login Necessário',
+        description: 'Você precisa estar logado para iniciar uma conversa.',
+      });
+      router.push(`/login?redirect=/tents/${slug}`);
+      return;
+    }
+    if (!tent) return;
+
+    setIsCreatingChat(true);
+
+    try {
+      const chatsRef = collection(db, 'chats');
+      const q = query(
+        chatsRef,
+        where('userId', '==', user.uid),
+        where('tentId', '==', tent.id)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        router.push('/dashboard/chats');
+      } else {
+        await addDoc(chatsRef, {
+          userId: user.uid,
+          userName: user.displayName,
+          userPhotoURL: user.photoURL || null,
+          tentId: tent.id,
+          tentName: tent.name,
+          tentOwnerId: tent.ownerId,
+          tentLogoUrl: tent.logoUrl || null,
+          lastMessage: `Conversa iniciada...`,
+          lastMessageTimestamp: serverTimestamp(),
+          participantIds: [user.uid, tent.ownerId],
+        });
+        router.push('/dashboard/chats');
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao iniciar conversa',
+        description: 'Não foi possível iniciar a conversa. Tente novamente.',
+      });
+    } finally {
+      setIsCreatingChat(false);
+    }
   };
 
   return (
@@ -418,10 +498,25 @@ export default function TentPage() {
                          <TabsContent value="info" className="mt-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Horário de Funcionamento</CardTitle>
+                                    <CardTitle>Informações</CardTitle>
                                 </CardHeader>
-                                <CardContent>
-                                    <OperatingHoursDisplay hours={tent.operatingHours} />
+                                <CardContent className="space-y-4">
+                                     <div>
+                                        <h3 className="font-semibold flex items-center gap-2"><Clock className="w-4 h-4" /> Horário de Funcionamento</h3>
+                                        <OperatingHoursDisplay hours={tent.operatingHours} />
+                                    </div>
+                                    <div className="pt-4 border-t">
+                                        <Button 
+                                            className="w-full" 
+                                            onClick={handleStartChat} 
+                                            disabled={isCreatingChat || isOwnerViewingOwnTent || user?.isAnonymous}
+                                        >
+                                            {isCreatingChat ? <Loader2 className="animate-spin" /> : <MessageSquare className="mr-2" />}
+                                            Contactar Barraca
+                                        </Button>
+                                        {isOwnerViewingOwnTent && <p className="text-xs text-center text-muted-foreground mt-2">Você não pode iniciar uma conversa com a sua própria barraca.</p>}
+                                        {user?.isAnonymous && <p className="text-xs text-center text-muted-foreground mt-2">Faça <Link href={`/login?redirect=/tents/${slug}`} className="underline font-medium">login</Link> para contactar a barraca.</p>}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>

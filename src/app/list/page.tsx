@@ -1,9 +1,9 @@
 'use client';
 
 import { Header } from '@/components/layout/header';
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection } from '@/firebase/provider';
 import { Loader2, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Logo } from '@/components/icons';
 import type { Tent as TentType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
@@ -12,25 +12,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link';
 import { useSearchStore } from '@/hooks/use-search';
 import { Button } from '@/components/ui/button';
-import { mockTents } from '@/lib/mock-data';
+import { collection } from 'firebase/firestore';
 
 export default function ListPage() {
   const { user, isUserLoading } = useUser();
+  const { db } = useFirebase();
   const router = useRouter();
 
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
 
-  const [tents, setTents] = useState<TentType[] | null>(null);
-  const [loadingTents, setLoadingTents] = useState(true);
-
-  useEffect(() => {
-    // Simulate fetching data
-    const timer = setTimeout(() => {
-      setTents(mockTents);
-      setLoadingTents(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data: tents, isLoading: loadingTents } = useCollection<TentType>(collection(db, 'tents'));
 
   useEffect(() => {
     if (user && !user.isAnonymous && user.role === 'owner') {

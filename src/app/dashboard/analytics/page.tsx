@@ -17,8 +17,9 @@ import { ChartTooltipContent, ChartContainer, ChartConfig, ChartTooltip } from '
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
-import { mockReservations, mockTents } from '@/lib/mock-data';
-import type { Reservation } from '@/lib/types';
+import type { Reservation, Tent } from '@/lib/types';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 
 
 const chartConfig = {
@@ -30,19 +31,21 @@ const chartConfig = {
 
 export default function AnalyticsPage() {
   const { user, isUserLoading } = useUser();
+  const { db } = useFirebase();
   
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [reservationsLoading, setReservationsLoading] = useState(true);
+  const tentQuery = useMemoFirebase(
+    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid)) : null,
+    [db, user]
+  );
+  const { data: tents, isLoading: isLoadingTent } = useCollection<Tent>(tentQuery);
+  const hasTent = useMemo(() => tents && tents.length > 0, [tents]);
 
-  useEffect(() => {
-      setReservationsLoading(true);
-      setTimeout(() => {
-        // Assuming the logged in user is owner1 for demo
-        const ownerReservations = mockReservations.filter(r => r.tentOwnerId === 'owner1');
-        setReservations(ownerReservations as Reservation[]);
-        setReservationsLoading(false);
-      }, 500);
-  }, []);
+  const reservationsQuery = useMemoFirebase(
+    () => user ? query(collection(db, 'reservations'), where('tentOwnerId', '==', user.uid)) : null,
+    [db, user]
+  );
+  const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
+
 
   const analyticsData = useMemo(() => {
     if (!reservations || !user) return null;
@@ -76,21 +79,9 @@ export default function AnalyticsPage() {
       chartData,
     };
   }, [reservations, user]);
-  
-  const [hasTent, setHasTent] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (user && user.role === 'owner') {
-       // Assuming user is owner1 for demo
-      const ownerTent = mockTents.find(t => t.ownerId === 'owner1');
-      setHasTent(!!ownerTent);
-    } else {
-        setHasTent(false);
-    }
-  }, [user]);
 
 
-  if (isUserLoading || hasTent === null) {
+  if (isUserLoading || isLoadingTent) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

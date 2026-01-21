@@ -1,13 +1,13 @@
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, Scan, ChefHat, History, Search } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, ChefHat, History, Search, MessageSquare } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { Reservation, ReservationStatus, PaymentMethod, ReservationItemStatus } from '@/lib/types';
+import type { Reservation, ReservationStatus, PaymentMethod, ReservationItem, Tent } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -25,7 +25,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
-import { mockReservations } from '@/lib/mock-data';
+import { collection, query, where, orderBy, doc, updateDoc, getDoc, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -44,6 +45,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: (id: string) => void }) {
     const { toast } = useToast();
+    const { db } = useFirebase();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputCode, setInputCode] = useState('');
     
@@ -56,17 +58,22 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
         return new Date() > toleranceLimit;
     }, [reservation.reservationTime, reservation.createdAt]);
 
-    const handleConfirmCheckIn = () => {
+    const handleConfirmCheckIn = async () => {
         if (inputCode !== reservation.checkinCode) {
             toast({ variant: 'destructive', title: 'Código de Check-in Inválido' });
             return;
         }
         setIsSubmitting(true);
-        setTimeout(() => {
-            toast({ title: 'Check-in realizado com sucesso! (Demonstração)' });
+        try {
+            await updateDoc(doc(db, 'reservations', reservation.id), { status: 'checked-in' });
+            toast({ title: 'Check-in realizado com sucesso!' });
             onFinished(reservation.id);
+        } catch(error) {
+            console.error("Error during check-in: ", error);
+            toast({ variant: 'destructive', title: 'Erro ao fazer check-in' });
+        } finally {
             setIsSubmitting(false);
-        }, 500);
+        }
     };
     
     if (isCheckinExpired) {
@@ -122,22 +129,31 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     );
 }
 
-function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: (id: string, method: PaymentMethod) => void }) {
+function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { toast } = useToast();
+    const { db } = useFirebase();
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleConfirmPayment = () => {
+    const handleConfirmPayment = async () => {
         if (!paymentMethod) {
             toast({ variant: 'destructive', title: 'Selecione um método de pagamento.'});
             return;
         };
         setIsSubmitting(true);
-        setTimeout(() => {
-            toast({ title: 'Pagamento Confirmado! (Demonstração)' });
-            onFinished(reservation.id, paymentMethod);
+        try {
+            await updateDoc(doc(db, 'reservations', reservation.id), {
+                status: 'completed',
+                paymentMethod: paymentMethod,
+            });
+            toast({ title: 'Pagamento Confirmado!' });
+            onFinished();
+        } catch(error) {
+            console.error("Error confirming payment: ", error);
+            toast({ variant: 'destructive', title: 'Erro ao confirmar pagamento' });
+        } finally {
             setIsSubmitting(false);
-        }, 500);
+        }
     };
 
     return (
@@ -175,81 +191,125 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
 
 export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
+  const { db } = useFirebase();
   const { toast } = useToast();
-  
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [reservationsLoading, setReservationsLoading] = useState(true);
+  const router = useRouter();
   
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
 
-  useEffect(() => {
-    setReservationsLoading(true);
-    setTimeout(() => {
-        // For demo, we imagine the owner is 'owner1'
-        const ownerReservations = mockReservations.filter(r => r.tentOwnerId === 'owner1');
-        setReservations(ownerReservations as Reservation[]);
-        setReservationsLoading(false);
-    }, 500);
-  }, []);
+  const reservationsQuery = useMemoFirebase(
+    () => user ? query(
+        collection(db, 'reservations'), 
+        where('tentOwnerId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      ) : null,
+    [db, user]
+  );
+  const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
+
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
     
-    let sorted = [...reservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-    
     if (searchTerm) {
-        return sorted.filter(res => 
+        return reservations.filter(res => 
             res.orderNumber?.includes(searchTerm) ||
             res.userName.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }
-    return sorted;
+    return reservations;
   }, [reservations, searchTerm]);
 
 
-  const handleCancelReservation = (reservationId: string) => {
-    setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'cancelled' } : r));
-    toast({ title: 'Reserva Cancelada! (Demonstração)' });
+  const handleCancelReservation = async (reservationId: string) => {
+    try {
+        await updateDoc(doc(db, 'reservations', reservationId), { status: 'cancelled' });
+        toast({ title: 'Reserva Cancelada!' });
+    } catch(error) {
+        console.error("Error cancelling reservation: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
+    }
   };
 
-  const handleCloseBill = (reservationId: string) => {
-    setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, status: 'payment-pending' } : r));
-    toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
+  const handleCloseBill = async (reservationId: string) => {
+    try {
+        await updateDoc(doc(db, 'reservations', reservationId), { status: 'payment-pending' });
+        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
+    } catch(error) {
+        console.error("Error closing bill: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
+    }
   }
 
-  const handleItemStatusUpdate = (reservationId: string, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
-    setReservations(prev => prev.map(res => {
-        if (res.id === reservationId) {
-            const updatedItems = [...res.items];
-            const itemToUpdate = updatedItems[itemIndex];
-            
-            if (!itemToUpdate || itemToUpdate.status !== 'pending') return res;
+  const handleItemStatusUpdate = async (reservationId: string, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
+    const reservationRef = doc(db, 'reservations', reservationId);
+    try {
+        const docSnap = await getDoc(reservationRef);
+        if(!docSnap.exists()) return;
 
-            updatedItems[itemIndex] = { ...itemToUpdate, status: newStatus };
-            
-            let newTotal = res.total;
-            if (newStatus === 'confirmed') {
-                newTotal += itemToUpdate.price * itemToUpdate.quantity;
-            }
+        const reservationData = docSnap.data() as Reservation;
+        const updatedItems = [...reservationData.items];
+        const itemToUpdate = updatedItems[itemIndex];
+        
+        if (!itemToUpdate || itemToUpdate.status !== 'pending') return;
 
-            return { ...res, items: updatedItems, total: newTotal };
+        updatedItems[itemIndex] = { ...itemToUpdate, status: newStatus };
+        
+        let newTotal = reservationData.total;
+        if (newStatus === 'confirmed') {
+            newTotal += itemToUpdate.price * itemToUpdate.quantity;
         }
-        return res;
-    }));
-    toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }! (Demonstração)` });
-  }
 
-  const onCheckInFinished = (id: string) => {
-    setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'checked-in' } : r));
-    setReservationForCheckIn(null);
-  }
+        await updateDoc(reservationRef, { items: updatedItems, total: newTotal });
+        toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
 
-  const onPaymentFinished = (id: string, method: PaymentMethod) => {
-    setReservations(prev => prev.map(r => r.id === id ? { ...r, status: 'completed', paymentMethod: method } : r));
-    setReservationForPayment(null);
+    } catch(error) {
+        console.error("Error updating item status: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao atualizar status do item' });
+    }
   }
+  
+  const handleStartChat = async (reservation: Reservation) => {
+    if (!user) return;
+    setIsCreatingChat(reservation.id);
+    
+    try {
+        const chatsRef = collection(db, 'chats');
+        const q = query(chatsRef, 
+            where('userId', '==', reservation.userId), 
+            where('tentId', '==', reservation.tentId)
+        );
+        
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            await addDoc(chatsRef, {
+                userId: reservation.userId,
+                userName: reservation.userName,
+                userPhotoURL: reservation.userPhotoURL || null,
+                tentId: reservation.tentId,
+                tentName: reservation.tentName,
+                tentOwnerId: reservation.tentOwnerId,
+                tentLogoUrl: reservation.tentLogoUrl || null,
+                lastMessage: `Conversa iniciada...`,
+                lastMessageTimestamp: serverTimestamp(),
+                participantIds: [reservation.userId, reservation.tentOwnerId],
+            });
+        }
+        
+        router.push('/dashboard/chats');
+
+    } catch (error) {
+        console.error("Error starting chat:", error);
+        toast({ variant: 'destructive', title: 'Erro ao iniciar conversa' });
+    } finally {
+        setIsCreatingChat(null);
+    }
+  };
+
 
   if (isUserLoading || reservationsLoading) {
     return (
@@ -388,6 +448,12 @@ export default function OwnerReservationsPage() {
                                     </Button>
                                 </div>
                             )}
+                            {['confirmed', 'checked-in', 'payment-pending', 'completed'].includes(reservation.status) && reservation.status !== 'cancelled' && (
+                                <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
+                                    {isCreatingChat === reservation.id ? <Loader2 className="animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                                    Contactar Cliente
+                                </Button>
+                            )}
                              {reservation.status === 'completed' && reservation.paymentMethod && (
                                 <div className="text-sm text-center w-full bg-green-50 text-green-700 p-2 rounded-md font-semibold">
                                     Pago com {paymentMethodLabels[reservation.paymentMethod]}
@@ -410,10 +476,10 @@ export default function OwnerReservationsPage() {
         </div>
         
         <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
-            {reservationForPayment && <PaymentDialog reservation={reservationForPayment} onFinished={onPaymentFinished} />}
+            {reservationForPayment && <PaymentDialog reservation={reservationForPayment} onFinished={() => setReservationForPayment(null)} />}
         </Dialog>
         <Dialog open={!!reservationForCheckIn} onOpenChange={(open) => !open && setReservationForCheckIn(null)}>
-            {reservationForCheckIn && <CheckInDialog reservation={reservationForCheckIn} onFinished={onCheckInFinished} />}
+            {reservationForCheckIn && <CheckInDialog reservation={reservationForCheckIn} onFinished={() => setReservationForCheckIn(null)} />}
         </Dialog>
 
     </Dialog>

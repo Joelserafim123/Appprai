@@ -1,6 +1,6 @@
 'use client';
 
-import type { UserData } from '@/firebase/provider';
+import { UserData, useFirebase, useCollection, useMemoFirebase } from '@/firebase/provider';
 import type { Chat, ChatMessage } from '@/lib/types';
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
@@ -10,7 +10,8 @@ import { Loader2, Send, User as UserIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { mockMessages } from '@/lib/mock-data';
+import { collection, query, orderBy, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+
 
 interface ChatConversationProps {
   chat: Chat;
@@ -21,46 +22,59 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const scrollAreaViewport = useRef<HTMLDivElement>(null);
+  const { db } = useFirebase();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [messagesLoading, setMessagesLoading] = useState(true);
+  const messagesQuery = useMemoFirebase(
+    () => chat ? query(collection(db, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc')) : null,
+    [db, chat]
+  );
+  const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
 
   useEffect(() => {
-    setMessagesLoading(true);
+    // Scroll to bottom when new messages arrive
     setTimeout(() => {
-        setMessages(mockMessages[chat.id] || []);
-        setMessagesLoading(false);
-    }, 300);
-  }, [chat.id]);
-
-  useEffect(() => {
-    if (scrollAreaViewport.current) {
-      scrollAreaViewport.current.scrollTo({
-        top: scrollAreaViewport.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
+        if (scrollAreaViewport.current) {
+            scrollAreaViewport.current.scrollTo({
+                top: scrollAreaViewport.current.scrollHeight,
+                behavior: 'smooth',
+            });
+        }
+    }, 100);
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !chat) return;
 
     setIsSending(true);
     const messageText = newMessage.trim();
     setNewMessage('');
 
-    const messageData: ChatMessage = {
-      id: `mock-msg-${Date.now()}`,
-      senderId: currentUser.uid,
-      text: messageText,
-      timestamp: { toDate: () => new Date() } as any,
-    };
-    
-    setTimeout(() => {
-        setMessages(prev => [...prev, messageData]);
+    try {
+        const batch = writeBatch(db);
+        
+        // 1. Add new message to the subcollection
+        const messageRef = doc(collection(db, 'chats', chat.id, 'messages'));
+        batch.set(messageRef, {
+            senderId: currentUser.uid,
+            text: messageText,
+            timestamp: serverTimestamp()
+        });
+
+        // 2. Update the last message on the parent chat document
+        const chatRef = doc(db, 'chats', chat.id);
+        batch.update(chatRef, {
+            lastMessage: messageText,
+            lastMessageTimestamp: serverTimestamp()
+        });
+
+        await batch.commit();
+
+    } catch (error) {
+        console.error("Error sending message:", error);
+    } finally {
         setIsSending(false);
-    }, 500);
+    }
   };
 
   const getSenderAvatar = (senderId: string) => {
@@ -94,7 +108,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
               </div>
             ) : (
               messages?.map((message) => {
-                const isCurrentUser = message.senderId === currentUser.uid || (currentUser.isAnonymous && message.senderId === 'owner1'); // Demo logic
+                const isCurrentUser = message.senderId === currentUser.uid;
                 return (
                   <div
                     key={message.id}

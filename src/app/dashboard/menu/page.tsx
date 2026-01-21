@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Utensils, Plus, Trash, Edit } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -15,15 +15,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { mockMenuItems, mockTents } from '@/lib/mock-data';
+import type { MenuItem, Tent } from '@/lib/types';
+import { collection, query, where, limit, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
-type MenuItem = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
-};
 
 const menuItemSchema = z.object({
   name: z.string().min(2, 'O nome é obrigatório.'),
@@ -34,23 +28,35 @@ const menuItemSchema = z.object({
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
-function MenuItemForm({ item, onFinished }: { item?: MenuItem, onFinished: (itemData: MenuItem) => void }) {
+function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem, onFinished: () => void }) {
   const { toast } = useToast();
+  const { db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, control, formState: { errors } } = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
-    defaultValues: item || { name: '', description: '', price: 0, category: 'Petiscos' },
+    defaultValues: item ? { ...item } : { name: '', description: '', price: 0, category: 'Petiscos' },
   });
 
   const onSubmit = async (data: MenuItemFormData) => {
     setIsSubmitting(true);
-    
-    setTimeout(() => {
-        const fullItemData = { ...data, id: item?.id || `mock-${Date.now()}` };
-        toast({ title: `Item ${item ? 'atualizado' : 'adicionado'} com sucesso! (Demonstração)` });
-        onFinished(fullItemData);
+
+    try {
+        const menuItemsCollectionRef = collection(db, 'tents', tent.id, 'menuItems');
+        if (item) {
+            const itemDocRef = doc(menuItemsCollectionRef, item.id);
+            await updateDoc(itemDocRef, data);
+            toast({ title: `Item atualizado com sucesso!` });
+        } else {
+            await addDoc(menuItemsCollectionRef, data);
+            toast({ title: `Item adicionado com sucesso!` });
+        }
+        onFinished();
+    } catch(error) {
+        console.error("Error saving menu item: ", error);
+        toast({ variant: 'destructive', title: `Erro ao salvar item`, description: 'Por favor, tente novamente.' });
+    } finally {
         setIsSubmitting(false);
-    }, 500);
+    }
   };
 
   return (
@@ -101,44 +107,41 @@ function MenuItemForm({ item, onFinished }: { item?: MenuItem, onFinished: (item
 
 export default function MenuPage() {
   const { user, isUserLoading } = useUser();
+  const { db } = useFirebase();
   const { toast } = useToast();
-  const [hasTent, setHasTent] = useState<boolean | null>(null);
+  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
+  
+  const tentQuery = useMemoFirebase(
+    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    [db, user]
+  );
+  const { data: tents, isLoading: tentLoading } = useCollection<Tent>(tentQuery);
+  const tent = tents?.[0];
 
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [menuLoading, setMenuLoading] = useState(true);
-
-  useEffect(() => {
-    if (user && user.role === 'owner') {
-        const ownerTent = mockTents.find(t => t.ownerId === 'owner1'); // Assuming user is owner1 for demo
-        setHasTent(!!ownerTent);
-    } else {
-        setHasTent(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    setMenuLoading(true);
-    setTimeout(() => {
-        setMenu(mockMenuItems);
-        setMenuLoading(false);
-    }, 500);
-  }, []);
+  const menuQuery = useMemoFirebase(
+    () => tent ? collection(db, 'tents', tent.id, 'menuItems') : null,
+    [db, tent]
+  );
+  const { data: menu, isLoading: menuLoading } = useCollection<MenuItem>(menuQuery);
+  
   
   const deleteItem = async (itemId: string) => {
+    if (!tent) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
-    setMenu(prev => prev.filter(item => item.id !== itemId));
-    toast({ title: 'Item apagado com sucesso! (Demonstração)' });
+    try {
+        await deleteDoc(doc(db, 'tents', tent.id, 'menuItems', itemId));
+        toast({ title: 'Item apagado com sucesso!' });
+    } catch (error) {
+        console.error("Error deleting item:", error);
+        toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
+    }
   }
 
-  const handleFormFinished = (itemData: MenuItem) => {
-    if (editingItem) {
-        setMenu(prev => prev.map(item => item.id === itemData.id ? itemData : item));
-    } else {
-        setMenu(prev => [...prev, itemData]);
-    }
+  const handleFormFinished = () => {
     setIsFormOpen(false);
+    setEditingItem(undefined);
   }
 
   const openEditForm = (item: MenuItem) => {
@@ -151,7 +154,7 @@ export default function MenuPage() {
     setIsFormOpen(true);
   }
 
-  if (isUserLoading || hasTent === null) {
+  if (isUserLoading || tentLoading) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -163,7 +166,7 @@ export default function MenuPage() {
     return <p>Acesso negado.</p>;
   }
   
-    if (hasTent === false) {
+    if (!tent) {
         return (
             <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -238,12 +241,12 @@ export default function MenuPage() {
             </div>
         )}
         </div>
-        {user && hasTent && (
+        {tent && (
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm item={editingItem} onFinished={handleFormFinished} />
+                <MenuItemForm tent={tent} item={editingItem} onFinished={handleFormFinished} />
             </DialogContent>
         )}
     </Dialog>

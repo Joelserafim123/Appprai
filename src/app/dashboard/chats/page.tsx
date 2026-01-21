@@ -1,32 +1,29 @@
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, MessageSquare, User as UserIcon } from 'lucide-react';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
-import { mockChats } from '@/lib/mock-data';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 
 export default function ChatsPage() {
   const { user, isUserLoading } = useUser();
+  const { db } = useFirebase();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [chatsLoading, setChatsLoading] = useState(true);
-
-  useEffect(() => {
-    setChatsLoading(true);
-    setTimeout(() => {
-        // For demo, filter chats where the current user is a participant
-        // Assuming user is either 'customer1' or 'owner1'
-        const userChats = mockChats.filter(c => c.participantIds.includes('customer1') || c.participantIds.includes('owner1'));
-        setChats(userChats as Chat[]);
-        setChatsLoading(false);
-    }, 500);
-  }, []);
+  const chatsQuery = useMemoFirebase(
+    () => user ? query(
+        collection(db, 'chats'), 
+        where('participantIds', 'array-contains', user.uid),
+        orderBy('lastMessageTimestamp', 'desc')
+      ) : null,
+    [db, user]
+  );
+  const { data: chats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
 
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);

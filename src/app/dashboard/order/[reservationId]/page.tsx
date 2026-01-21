@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter, notFound } from 'next/navigation';
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { Loader2, Minus, Plus, Utensils, Scan } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { Reservation, MenuItem, ReservationItem } from '@/lib/types';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { mockReservations, mockMenuItems } from '@/lib/mock-data';
+import { collection, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 type OrderCartItem = { 
     item: MenuItem; 
@@ -19,29 +19,22 @@ type OrderCartItem = {
 
 export default function OrderPage() {
     const { reservationId } = useParams();
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
+    const { db } = useFirebase();
     const router = useRouter();
     const { toast } = useToast();
 
     const [cart, setCart] = useState<Record<string, OrderCartItem>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [reservation, setReservation] = useState<Reservation | null>(null);
-    const [loadingReservation, setLoadingReservation] = useState(true);
+    const reservationRef = useMemoFirebase(() => reservationId ? doc(db, 'reservations', reservationId as string) : null, [db, reservationId]);
+    const { data: reservation, isLoading: loadingReservation } = useDoc<Reservation>(reservationRef);
     
-    const menuItems = mockMenuItems;
-    const loadingMenu = false;
+    const menuItemsQuery = useMemoFirebase(() => reservation ? collection(db, 'tents', reservation.tentId, 'menuItems') : null, [db, reservation]);
+    const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
 
-    useEffect(() => {
-        setLoadingReservation(true);
-        setTimeout(() => {
-            const foundReservation = mockReservations.find(r => r.id === reservationId);
-            setReservation(foundReservation as Reservation || null);
-            setLoadingReservation(false);
-        }, 500);
-    }, [reservationId]);
-    
-    if (loadingReservation || loadingMenu) {
+
+    if (loadingReservation || isUserLoading || (reservation && loadingMenu)) {
         return (
             <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -54,7 +47,7 @@ export default function OrderPage() {
         notFound();
     }
     
-    if (user && reservation.userId !== 'customer1' && reservation.userId !== 'customer2') { // Mocking user check
+    if (user && reservation.userId !== user.uid) {
         return <p>Você não tem permissão para ver este pedido.</p>
     }
     
@@ -99,17 +92,36 @@ export default function OrderPage() {
     const isCartEmpty = Object.keys(cart).length === 0;
 
     const handleAddItemsToReservation = async () => {
-        if (isCartEmpty) return;
+        if (isCartEmpty || !reservationRef) return;
         setIsSubmitting(true);
-    
-        setTimeout(() => {
+
+        const newItems: ReservationItem[] = Object.values(cart).map(({item, quantity}) => ({
+            itemId: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: quantity,
+            status: 'pending' // Items added later are always pending owner confirmation
+        }));
+
+        try {
+            await updateDoc(reservationRef, {
+                items: arrayUnion(...newItems)
+            });
             toast({
-                title: "Pedido Enviado! (Demonstração)",
+                title: "Pedido Enviado!",
                 description: `Sua solicitação foi enviada para a barraca. Aguarde a confirmação.`,
             });
-            setIsSubmitting(false);
             router.push('/dashboard/my-reservations');
-        }, 1000);
+        } catch(error) {
+            console.error("Error adding items to reservation: ", error);
+            toast({
+                variant: 'destructive',
+                title: "Erro ao enviar pedido",
+                description: "Não foi possível adicionar os itens. Tente novamente.",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
 

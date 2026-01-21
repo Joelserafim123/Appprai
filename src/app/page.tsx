@@ -5,21 +5,14 @@ import { BeachMap } from '@/components/beach-map';
 import { Loader2 } from 'lucide-react';
 import type { Tent as TentType } from '@/lib/types';
 import { Logo } from '@/components/icons';
-import { mockTents } from '@/lib/mock-data';
-import { useState, useEffect } from 'react';
+import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+
 
 export default function HomePage() {
-  const [tents, setTents] = useState<TentType[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Simulate fetching data to show the loading state
-    const timer = setTimeout(() => {
-      setTents(mockTents);
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const { db } = useFirebase();
+  const tentsQuery = useMemoFirebase(() => collection(db, 'tents'), [db]);
+  const { data: tents, isLoading: isLoading } = useCollection<TentType>(tentsQuery);
 
   if (isLoading || !tents) {
     return (

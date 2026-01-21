@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
@@ -14,14 +14,8 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { mockRentalItems, mockTents } from '@/lib/mock-data';
-
-type RentalItem = {
-  id: string;
-  name: 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional';
-  price: number;
-  quantity: number;
-};
+import { collection, query, where, limit, doc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import type { Tent, RentalItem } from '@/lib/types';
 
 const rentalItemSchema = z.object({
   name: z.enum(['Kit Guarda-sol + 2 Cadeiras', 'Cadeira Adicional'], { required_error: 'O nome é obrigatório.' }),
@@ -31,22 +25,49 @@ const rentalItemSchema = z.object({
 
 type RentalItemFormData = z.infer<typeof rentalItemSchema>;
 
-function RentalItemForm({ item, onFinished, hasKit }: { item?: RentalItem, onFinished: (itemData: RentalItem) => void, hasKit: boolean }) {
+function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?: RentalItem, onFinished: () => void, hasKit: boolean }) {
   const { toast } = useToast();
+  const { db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const { register, handleSubmit, control, formState: { errors } } = useForm<RentalItemFormData>({
     resolver: zodResolver(rentalItemSchema),
-    defaultValues: item || { name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
+    defaultValues: item ? { ...item } : { name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
   });
+
+  const updateTentAvailability = async () => {
+    const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
+    const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
+    const querySnapshot = await getDocs(q);
+    const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
+    
+    await updateDoc(doc(db, 'tents', tent.id), { hasAvailableKits: hasAvailable });
+  };
+
 
   const onSubmit = async (data: RentalItemFormData) => {
     setIsSubmitting(true);
-    setTimeout(() => {
-        const fullItemData = { ...data, id: item?.id || `mock-${Date.now()}` };
-        toast({ title: `Item de aluguel ${item ? 'atualizado' : 'adicionado'} com sucesso! (Demonstração)` });
-        onFinished(fullItemData);
+    try {
+        const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
+        if (item) {
+            await updateDoc(doc(rentalItemsCollectionRef, item.id), data);
+            toast({ title: 'Item de aluguel atualizado com sucesso!' });
+        } else {
+            await addDoc(rentalItemsCollectionRef, data);
+            toast({ title: 'Item de aluguel adicionado com sucesso!' });
+        }
+        
+        if (data.name === 'Kit Guarda-sol + 2 Cadeiras') {
+            await updateTentAvailability();
+        }
+        onFinished();
+
+    } catch(error) {
+        console.error("Error saving rental item: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao salvar item', description: 'Por favor tente novamente.' });
+    } finally {
         setIsSubmitting(false);
-    }, 500);
+    }
   };
 
   return (
@@ -92,44 +113,47 @@ function RentalItemForm({ item, onFinished, hasKit }: { item?: RentalItem, onFin
 
 export default function RentalItemsPage() {
   const { user, isUserLoading } = useUser();
+  const { db } = useFirebase();
   const { toast } = useToast();
-  const [hasTent, setHasTent] = useState<boolean | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
 
-  const [rentalItems, setRentalItems] = useState<RentalItem[]>([]);
-  const [rentalsLoading, setRentalsLoading] = useState(true);
+  const tentQuery = useMemoFirebase(
+    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    [db, user]
+  );
+  const { data: tents, isLoading: tentLoading } = useCollection<Tent>(tentQuery);
+  const tent = tents?.[0];
 
-  useEffect(() => {
-    if (user && user.role === 'owner') {
-        const ownerTent = mockTents.find(t => t.ownerId === 'owner1'); // Assuming user is owner1 for demo
-        setHasTent(!!ownerTent);
-    } else {
-        setHasTent(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    setRentalsLoading(true);
-    setTimeout(() => {
-        setRentalItems(mockRentalItems);
-        setRentalsLoading(false);
-    }, 500);
-  }, []);
+  const rentalItemsQuery = useMemoFirebase(
+    () => tent ? collection(db, 'tents', tent.id, 'rentalItems') : null,
+    [db, tent]
+  );
+  const { data: rentalItems, isLoading: rentalsLoading } = useCollection<RentalItem>(rentalItemsQuery);
 
   const deleteItem = async (itemToDelete: RentalItem) => {
+    if (!tent) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
-    setRentalItems(prev => prev.filter(i => i.id !== itemToDelete.id));
-    toast({ title: 'Item apagado com sucesso! (Demonstração)' });
+    
+    try {
+        await deleteDoc(doc(db, 'tents', tent.id, 'rentalItems', itemToDelete.id));
+        if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
+            const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
+            const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
+            const querySnapshot = await getDocs(q);
+            const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
+            await updateDoc(doc(db, 'tents', tent.id), { hasAvailableKits: hasAvailable });
+        }
+        toast({ title: 'Item apagado com sucesso!' });
+    } catch(error) {
+        console.error("Error deleting rental item: ", error);
+        toast({ title: 'Erro ao apagar item', variant: 'destructive' });
+    }
   }
 
-  const handleFormFinished = (itemData: RentalItem) => {
-    if (editingItem) {
-        setRentalItems(prev => prev.map(item => item.id === itemData.id ? itemData : item));
-    } else {
-        setRentalItems(prev => [...prev, itemData]);
-    }
+  const handleFormFinished = () => {
     setIsFormOpen(false);
+    setEditingItem(undefined);
   }
 
   const openEditForm = (item: RentalItem) => {
@@ -145,7 +169,7 @@ export default function RentalItemsPage() {
   const hasKit = useMemo(() => rentalItems?.some(item => item.name === 'Kit Guarda-sol + 2 Cadeiras'), [rentalItems]);
   const hasAdditionalChair = useMemo(() => rentalItems?.some(item => item.name === 'Cadeira Adicional'), [rentalItems]);
 
-  if (isUserLoading || hasTent === null) {
+  if (isUserLoading || tentLoading) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -157,7 +181,7 @@ export default function RentalItemsPage() {
     return <p>Acesso negado.</p>;
   }
 
-  if (hasTent === false) {
+  if (!tent) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
               <Armchair className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -227,12 +251,12 @@ export default function RentalItemsPage() {
             </div>
         )}
         </div>
-        {user && hasTent && 
+        {tent && 
           <DialogContent>
               <DialogHeader>
                   <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
               </DialogHeader>
-              <RentalItemForm item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} />
+              <RentalItemForm tent={tent} item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} />
           </DialogContent>
         }
     </Dialog>

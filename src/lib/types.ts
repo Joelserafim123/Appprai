@@ -94,8 +94,10 @@ export interface Reservation {
   id: string;
   userId: string;
   userName: string;
+  userPhotoURL?: string;
   tentId: string;
   tentName: string;
+  tentLogoUrl?: string;
   tentOwnerId: string;
   tentOwnerName: string;
   tentLocation?: {
