@@ -1,59 +1,65 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regras para perfis de utilizador
+    // ==== REGRAS PARA PERFIS DE UTILIZADOR ====
     match /users/{userId} {
-      // Um utilizador só pode ler e atualizar o seu próprio perfil.
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      // Um utilizador autenticado pode criar o seu perfil.
+      // Um utilizador autenticado pode criar o seu próprio perfil.
       allow create: if request.auth != null;
+      // Um utilizador só pode ler e atualizar os seus próprios dados.
+      allow read, update: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Regras para a coleção de barracas (tents)
+    // ==== REGRAS PARA A COLEÇÃO DE BARRACAS (TENTS) ====
+    
+    // Esta regra aplica-se à COLEÇÃO 'tents' inteira.
+    // É essencial para permitir que o mapa e a página de listagem mostrem as barracas.
     match /tents {
-      // PERMITE a listagem pública para que todos possam ver as barracas.
-      allow list: if true;
+      allow list: if true; // Permite que qualquer pessoa CONSULTE a lista de barracas.
     }
 
+    // Esta regra aplica-se a um DOCUMENTO específico dentro de 'tents'.
     match /tents/{tentId} {
-      // PERMITE a leitura de uma barraca individual.
+      // Permite que qualquer pessoa VEJA os detalhes de uma única barraca.
       allow get: if true;
       
-      // Apenas o proprietário pode criar ou atualizar a sua barraca.
+      // Apenas o proprietário autenticado pode criar ou atualizar a sua barraca.
       allow create, update: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+
+      // --- Sub-coleção de Cardápio ---
+      match /menuItems/{itemId} {
+        // O cardápio é público para leitura.
+        allow read: if true;
+        // Apenas o dono da barraca pode escrever (criar, editar, apagar) no cardápio.
+        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      }
+      
+      // --- Sub-coleção de Itens de Aluguel ---
+      match /rentalItems/{itemId} {
+        // Itens de aluguel são públicos para leitura.
+        allow read: if true;
+        // Apenas o dono da barraca pode gerir os itens de aluguel.
+        allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      }
     }
 
-    // Regras para sub-coleções de barracas
-    match /tents/{tentId}/menuItems/{itemId} {
-      // O cardápio é público para leitura.
-      allow read: if true;
-      // Apenas o proprietário pode gerir o cardápio.
-      allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
-    }
-
-    match /tents/{tentId}/rentalItems/{itemId} {
-      // Os itens de aluguel são públicos para leitura.
-      allow read: if true;
-      // Apenas o proprietário pode gerir os itens de aluguel.
-      allow write: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
-    }
-
-    // Regras para reservas
+    // ==== REGRAS PARA RESERVAS ====
     match /reservations/{reservationId} {
-      // Apenas os participantes (cliente e dono da barraca) podem ler ou atualizar.
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
       // Um utilizador autenticado só pode criar reservas para si mesmo.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Apenas os participantes (cliente e dono da barraca) podem ler ou atualizar a reserva.
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
 
-    // Regras para conversas
+    // ==== REGRAS PARA CONVERSAS (CHATS) ====
     match /chats/{chatId} {
-      // Apenas os participantes podem ler ou atualizar a conversa (ex: última mensagem).
+      // Apenas os participantes da conversa podem ler ou atualizar informações do chat.
       allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
 
+      // --- Sub-coleção de Mensagens ---
       match /messages/{messageId} {
-        // Apenas os participantes podem ler ou criar mensagens numa conversa.
+        // Apenas os participantes da conversa podem ler e enviar mensagens.
         allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
     }
