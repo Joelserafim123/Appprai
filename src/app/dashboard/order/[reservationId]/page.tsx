@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter, notFound } from 'next/navigation';
-import { useUser, useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase/provider';
+import { useUser, useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Loader2, Minus, Plus, Utensils, Scan } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { Reservation, MenuItem, ReservationItem } from '@/lib/types';

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Logo } from '@/components/icons';
 import Image from 'next/image';
 import { authImageUrl } from '@/lib/placeholder-images';
-import { useUser } from '@/firebase/provider';
+import { useUser } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
 export default function AuthLayout({

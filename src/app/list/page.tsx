@@ -1,7 +1,7 @@
 'use client';
 
 import { Header } from '@/components/layout/header';
-import { useUser, useFirebase, useCollection } from '@/firebase/provider';
+import { useUser, useFirebase, useCollection } from '@/firebase';
 import { Loader2, Search } from 'lucide-react';
 import { useEffect } from 'react';
 import { Logo } from '@/components/icons';
