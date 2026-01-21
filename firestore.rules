@@ -49,7 +49,7 @@ service cloud.firestore {
 
       // MESSAGES: Participants can read messages. Senders can create them.
       match /messages/{messageId} {
-        allow read: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds.includes(request.auth.uid);
+        allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
         allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
       }
     }
