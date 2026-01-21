@@ -23,7 +23,7 @@ service cloud.firestore {
     match /tents/{tentId} {
       // QUALQUER PESSOA (autenticada ou não) pode ler a lista de barracas e
       // os dados de uma barraca individual. Essencial para o mapa e a lista.
-      allow read: if true; // 'read' inclui 'get' e 'list'.
+      allow read: if true; // 'read' abrange 'get' (documento único) e 'list' (coleção)
 
       // Um utilizador autenticado pode CRIAR uma barraca se for o dono dela.
       allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
@@ -73,7 +73,8 @@ service cloud.firestore {
       // --- Sub-coleção de Mensagens ---
       match /messages/{messageId} {
         // Apenas participantes podem ler ou enviar mensagens na conversa.
-        allow read, create: if request.auth != null && get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        // CORREÇÃO: A condição aqui estava errada. Deve verificar se o UID do utilizador está na lista de participantes.
+        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
     }
   }
