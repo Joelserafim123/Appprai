@@ -11,9 +11,14 @@ service cloud.firestore {
     }
 
     // Regras para a coleção de barracas (tents)
+    match /tents {
+      // PERMITE a listagem pública para que todos possam ver as barracas.
+      allow list: if true;
+    }
+
     match /tents/{tentId} {
-      // PERMITE a leitura (get e list) pública para que todos possam ver as barracas.
-      allow read: if true; 
+      // PERMITE a leitura de uma barraca individual.
+      allow get: if true;
       
       // Apenas o proprietário pode criar ou atualizar a sua barraca.
       allow create, update: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
