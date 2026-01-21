@@ -12,54 +12,44 @@ service cloud.firestore {
     }
 
     // ==== REGRAS PARA A COLEÇÃO DE BARRACAS (TENTS) ====
-    
-    // Esta regra aplica-se à COLEÇÃO 'tents' inteira.
-    // É essencial para permitir que o mapa e a página de listagem mostrem as barracas.
     match /tents {
-      allow list: if true; // Permite que qualquer pessoa CONSULTE a lista de barracas.
+      // Permite que qualquer pessoa CONSULTE a lista de barracas.
+      allow list: if true;
+      // Permite que um proprietário autenticado CRIE uma nova barraca.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
     }
 
-    // Esta regra aplica-se a um DOCUMENTO específico dentro de 'tents'.
     match /tents/{tentId} {
       // Permite que qualquer pessoa VEJA os detalhes de uma única barraca.
       allow get: if true;
-      
-      // Apenas o proprietário autenticado pode criar ou atualizar a sua barraca.
-      allow create, update: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+      // Permite que o proprietário ATUALIZE a sua própria barraca.
+      allow update: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
 
       // --- Sub-coleção de Cardápio ---
       match /menuItems/{itemId} {
-        // O cardápio é público para leitura.
         allow read: if true;
-        // Apenas o dono da barraca pode escrever (criar, editar, apagar) no cardápio.
         allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
       }
       
       // --- Sub-coleção de Itens de Aluguel ---
       match /rentalItems/{itemId} {
-        // Itens de aluguel são públicos para leitura.
         allow read: if true;
-        // Apenas o dono da barraca pode gerir os itens de aluguel.
         allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
       }
     }
 
     // ==== REGRAS PARA RESERVAS ====
     match /reservations/{reservationId} {
-      // Um utilizador autenticado só pode criar reservas para si mesmo.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Apenas os participantes (cliente e dono da barraca) podem ler ou atualizar a reserva.
       allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
     }
 
     // ==== REGRAS PARA CONVERSAS (CHATS) ====
     match /chats/{chatId} {
-      // Apenas os participantes da conversa podem ler ou atualizar informações do chat.
       allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
 
-      // --- Sub-coleção de Mensagens ---
       match /messages/{messageId} {
-        // Apenas os participantes da conversa podem ler e enviar mensagens.
         allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
     }
