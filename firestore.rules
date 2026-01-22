@@ -28,10 +28,11 @@ service cloud.firestore {
     }
 
     // Regra para Reservas
-    // Apenas os participantes (cliente e dono da barraca) podem aceder.
-    // Apenas o cliente pode criar a sua própria reserva.
+    // - Um utilizador pode ler/atualizar as suas próprias reservas (como cliente ou dono).
+    // - Permite queries que filtrem por `userId` ou `tentOwnerId`.
+    // - Apenas o cliente pode criar a sua própria reserva.
     match /reservations/{reservationId} {
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow read, update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.tentOwnerId);
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
     }
 
