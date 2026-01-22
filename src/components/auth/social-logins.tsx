@@ -39,7 +39,7 @@ export function SocialLogins({ role }: { role?: 'customer' | 'owner' }) {
     try {
       // The page will redirect, so no need to await the result here.
       // The result will be handled by getRedirectResult in the AuthLayout.
-      await signInWithRedirect(auth, provider);
+      signInWithRedirect(auth, provider);
     } catch (error: any) {
       console.error("Google Sign-In Error: ", error);
       toast({
