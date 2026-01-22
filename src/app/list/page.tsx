@@ -1,7 +1,7 @@
 'use client';
 
 import { Header } from '@/components/layout/header';
-import { useUser, useFirebase, useCollection } from '@/firebase';
+import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Loader2, Search } from 'lucide-react';
 import { useEffect } from 'react';
 import { Logo } from '@/components/icons';
@@ -21,7 +21,8 @@ export default function ListPage() {
 
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
 
-  const { data: tents, isLoading: loadingTents } = useCollection<TentType>(collection(db, 'tents'));
+  const tentsQuery = useMemoFirebase(() => collection(db, 'tents'), [db]);
+  const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 
   useEffect(() => {
     if (user && !user.isAnonymous && user.role === 'owner') {
