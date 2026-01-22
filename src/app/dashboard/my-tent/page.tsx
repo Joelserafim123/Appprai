@@ -97,7 +97,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const markerPosition = watchedLocation;
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'my-tent-map-script',
+    id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
     libraries: ['marker']
   });
