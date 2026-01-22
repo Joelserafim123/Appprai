@@ -1,15 +1,10 @@
-import type { Metadata } from 'next';
+'use client';
+
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/firebase/provider';
-
-export const metadata: Metadata = {
-  title: 'BeachPal',
-  description: 'Encontre e peça das melhores barracas de praia.',
-};
 
 export default function RootLayout({
   children,
@@ -19,6 +14,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <title>BeachPal</title>
+        <meta name="description" content="Encontre e peça das melhores barracas de praia." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -33,7 +30,6 @@ export default function RootLayout({
       >
         <FirebaseClientProvider>
           <UserProvider>
-            <FirebaseErrorListener />
             {children}
           </UserProvider>
         </FirebaseClientProvider>

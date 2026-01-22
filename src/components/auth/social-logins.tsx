@@ -58,3 +58,5 @@ export function SocialLogins({ role }: { role?: 'customer' | 'owner' }) {
     </div>
   );
 }
+
+    

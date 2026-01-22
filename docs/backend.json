@@ -235,7 +235,8 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
@@ -336,3 +337,4 @@
     "reasoning": "The Firestore structure is designed to support the BeachPal application's core features, focusing on user authentication, beach tent management, online ordering, real-time location tracking, and reservations. The primary goal is to ensure security, scalability, and ease of debugging, particularly concerning authorization.  \n\nAuthorization Independence is achieved through path-based ownership for private user data (UserProfile, Orders, Reservations) and explicit denormalization of ownership for BeachTents and MenuItems. This eliminates the need for `get()` calls in security rules, enabling atomic operations and simplifying authorization logic.\n\nStructural Segregation is implemented by placing user-specific data (orders, reservations) under the `/users/{userId}` path, separating it from global data like beach tents. BeachTents and MenuItems use Membership Maps to manage access control, ensuring only tent owners can modify their respective data.\n\nQAPs are supported by:\n\n1.  Segregating data with different access requirements into separate collections. For example, user profiles are stored in `/users/{userId}`, while beach tents are stored in `/beachTents/{beachTentId}`.\n2.  Using path-based ownership (`/users/{userId}/orders/{orderId}`) for user-specific data, making it easy to secure list operations for a specific user's orders.\n3.  Employing membership maps (denormalized) in the BeachTent documents to control access to tent-related operations. This ensures that only members with appropriate roles can perform specific actions on the tent data.\n\nData Clarity and Predictability are achieved through consistent naming conventions (e.g., `ownerId` for ownership), explicit state modeling (e.g., `status` field in Orders and Reservations), and a predictable schema (avoiding dynamic keys)."
   }
 }
+    
