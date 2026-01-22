@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,8 +9,6 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 /** Utility type to add an 'id' field to a type T. */
 export type WithId<T> = T & { id: string };
@@ -90,18 +87,11 @@ export function useCollection<T = any>(
           memoizedTargetRefOrQuery.type === 'collection'
             ? (memoizedTargetRefOrQuery as CollectionReference).path
             : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // fire the global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        
+        console.error(`Firebase permission error trying to list collection '${path}':`, error);
+        setError(error);
+        setData(null);
+        setIsLoading(false);
       }
     );
 
