@@ -1,16 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regra temporária para depuração: permitir a leitura de toda a coleção de tendas e subcoleções.
-    match /tents/{path=**} {
-      allow read: if true;
-    }
-
-    // Manter as regras dos utilizadores para que o login e a criação de perfis continuem a funcionar
-    match /users/{userId} {
-      allow create: if request.auth != null;
-      allow read, update: if request.auth != null && request.auth.uid == userId;
+    // ATENÇÃO: Regra de depuração temporária. NÃO USE EM PRODUÇÃO.
+    // Permite a leitura e escrita de todos os dados por qualquer pessoa.
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
