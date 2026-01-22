@@ -1,17 +1,7 @@
-rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // REGRA DE DIAGNÓSTICO: Permite que utilizadores autenticados leiam a coleção 'tents'.
-    // Outras funcionalidades da aplicação poderão não funcionar temporariamente.
-
-    // Permite a operação 'list' na coleção de barracas por qualquer utilizador autenticado.
-    match /tents {
-      allow list: if request.auth != null;
-    }
-    
-    // Permite a operação 'get' num documento específico de barraca por qualquer utilizador autenticado.
-    match /tents/{tentId} {
-      allow get: if request.auth != null;
+    match /tents/{document} {
+      allow read: if request.auth != null && request.auth.token.email_verified == true;
     }
   }
 }
