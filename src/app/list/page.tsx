@@ -5,7 +5,6 @@ import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase
 import { Loader2, Search, Tent as TentIcon } from 'lucide-react';
 import { useEffect } from 'react';
 import type { Tent as TentType } from '@/lib/types';
-import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -16,18 +15,11 @@ import { collection } from 'firebase/firestore';
 export default function ListPage() {
   const { user, isUserLoading } = useUser();
   const { firestore: db } = useFirebase();
-  const router = useRouter();
 
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
 
   const tentsQuery = useMemoFirebase(() => (db ? collection(db, 'tents') : null), [db]);
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
-
-  useEffect(() => {
-    if (user && !user.isAnonymous && user.role === 'owner') {
-      router.push('/dashboard');
-    }
-  }, [user, router]);
 
   useEffect(() => {
     if (tents) {
