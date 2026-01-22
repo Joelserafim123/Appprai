@@ -2,7 +2,7 @@
 
 import { Header } from '@/components/layout/header';
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Tent as TentIcon } from 'lucide-react';
 import { useEffect } from 'react';
 import { Logo } from '@/components/icons';
 import type { Tent as TentType } from '@/lib/types';
@@ -37,18 +37,68 @@ export default function ListPage() {
         (tent.beachName && tent.beachName.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredTents(filtered);
+    } else {
+        setFilteredTents([]);
     }
   }, [searchTerm, tents, setFilteredTents]);
 
-  if (isUserLoading || loadingTents) {
-    return (
-      <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
-        <Logo />
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <p className="text-muted-foreground">Carregando...</p>
+  const renderContent = () => {
+    if (loadingTents || isUserLoading) {
+      return (
+         <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <p className="text-muted-foreground">Carregando...</p>
+            </div>
         </div>
-      </div>
+      )
+    }
+
+    if (!tents || tents.length === 0) {
+        return (
+            <div className="text-center py-16 col-span-full">
+                <TentIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">Nenhuma barraca cadastrada</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    Ainda não há barracas disponíveis no BeachPal.
+                </p>
+            </div>
+        );
+    }
+    
+    if (filteredTents.length === 0) {
+        return (
+            <div className="text-center py-16 col-span-full">
+                <Search className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-medium">Nenhuma barraca encontrada</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    Tente um termo de busca diferente.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            {filteredTents.map((tent) => (
+            <Card key={tent.id} className="flex flex-col overflow-hidden rounded-lg shadow-lg transition-transform hover:scale-105">
+                <CardHeader>
+                    <CardTitle>{tent.name}</CardTitle>
+                    <CardDescription>{tent.beachName}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1">
+                    <p className="text-sm text-muted-foreground line-clamp-3">{tent.description}</p>
+                </CardContent>
+                <div className="p-6 bg-muted/50">
+                    <Button asChild className="w-full">
+                        <Link href={`/tents/${tent.slug}`}>
+                            Ver Cardápio e Alugar
+                        </Link>
+                    </Button>
+                </div>
+            </Card>
+            ))}
+        </>
     );
   }
 
@@ -78,34 +128,8 @@ export default function ListPage() {
           </div>
           
            <div className="mx-auto mt-12 grid max-w-lg gap-5 lg:max-w-none lg:grid-cols-3">
-              {filteredTents.map((tent) => (
-                <Card key={tent.id} className="flex flex-col overflow-hidden rounded-lg shadow-lg transition-transform hover:scale-105">
-                   <CardHeader>
-                        <CardTitle>{tent.name}</CardTitle>
-                        <CardDescription>{tent.beachName}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                        <p className="text-sm text-muted-foreground line-clamp-3">{tent.description}</p>
-                    </CardContent>
-                    <div className="p-6 bg-muted/50">
-                        <Button asChild className="w-full">
-                            <Link href={`/tents/${tent.slug}`}>
-                                Ver Cardápio e Alugar
-                            </Link>
-                        </Button>
-                    </div>
-                </Card>
-              ))}
+              {renderContent()}
            </div>
-           {tents && filteredTents.length === 0 && (
-                <div className="text-center py-16">
-                    <Search className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-medium">Nenhuma barraca encontrada</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                        Tente um termo de busca diferente.
-                    </p>
-                </div>
-            )}
         </div>
       </main>
     </div>

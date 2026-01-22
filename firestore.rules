@@ -15,7 +15,7 @@ service cloud.firestore {
     // Qualquer pessoa (incluindo anónimos) pode ver a lista de barracas e os detalhes de uma barraca.
     // Apenas o proprietário pode criar, atualizar ou apagar a sua própria barraca.
     match /tents/{tentId} {
-      allow read: if true;
+      allow get, list: if true;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
     }
