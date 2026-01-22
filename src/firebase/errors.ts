@@ -1,4 +1,3 @@
-
 'use client';
 import { getAuth, type User } from 'firebase/auth';
 
@@ -36,9 +35,9 @@ interface SecurityRuleRequest {
 }
 
 /**
- * Builds a security-rules-compatible 'auth' object from the Firebase user.
+ * Builds a security-rule-compliant auth object from the Firebase User.
  * @param currentUser The currently authenticated Firebase user.
- * @returns An object that mirrors 'request.auth' in security rules, or null.
+ * @returns An object that mirrors request.auth in security rules, or null.
  */
 function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
   if (!currentUser) {
@@ -70,23 +69,23 @@ function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
 }
 
 /**
- * Builds the full, simulated request object for the error message.
- * It safely attempts to get the current authenticated user.
+ * Builds the complete, simulated request object for the error message.
+ * It safely tries to get the current authenticated user.
  * @param context The context of the failed Firestore operation.
  * @returns A structured request object.
  */
 function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
   let authObject: FirebaseAuthObject | null = null;
   try {
-    // Safely try to get the current user.
+    // Safely attempt to get the current user.
     const firebaseAuth = getAuth();
     const currentUser = firebaseAuth.currentUser;
     if (currentUser) {
       authObject = buildAuthObject(currentUser);
     }
   } catch {
-    // This catches errors if the Firebase app hasn't been initialized yet.
-    // In that case, we'll proceed without auth info.
+    // This will catch errors if the Firebase app is not yet initialized.
+    // In this case, we'll proceed without auth information.
   }
 
   return {
@@ -110,7 +109,7 @@ ${JSON.stringify(requestObject, null, 2)}`;
 /**
  * A custom error class designed to be consumed by an LLM for debugging.
  * It structures the error information to mimic the request object
- * available within Firestore Security Rules.
+ * available in Firestore Security Rules.
  */
 export class FirestorePermissionError extends Error {
   public readonly request: SecurityRuleRequest;
