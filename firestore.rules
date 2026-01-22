@@ -1,7 +1,12 @@
+rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /tents/{document} {
-      allow read: if request.auth != null && request.auth.token.email_verified == true;
+    // Esta regra permite que qualquer utilizador autenticado leia e escreva
+    // em todos os documentos da base de dados.
+    // AVISO: Isto é muito permissivo e não é recomendado para produção.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
