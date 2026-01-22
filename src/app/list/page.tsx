@@ -21,7 +21,7 @@ export default function ListPage() {
 
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
 
-  const tentsQuery = useMemoFirebase(() => collection(db, 'tents'), [db]);
+  const tentsQuery = useMemoFirebase(() => (db ? collection(db, 'tents') : null), [db]);
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 
   useEffect(() => {

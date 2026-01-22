@@ -11,7 +11,7 @@ import { collection } from 'firebase/firestore';
 
 export default function HomePage() {
   const { db } = useFirebase();
-  const tentsQuery = useMemoFirebase(() => collection(db, 'tents'), [db]);
+  const tentsQuery = useMemoFirebase(() => (db ? collection(db, 'tents') : null), [db]);
   const { data: tents, isLoading: isLoading } = useCollection<TentType>(tentsQuery);
 
   if (isLoading || !tents) {
