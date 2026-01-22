@@ -11,14 +11,15 @@ import Link from 'next/link';
 import { useSearchStore } from '@/hooks/use-search';
 import { Button } from '@/components/ui/button';
 import { collection } from 'firebase/firestore';
+import { createSlug } from '@/lib/utils';
 
 export default function ListPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore: db } = useFirebase();
+  const { firestore } = useFirebase();
 
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
 
-  const tentsQuery = useMemoFirebase(() => (db ? collection(db, 'tents') : null), [db]);
+  const tentsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'tents') : null), [firestore]);
   const { data: tents, isLoading: loadingTents } = useCollection<TentType>(tentsQuery);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function ListPage() {
                 </CardContent>
                 <div className="p-6 bg-muted/50">
                     <Button asChild className="w-full">
-                        <Link href={`/tents/${tent.slug}`}>
+                        <Link href={`/tents/${tent.slug || createSlug(tent.name)}`}>
                             Ver Cardápio e Alugar
                         </Link>
                     </Button>

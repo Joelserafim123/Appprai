@@ -13,3 +13,13 @@ export function getInitials(name: string | null | undefined) {
     }
     return name.substring(0, 2).toUpperCase();
 }
+
+export function createSlug(name: string): string {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // Remove non-word, non-space, non-hyphen characters
+      .replace(/[\s_-]+/g, '-') // Replace spaces, underscores, hyphens with a single hyphen
+      .replace(/^-+|-+$/g, '');   // Remove leading/trailing hyphens
+}

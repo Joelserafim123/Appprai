@@ -14,7 +14,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import type { Tent, OperatingHours } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn } from '@/lib/utils';
+import { cn, createSlug } from '@/lib/utils';
 import { collection, query, where, limit, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
@@ -173,14 +173,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         toast({ variant: 'destructive', title: "Erro de localização", description: "Geolocalização não é suportada neste navegador." });
     }
   }
-  
-  const createSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/ /g, '-')
-      .replace(/[^\w-]+/g, '');
-  };
-
 
   const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user) return;

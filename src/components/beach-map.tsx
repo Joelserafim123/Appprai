@@ -8,7 +8,7 @@ import Link from "next/link";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, createSlug } from "@/lib/utils";
 
 
 const containerStyle = {
@@ -256,7 +256,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 {selectedTent.hasAvailableKits ? 'Aluguéis Disponíveis' : 'Aluguéis Indisponíveis'}
               </p>
               <Button asChild size="sm" className="w-full mt-2">
-                <Link href={`/tents/${selectedTent.slug}`}>Ver Cardápio e Alugar</Link>
+                <Link href={`/tents/${selectedTent.slug || createSlug(selectedTent.name)}`}>Ver Cardápio e Alugar</Link>
               </Button>
             </div>
           </InfoWindow>
