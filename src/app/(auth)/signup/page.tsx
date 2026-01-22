@@ -14,7 +14,7 @@ export default function SignUpPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Crie sua Conta</CardTitle>
         <CardDescription>
-          Preencha os campos abaixo para criar sua conta.
+          Preencha os campos abaixo ou use o Google para criar sua conta.
         </CardDescription>
       </CardHeader>
       <CardContent>

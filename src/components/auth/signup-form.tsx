@@ -17,6 +17,7 @@ import type { UserProfile } from "@/lib/types"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { SocialLogins } from "./social-logins"
 
 
 const signupSchema = z.object({
@@ -38,6 +39,7 @@ export function SignUpForm() {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -45,6 +47,8 @@ export function SignUpForm() {
       role: 'customer',
     }
   })
+
+  const role = watch("role");
 
   const onSubmit = async (data: SignupFormValues) => {
     if (!firebaseApp || !firestore) return
@@ -104,53 +108,67 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+              <Label htmlFor="displayName">Nome Completo</Label>
+              <Input id="displayName" type="text" placeholder="Seu Nome" {...register("displayName")} />
+              {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
+          </div>
         <div className="space-y-2">
-            <Label htmlFor="displayName">Nome Completo</Label>
-            <Input id="displayName" type="text" placeholder="Seu Nome" {...register("displayName")} />
-            {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" type="email" placeholder="m@example.com" {...register("email")} />
+          {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
         </div>
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" placeholder="m@example.com" {...register("email")} />
-        {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Senha</Label>
-        <Input id="password" type="password" {...register("password")} />
-        {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+        <div className="space-y-2">
+          <Label htmlFor="password">Senha</Label>
+          <Input id="password" type="password" {...register("password")} />
+          {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Tipo de Conta</Label>
+          <Controller
+            name="role"
+            control={control}
+            render={({ field }) => (
+              <RadioGroup
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                className="flex space-x-4 pt-2"
+                disabled={isLoading}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="customer" id="customer" />
+                  <Label htmlFor="customer" className="font-normal">Quero alugar e pedir</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="owner" id="owner" />
+                  <Label htmlFor="owner" className="font-normal">Sou dono de barraca</Label>
+                </div>
+              </RadioGroup>
+            )}
+          />
+          {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
+        </div>
+
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Cadastrar com Email
+        </Button>
+      </form>
+       <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-card px-2 text-muted-foreground">
+            Ou
+          </span>
+        </div>
       </div>
 
-       <div className="space-y-2">
-        <Label>Tipo de Conta</Label>
-        <Controller
-          name="role"
-          control={control}
-          render={({ field }) => (
-            <RadioGroup
-              onValueChange={field.onChange}
-              defaultValue={field.value}
-              className="flex space-x-4 pt-2"
-              disabled={isLoading}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="customer" id="customer" />
-                <Label htmlFor="customer" className="font-normal">Quero alugar e pedir</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="owner" id="owner" />
-                <Label htmlFor="owner" className="font-normal">Sou dono de barraca</Label>
-              </div>
-            </RadioGroup>
-          )}
-        />
-        {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
-      </div>
-
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Cadastrar
-      </Button>
-    </form>
+      <SocialLogins role={role} />
+    </>
   )
 }
