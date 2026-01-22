@@ -11,8 +11,8 @@ import { collection, query, where } from 'firebase/firestore';
 
 export default function HomePage() {
   const { firestore } = useFirebase();
-  // Query for tents that have available kits to show on the map
-  const tentsQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'tents'), where('hasAvailableKits', '==', true)) : null), [firestore]);
+  // Query for all tents to show on the map
+  const tentsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'tents') : null), [firestore]);
   const { data: tents, isLoading: isLoading } = useCollection<TentType>(tentsQuery);
 
   if (isLoading || !firestore) {
@@ -34,9 +34,9 @@ export default function HomePage() {
          <main className="flex-1 flex items-center justify-center text-center p-4">
            <div className="border-2 border-dashed rounded-lg p-12">
              <TentIcon className="mx-auto h-12 w-12 text-muted-foreground" />
-             <h3 className="mt-4 text-xl font-medium">Nenhuma barraca disponível</h3>
+             <h3 className="mt-4 text-xl font-medium">Nenhuma barraca cadastrada</h3>
              <p className="mt-2 text-sm text-muted-foreground">
-               Parece que não há barracas com kits disponíveis no momento.
+               Parece que ainda não há barracas cadastradas no BeachPal.
              </p>
            </div>
          </main>
