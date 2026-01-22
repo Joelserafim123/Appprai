@@ -1,5 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair, MessageSquare, Loader2 } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { useUser } from '@/firebase';
 import {
@@ -11,13 +15,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
-  SidebarTrigger,
-  SidebarFooter,
 } from '@/components/ui/sidebar';
-import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair, MessageSquare, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
 
 export default function DashboardLayout({
   children,
@@ -34,9 +32,9 @@ export default function DashboardLayout({
     }
 
     if (!user || user.isAnonymous) {
-      router.push('/login');
+      router.replace('/login');
     } else if (user.profileComplete === false && pathname !== '/dashboard/settings') {
-      router.push('/dashboard/settings');
+      router.replace('/dashboard/settings');
     }
   }, [user, isUserLoading, router, pathname]);
 
@@ -52,14 +50,6 @@ export default function DashboardLayout({
     <>
       <SidebarMenuItem>
         <SidebarMenuButton asChild tooltip={{ children: 'Início', side: 'right' }}>
-          <Link href="/dashboard/my-reservations">
-            <Home />
-            <span>Início</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: 'Minhas Reservas', side: 'right' }}>
           <Link href="/dashboard/my-reservations">
             <Star />
             <span>Minhas Reservas</span>
@@ -153,25 +143,21 @@ export default function DashboardLayout({
         <SidebarContent>
           <SidebarMenu>
             {user?.role === 'owner' ? <OwnerMenu /> : <CustomerMenu />}
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={{ children: 'Voltar ao site', side: 'right' }}>
+                  <Link href="/">
+                    <Briefcase />
+                    <span>Voltar ao site</span>
+                  </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter>
-           <SidebarMenu>
-               <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip={{ children: 'Voltar ao site', side: 'right' }}>
-                         <Link href="/">
-                            <Briefcase />
-                            <span>Voltar ao site</span>
-                         </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-           </SidebarMenu>
-        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <Header />
         <main className="p-4 sm:p-6 md:p-8 flex-1">
-            <div className="mx-auto w-full h-full flex items-center justify-center">
+            <div className="mx-auto w-full h-full">
                 {children}
             </div>
         </main>

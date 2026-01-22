@@ -10,17 +10,24 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      if(user.isAnonymous) {
+    if (isUserLoading) return;
+    
+    if (!user) {
         router.replace('/login');
         return;
-      }
-      if (user.role === 'owner') {
-        router.replace('/dashboard/reservations');
-      } else {
-        router.replace('/dashboard/my-reservations');
-      }
     }
+
+    if(user.isAnonymous) {
+      router.replace('/login');
+      return;
+    }
+
+    if (user.role === 'owner') {
+      router.replace('/dashboard/reservations');
+    } else {
+      router.replace('/dashboard/my-reservations');
+    }
+    
   }, [user, isUserLoading, router]);
 
   return (

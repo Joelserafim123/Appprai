@@ -15,6 +15,7 @@ export default function RootLayout({
       <head>
         <title>BeachPal</title>
         <meta name="description" content="Encontre e peça das melhores barracas de praia." />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

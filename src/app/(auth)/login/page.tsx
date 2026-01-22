@@ -11,7 +11,7 @@ import { SocialLogins } from "@/components/auth/social-logins"
 
 export default function LoginPage() {
   return (
-    <Card>
+    <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Acesse Sua Conta</CardTitle>
         <CardDescription>
@@ -43,5 +43,3 @@ export default function LoginPage() {
     </Card>
   )
 }
-
-    

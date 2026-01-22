@@ -1,41 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
 
-export interface OperatingHoursDay {
-  isOpen: boolean;
-  open: string;
-  close: string;
-}
-
-export interface OperatingHours {
-  monday: OperatingHoursDay;
-  tuesday: OperatingHoursDay;
-  wednesday: OperatingHoursDay;
-  thursday: OperatingHoursDay;
-  friday: OperatingHoursDay;
-  saturday: OperatingHoursDay;
-  sunday: OperatingHoursDay;
-}
-
-
-export interface Tent {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  beachName: string;
-  ownerId: string;
-  ownerName: string;
-  logoUrl?: string;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  minimumOrderForFeeWaiver?: number;
-  hasAvailableKits?: boolean;
-  operatingHours?: OperatingHours;
-  distance?: number;
-}
-
+// Base User profile structure
 export interface UserProfile {
     uid: string;
     email: string;
@@ -52,15 +17,45 @@ export interface UserProfile {
     profileComplete?: boolean;
 }
 
-export interface TentMedia {
-  id: string;
-  mediaUrl: string;
-  storagePath: string;
-  mediaHint?: string;
-  description?: string;
-  type: 'image' | 'video';
+// Full user data including Firebase User properties
+export interface UserData extends UserProfile {
+    isAnonymous?: boolean;
 }
 
+// Operating hours for a single day
+export interface OperatingHoursDay {
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
+// Operating hours for the whole week
+export interface OperatingHours {
+  [key: string]: OperatingHoursDay;
+}
+
+// Represents a beach tent
+export interface Tent {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  beachName: string;
+  ownerId: string;
+  ownerName: string;
+  logoUrl?: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  minimumOrderForFeeWaiver?: number;
+  hasAvailableKits?: boolean;
+  operatingHours: OperatingHours;
+  // Client-side computed value
+  distance?: number;
+}
+
+// An item on the tent's food/drink menu
 export interface MenuItem {
   id: string;
   name: string;
@@ -69,6 +64,7 @@ export interface MenuItem {
   category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
 }
 
+// A rentable item (e.g., umbrella kit)
 export interface RentalItem {
   id: string;
   name: 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional';
@@ -76,8 +72,10 @@ export interface RentalItem {
   quantity: number;
 }
 
+// Status for an individual item within a reservation
 export type ReservationItemStatus = 'pending' | 'confirmed' | 'cancelled';
 
+// An item within a reservation (can be menu or rental)
 export interface ReservationItem {
     itemId: string;
     name: string;
@@ -86,10 +84,11 @@ export interface ReservationItem {
     status: ReservationItemStatus;
 };
 
+// Overall status of a reservation
 export type ReservationStatus = 'confirmed' | 'checked-in' | 'payment-pending' | 'completed' | 'cancelled';
 export type PaymentMethod = 'card' | 'cash' | 'pix';
 
-
+// Represents a reservation
 export interface Reservation {
   id: string;
   userId: string;
@@ -116,6 +115,7 @@ export interface Reservation {
   participantIds: string[];
 }
 
+// Metadata for a chat conversation
 export interface Chat {
   id: string;
   userId: string;
@@ -130,6 +130,7 @@ export interface Chat {
   participantIds: string[];
 }
 
+// A single message within a chat
 export interface ChatMessage {
     id: string;
     senderId: string;

@@ -18,10 +18,11 @@ import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { SocialLogins } from "./social-logins"
+import { FirebaseError } from "firebase/app"
 
 
 const signupSchema = z.object({
-  displayName: z.string().min(3, "O nome é obrigatório."),
+  displayName: z.string().min(3, "O nome completo é obrigatório."),
   email: z.string().email("Por favor, insira um email válido."),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
   role: z.enum(['customer', 'owner'], { required_error: "Você deve escolher um tipo de conta." }),
@@ -30,7 +31,7 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>
 
 export function SignUpForm() {
-  const { firebaseApp, firestore } = useFirebase()
+  const { firestore, auth } = useFirebase()
   const { toast } = useToast()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -51,19 +52,16 @@ export function SignUpForm() {
   const role = watch("role");
 
   const onSubmit = async (data: SignupFormValues) => {
-    if (!firebaseApp || !firestore) return
+    if (!auth || !firestore) return
     setIsLoading(true)
-    const auth = getAuth(firebaseApp)
-
+    
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
       const user = userCredential.user
 
-      if (user) {
-        await updateProfile(user, {
-            displayName: data.displayName,
-        });
-      }
+      await updateProfile(user, {
+          displayName: data.displayName,
+      });
       
       const userDocRef = doc(firestore, 'users', user.uid);
       const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'photoURL'> = {
@@ -74,34 +72,30 @@ export function SignUpForm() {
             profileComplete: false,
       };
 
-      await setDoc(userDocRef, userProfileData).catch(e => {
-            const permissionError = new FirestorePermissionError({
-                path: `users/${user.uid}`,
-                operation: 'create',
-                requestResourceData: userProfileData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            throw e;
-        });
+      await setDoc(userDocRef, userProfileData);
 
       toast({
         title: "Conta criada com sucesso!",
         description: "Você já pode fazer login.",
       })
       router.push("/login")
-    } catch (error: any) {
+    } catch (error: unknown) {
       let description = "Ocorreu um erro. Por favor, tente novamente."
-      if (error.code === 'auth/email-already-in-use') {
-        description = "Este email já está em uso. Tente fazer login."
+      if (error instanceof FirestorePermissionError) {
+        // Error is handled globally by the listener
+        return;
+      }
+      if (error instanceof FirebaseError) {
+        if (error.code === 'auth/email-already-in-use') {
+          description = "Este email já está em uso. Tente fazer login ou use um email diferente."
+        }
       }
        
-      if (error.code !== 'permission-denied') {
-        toast({
-          variant: "destructive",
-          title: "Erro no Cadastro",
-          description,
-        })
-      }
+      toast({
+        variant: "destructive",
+        title: "Erro no Cadastro",
+        description,
+      })
     } finally {
       setIsLoading(false)
     }
@@ -112,12 +106,12 @@ export function SignUpForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
               <Label htmlFor="displayName">Nome Completo</Label>
-              <Input id="displayName" type="text" placeholder="Seu Nome" {...register("displayName")} />
+              <Input id="displayName" type="text" placeholder="Seu Nome Completo" {...register("displayName")} />
               {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
           </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="m@example.com" {...register("email")} />
+          <Input id="email" type="email" placeholder="seu@email.com" {...register("email")} />
           {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
         </div>
         <div className="space-y-2">
@@ -157,7 +151,7 @@ export function SignUpForm() {
           Cadastrar com Email
         </Button>
       </form>
-       <div className="relative">
+       <div className="relative pt-4">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t" />
         </div>
@@ -172,5 +166,3 @@ export function SignUpForm() {
     </>
   )
 }
-
-    

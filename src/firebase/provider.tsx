@@ -24,23 +24,16 @@ import {
 } from 'firebase/firestore';
 import { Auth, User, getAuth, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, UserData } from '@/lib/types';
 import { firebaseConfig } from './config';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   if (!getApps().length) {
-    // Important! initializeApp() is called without any arguments because Firebase App Hosting
-    // integrates with the initializeApp() function to provide the environment variables needed to
-    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
-    // without arguments.
     let firebaseApp;
     try {
-      // Attempt to initialize via Firebase App Hosting environment variables
       firebaseApp = initializeApp();
     } catch (e) {
-      // Only warn in production because it's normal to use the firebaseConfig to initialize
-      // during development
       if (process.env.NODE_ENV === 'production') {
         console.warn(
           'Automatic initialization failed. Falling back to firebase config object.',
@@ -53,7 +46,6 @@ export function initializeFirebase() {
     return getSdks(firebaseApp);
   }
 
-  // If already initialized, return the SDKs with the already initialized App
   return getSdks(getApp());
 }
 
@@ -64,9 +56,6 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firestore: getFirestore(firebaseApp),
   };
 }
-
-// Combined type for the hydrated user
-export interface UserData extends User, UserProfile {}
 
 // Interfaces for contexts
 interface FirebaseContextState {
@@ -106,7 +95,10 @@ export const FirebaseProvider: React.FC<{
 
   return (
     <FirebaseContext.Provider value={contextValue}>
-      {children}
+      <UserProvider>
+         <FirebaseErrorListener />
+         {children}
+      </UserProvider>
     </FirebaseContext.Provider>
   );
 };
@@ -124,21 +116,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const userDocRef = doc(firestore, 'users', firebaseUser.uid);
       const userDoc = await getDoc(userDocRef);
 
-      if (userDoc.exists()) {
-        const userProfile = userDoc.data() as UserProfile;
-        return { ...firebaseUser, ...userProfile };
-      } else {
-        return {
-          ...firebaseUser,
+      const userProfile = userDoc.exists() ? (userDoc.data() as UserProfile) : null;
+      
+      const hydratedUser: UserData = {
+          // Firebase Auth data
           uid: firebaseUser.uid,
           email: firebaseUser.email!,
           displayName: firebaseUser.displayName!,
-          role: 'customer',
-          profileComplete: false,
-        } as UserData;
-      }
-    },
-    [firestore]
+          photoURL: firebaseUser.photoURL || undefined,
+          isAnonymous: firebaseUser.isAnonymous,
+          // Firestore profile data (or defaults)
+          role: userProfile?.role || 'customer',
+          profileComplete: userProfile?.profileComplete || false,
+          cpf: userProfile?.cpf,
+          cep: userProfile?.cep,
+          street: userProfile?.street,
+          number: userProfile?.number,
+          neighborhood: userProfile?.neighborhood,
+          city: userProfile?.city,
+          state: userProfile?.state,
+      };
+
+      return hydratedUser;
+
+    }, [firestore]
   );
 
   useEffect(() => {
@@ -150,12 +151,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(
       auth,
       async (firebaseUser) => {
+        setIsUserLoading(true);
         if (firebaseUser) {
           try {
             const fullUserData = await fetchUserProfile(firebaseUser);
             setUser(fullUserData);
           } catch (e: any) {
             setUserError(e);
+            setUser(null);
           }
         } else {
           setUser(null);
@@ -191,7 +194,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   return (
     <UserContext.Provider value={value}>
-      <FirebaseErrorListener />
       {children}
     </UserContext.Provider>
   );

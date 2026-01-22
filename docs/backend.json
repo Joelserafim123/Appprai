@@ -1,340 +1,175 @@
 {
   "entities": {
     "UserProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserProfile",
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
       "type": "object",
-      "description": "Represents a user profile in the BeachPal application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user profile."
-        },
-        "fullName": {
-          "type": "string",
-          "description": "The user's full name."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        },
-        "cpf": {
-          "type": "string",
-          "description": "The user's CPF (Brazilian individual taxpayer registry number)."
-        },
-        "address": {
-          "type": "string",
-          "description": "The user's address."
-        },
-        "isTentOwner": {
-          "type": "boolean",
-          "description": "Indicates whether the user is a beach tent owner."
-        },
-        "googleId": {
-          "type": "string",
-          "description": "The user's Google ID, used for login with Google."
-        }
+        "uid": { "type": "string", "description": "The unique ID of the user." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's full name." },
+        "role": { "type": "string", "enum": ["customer", "owner"], "description": "The user's role in the application." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL of the user's profile picture." },
+        "cpf": { "type": "string", "description": "The user's Brazilian individual taxpayer registry number (CPF)." },
+        "cep": { "type": "string", "description": "The user's Brazilian postal code (CEP)." },
+        "street": { "type": "string", "description": "The user's street address." },
+        "number": { "type": "string", "description": "The user's address number." },
+        "neighborhood": { "type": "string", "description": "The user's neighborhood." },
+        "city": { "type": "string", "description": "The user's city." },
+        "state": { "type": "string", "description": "The user's state." },
+        "profileComplete": { "type": "boolean", "description": "Flag indicating if the user has completed their profile." }
       },
-      "required": [
-        "id",
-        "fullName",
-        "email",
-        "cpf",
-        "address",
-        "isTentOwner"
-      ]
+      "required": ["uid", "email", "displayName", "role"]
     },
-    "BeachTent": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "BeachTent",
+    "Tent": {
+      "title": "Tent",
+      "description": "Represents a beach tent available for rental.",
       "type": "object",
-      "description": "Represents a beach tent managed by a tent owner.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the beach tent."
+        "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
+        "name": { "type": "string", "description": "The name of the beach tent." },
+        "description": { "type": "string", "description": "A short description of the tent." },
+        "beachName": { "type": "string", "description": "The name of the beach where the tent is located." },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
+        "ownerName": { "type": "string", "description": "The name of the user who owns the tent." },
+        "logoUrl": { "type": "string", "format": "uri", "description": "URL for the tent's logo." },
+        "location": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          },
+          "required": ["latitude", "longitude"]
         },
-        "ownerId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N BeachTent)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the beach tent."
-        },
-        "latitude": {
-          "type": "number",
-          "description": "The latitude coordinate of the tent's location."
-        },
-        "longitude": {
-          "type": "number",
-          "description": "The longitude coordinate of the tent's location."
-        },
-        "photoGallery": {
-          "type": "array",
-          "description": "Array of URLs for photos of the beach tent.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "availableUmbrellas": {
-          "type": "number",
-          "description": "Number of available umbrellas for rent."
-        },
-        "availableChairs": {
-          "type": "number",
-          "description": "Number of available chairs for rent."
+        "minimumOrderForFeeWaiver": { "type": "number", "description": "Minimum consumption amount to waive the rental fee." },
+        "hasAvailableKits": { "type": "boolean", "description": "Indicates if there are rental kits available." },
+        "operatingHours": {
+            "type": "object",
+            "description": "The operating hours of the tent for each day of the week."
         }
       },
-      "required": [
-        "id",
-        "ownerId",
-        "name",
-        "latitude",
-        "longitude"
-      ]
+      "required": ["slug", "name", "description", "beachName", "ownerId", "ownerName", "location"]
     },
     "MenuItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MenuItem",
+      "title": "Menu Item",
+      "description": "Represents an item on the tent's menu.",
       "type": "object",
-      "description": "Represents an item on the beach tent's menu.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the menu item."
-        },
-        "beachTentId": {
-          "type": "string",
-          "description": "Reference to BeachTent. (Relationship: BeachTent 1:N MenuItem)"
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the menu item."
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the menu item."
-        },
-        "price": {
-          "type": "number",
-          "description": "The price of the menu item."
-        }
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["Bebidas", "Petiscos", "Pratos Principais"] }
       },
-      "required": [
-        "id",
-        "beachTentId",
-        "name",
-        "price"
-      ]
+      "required": ["name", "price", "category"]
     },
-    "Order": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Order",
-      "type": "object",
-      "description": "Represents an order placed by a customer.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the order."
+    "RentalItem": {
+        "title": "Rental Item",
+        "description": "Represents a rentable item like chairs or umbrellas.",
+        "type": "object",
+        "properties": {
+            "name": { "type": "string", "enum": ["Kit Guarda-sol + 2 Cadeiras", "Cadeira Adicional"] },
+            "price": { "type": "number" },
+            "quantity": { "type": "number" }
         },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Order)"
-        },
-        "beachTentId": {
-          "type": "string",
-          "description": "Reference to BeachTent. (Relationship: BeachTent 1:N Order)"
-        },
-        "orderDate": {
-          "type": "string",
-          "description": "The date and time the order was placed.",
-          "format": "date-time"
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "The total amount of the order."
-        },
-        "orderItems": {
-          "type": "array",
-          "description": "Items included in the order.  Stores the MenuItem IDs.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the order (e.g., pending, confirmed, completed, cancelled)."
-        }
-      },
-      "required": [
-        "id",
-        "customerId",
-        "beachTentId",
-        "orderDate",
-        "totalAmount",
-        "status"
-      ]
+        "required": ["name", "price", "quantity"]
     },
     "Reservation": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Reservation",
+      "description": "Represents a customer's reservation at a tent.",
       "type": "object",
-      "description": "Represents a table and chair reservation made by a customer.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the reservation."
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhotoURL": { "type": "string", "format": "uri" },
+        "tentId": { "type": "string" },
+        "tentName": { "type": "string" },
+        "tentOwnerId": { "type": "string" },
+        "tentOwnerName": { "type": "string" },
+        "tentLogoUrl": { "type": "string", "format": "uri" },
+        "tentLocation": {
+            "type": "object",
+            "properties": {
+              "latitude": { "type": "number" },
+              "longitude": { "type": "number" }
+            }
         },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Reservation)"
-        },
-        "beachTentId": {
-          "type": "string",
-          "description": "Reference to BeachTent. (Relationship: BeachTent 1:N Reservation)"
-        },
-        "reservationDate": {
-          "type": "string",
-          "description": "The date and time for the reservation.",
-          "format": "date-time"
-        },
-        "numberOfTables": {
-          "type": "number",
-          "description": "The number of tables reserved."
-        },
-        "numberOfChairs": {
-          "type": "number",
-          "description": "The number of chairs reserved."
-        },
-        "kitType": {
-          "type": "string",
-          "description": "Predefined Kit of 2 chairs.",
-          "format": "string"
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "The total amount for the reservation."
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the reservation (e.g., pending, confirmed, completed, cancelled)."
-        }
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "reservationTime": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "checkinCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
+        "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"] },
+        "tableNumber": { "type": "number" },
+        "participantIds": { "type": "array", "items": { "type": "string" } }
       },
-      "required": [
-        "id",
-        "customerId",
-        "beachTentId",
-        "reservationDate",
-        "totalAmount",
-        "status"
-      ]
+      "required": ["userId", "userName", "tentId", "tentName", "tentOwnerId", "tentOwnerName", "items", "total", "createdAt", "reservationTime", "orderNumber", "checkinCode", "status", "participantIds"]
+    },
+    "Chat": {
+        "title": "Chat",
+        "description": "A conversation between a user and a tent owner.",
+        "type": "object",
+        "properties": {
+            "participantIds": { "type": "array", "items": { "type": "string" } },
+            "userId": { "type": "string" },
+            "userName": { "type": "string" },
+            "userPhotoURL": { "type": "string" },
+            "tentId": { "type": "string" },
+            "tentName": { "type": "string" },
+            "tentOwnerId": { "type": "string" },
+            "tentLogoUrl": { "type": "string" },
+            "lastMessage": { "type": "string" },
+            "lastMessageTimestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["participantIds", "userId", "userName", "tentId", "tentName", "tentOwnerId", "lastMessageTimestamp"]
+    },
+    "ChatMessage": {
+        "title": "Chat Message",
+        "description": "A single message within a chat.",
+        "type": "object",
+        "properties": {
+            "senderId": { "type": "string" },
+            "text": { "type": "string" },
+            "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["senderId", "text", "timestamp"]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous",
       "google.com"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores user profile data. Path-based ownership ensures only the user can access their own profile.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/beachTents/{beachTentId}",
-        "definition": {
-          "entityName": "BeachTent",
-          "schema": {
-            "$ref": "#/backend/entities/BeachTent"
-          },
-          "description": "Stores beach tent data.  The `ownerId` field is used for authorization. To enable atomic operations and list operations this value must also exist on every document of any subcollections.",
-          "params": [
-            {
-              "name": "beachTentId",
-              "description": "The unique identifier for the beach tent."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/beachTents/{beachTentId}/menuItems/{menuItemId}",
-        "definition": {
-          "entityName": "MenuItem",
-          "schema": {
-            "$ref": "#/backend/entities/MenuItem"
-          },
-          "description": "Stores menu items for a specific beach tent. Access is controlled by the parent BeachTent document's `ownerId`. This value must be copied down to all child documents to avoid using `get()` in rules.",
-          "params": [
-            {
-              "name": "beachTentId",
-              "description": "The unique identifier for the beach tent."
-            },
-            {
-              "name": "menuItemId",
-              "description": "The unique identifier for the menu item."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Stores order data for a specific user. Path-based ownership ensures only the user can access their own orders.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "orderId",
-              "description": "The unique identifier for the order."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/reservations/{reservationId}",
-        "definition": {
-          "entityName": "Reservation",
-          "schema": {
-            "$ref": "#/backend/entities/Reservation"
-          },
-          "description": "Stores reservation data for a specific user. Path-based ownership ensures only the user can access their own reservations.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "reservationId",
-              "description": "The unique identifier for the reservation."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to support the BeachPal application's core features, focusing on user authentication, beach tent management, online ordering, real-time location tracking, and reservations. The primary goal is to ensure security, scalability, and ease of debugging, particularly concerning authorization.  \n\nAuthorization Independence is achieved through path-based ownership for private user data (UserProfile, Orders, Reservations) and explicit denormalization of ownership for BeachTents and MenuItems. This eliminates the need for `get()` calls in security rules, enabling atomic operations and simplifying authorization logic.\n\nStructural Segregation is implemented by placing user-specific data (orders, reservations) under the `/users/{userId}` path, separating it from global data like beach tents. BeachTents and MenuItems use Membership Maps to manage access control, ensuring only tent owners can modify their respective data.\n\nQAPs are supported by:\n\n1.  Segregating data with different access requirements into separate collections. For example, user profiles are stored in `/users/{userId}`, while beach tents are stored in `/beachTents/{beachTentId}`.\n2.  Using path-based ownership (`/users/{userId}/orders/{orderId}`) for user-specific data, making it easy to secure list operations for a specific user's orders.\n3.  Employing membership maps (denormalized) in the BeachTent documents to control access to tent-related operations. This ensures that only members with appropriate roles can perform specific actions on the tent data.\n\nData Clarity and Predictability are achieved through consistent naming conventions (e.g., `ownerId` for ownership), explicit state modeling (e.g., `status` field in Orders and Reservations), and a predictable schema (avoiding dynamic keys)."
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores individual user profile data. Path-based ownership."
+    },
+    "/tents/{tentId}": {
+      "schema": { "$ref": "#/entities/Tent" },
+      "description": "Stores data for all beach tents. Publicly readable, owner-write."
+    },
+    "/tents/{tentId}/menuItems/{menuItemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Menu items for a specific tent. Publicly readable, owner-write."
+    },
+    "/tents/{tentId}/rentalItems/{rentalItemId}": {
+        "schema": { "$ref": "#/entities/RentalItem" },
+        "description": "Rental items for a specific tent. Publicly readable, owner-write."
+    },
+    "/reservations/{reservationId}": {
+      "schema": { "$ref": "#/entities/Reservation" },
+      "description": "Stores all reservations. Access is controlled via participantIds."
+    },
+    "/chats/{chatId}": {
+        "schema": { "$ref": "#/entities/Chat" },
+        "description": "Metadata for a chat session. Access controlled by participantIds."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+        "schema": { "$ref": "#/entities/ChatMessage" },
+        "description": "Messages within a chat. Access controlled by parent chat document."
+    }
   }
 }
-    

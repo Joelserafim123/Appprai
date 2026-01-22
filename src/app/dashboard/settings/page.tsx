@@ -15,45 +15,35 @@ import { doc, setDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback } from 'react';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
-  cep: z.string().refine(value => /^\d{5}-?\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
+  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "CPF inválido. Use o formato 000.000.000-00." }),
+  cep: z.string().refine(value => /^\d{5}-\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
   street: z.string().optional(),
   number: z.string().optional(),
   neighborhood: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "O CPF deve ter 11 dígitos e é obrigatório." }),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 
 export default function SettingsPage() {
-  const { user, isUserLoading: loading, refresh } = useUser();
-  const { firebaseApp, firestore } = useFirebase();
+  const { user, isUserLoading, refresh } = useUser();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
-      defaultValues: {
-          displayName: user?.displayName || '',
-          cep: user?.cep || '',
-          street: user?.street || '',
-          number: user?.number || '',
-          neighborhood: user?.neighborhood || '',
-          city: user?.city || '',
-          state: user?.state || '',
-          cpf: user?.cpf || '',
-      }
   });
 
-  const profileIncomplete = user?.profileComplete === false;
+  const cepValue = watch('cep');
+
+  const profileIncomplete = user && !user.profileComplete;
 
   useEffect(() => {
     if (user) {
@@ -71,8 +61,7 @@ export default function SettingsPage() {
   }, [user, reset]);
 
    const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    value = value.replace(/\D/g, "");
+    let value = e.target.value.replace(/\D/g, "");
     if (value.length > 11) value = value.slice(0, 11);
     value = value.replace(/(\d{3})(\d)/, "$1.$2");
     value = value.replace(/(\d{3})(\d)/, "$1.$2");
@@ -84,20 +73,18 @@ export default function SettingsPage() {
    const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 8) value = value.slice(0, 8);
-    if (value.length > 5) {
-      value = value.slice(0, 5) + '-' + value.slice(5);
-    }
-    setValue('cep', value, { shouldValidate: true });
+    
+    setValue('cep', value, { shouldValidate: true }); // Update unformatted value
 
-    if (value.length === 9) {
+    if (value.length === 8) {
       try {
-        const res = await fetch(`https://viacep.com.br/ws/${value.replace('-', '')}/json/`);
+        const res = await fetch(`https://viacep.com.br/ws/${value}/json/`);
         const data = await res.json();
         if (!data.erro) {
-          setValue('street', data.logradouro);
-          setValue('neighborhood', data.bairro);
-          setValue('city', data.localidade);
-          setValue('state', data.uf);
+          setValue('street', data.logradouro, { shouldTouch: true });
+          setValue('neighborhood', data.bairro, { shouldTouch: true });
+          setValue('city', data.localidade, { shouldTouch: true });
+          setValue('state', data.uf, { shouldTouch: true });
           toast({ title: "Endereço encontrado!" });
         } else {
           toast({ variant: 'destructive', title: "CEP não encontrado." });
@@ -107,43 +94,35 @@ export default function SettingsPage() {
       }
     }
   }, [setValue, toast]);
+
+   const formattedCep = useMemo(() => {
+     if (!cepValue) return '';
+     return cepValue.replace(/(\d{5})(\d{3})/, '$1-$2');
+   }, [cepValue]);
   
   
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firestore || !firebaseApp) return;
+    if (!user || !firestore || !auth) return;
     setIsSubmitting(true);
   
     try {
-      const auth = getAuth(firebaseApp);
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Usuário não autenticado.");
       
-      const firestoreData: { [key: string]: any } = {
+      const firestoreData: Partial<UserProfile> = {
         displayName: data.displayName,
         profileComplete: true, // Mark profile as complete on save
+        cpf: data.cpf.replace(/\D/g, ''),
+        cep: data.cep,
+        street: data.street,
+        number: data.number,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
       };
-
-      if (data.cep) firestoreData.cep = data.cep;
-      if (data.street) firestoreData.street = data.street;
-      if (data.number) firestoreData.number = data.number;
-      if (data.neighborhood) firestoreData.neighborhood = data.neighborhood;
-      if (data.city) firestoreData.city = data.city;
-      if (data.state) firestoreData.state = data.state;
-      // Only add CPF if it's not already set (for older users completing profile)
-      if (data.cpf && !user.cpf) {
-        firestoreData.cpf = data.cpf.replace(/\D/g, '');
-      }
       
       const userDocRef = doc(firestore, "users", user.uid);
-       setDoc(userDocRef, firestoreData, { merge: true }).catch(e => {
-         const permissionError = new FirestorePermissionError({
-          path: userDocRef.path,
-          operation: 'update', // It will be create or update, but update is safer here
-          requestResourceData: firestoreData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        throw e;
-      });
+      await setDoc(userDocRef, firestoreData, { merge: true });
   
       if (currentUser.displayName !== data.displayName) {
         await updateProfile(currentUser, { displayName: data.displayName });
@@ -154,23 +133,21 @@ export default function SettingsPage() {
         description: 'Suas informações foram salvas com sucesso.',
       });
   
-      refresh();
+      await refresh();
   
     } catch (error: any) {
       console.error("Error updating profile:", error);
-      if (error.code !== 'permission-denied') {
-          toast({
-            variant: "destructive",
-            title: "Erro ao atualizar",
-            description: "Não foi possível salvar suas informações. Por favor, tente novamente."
-          })
-      }
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar",
+        description: "Não foi possível salvar suas informações. Por favor, tente novamente."
+      })
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) {
+  if (isUserLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -183,8 +160,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="w-full max-w-2xl space-y-8">
-      <header className="mb-8">
+    <div className="w-full max-w-2xl mx-auto space-y-8">
+      <header>
         <h1 className="text-3xl font-bold tracking-tight">Configurações da Conta</h1>
         <p className="text-muted-foreground">Gerencie as informações da sua conta.</p>
       </header>
@@ -194,7 +171,7 @@ export default function SettingsPage() {
           <Info className="h-4 w-4" />
           <AlertTitle>Complete o seu perfil</AlertTitle>
           <AlertDescription>
-            Para continuar a usar o BeachPal, por favor preencha e salve as informações do seu perfil.
+            Para continuar a usar o BeachPal, por favor preencha e salve as informações do seu perfil. O CPF é obrigatório.
           </AlertDescription>
         </Alert>
       )}
@@ -204,7 +181,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
             <CardDescription>
-                Atualize as informações da sua conta. O e-mail e o CPF não podem ser alterados após o registo.
+                Atualize as informações da sua conta. O e-mail e o CPF não podem ser alterados após o registo inicial.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -249,7 +226,7 @@ export default function SettingsPage() {
             
             <div className="space-y-2">
                 <Label htmlFor="cep">CEP</Label>
-                <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} />
+                <Input {...register('cep')} value={formattedCep} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} />
                 {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
             </div>
 
@@ -285,7 +262,7 @@ export default function SettingsPage() {
 
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !isDirty}>
               {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
             </Button>
           </CardFooter>

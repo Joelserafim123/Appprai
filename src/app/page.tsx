@@ -6,15 +6,16 @@ import { Loader2, Tent as TentIcon } from 'lucide-react';
 import type { Tent as TentType } from '@/lib/types';
 import { Logo } from '@/components/icons';
 import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 
 
 export default function HomePage() {
-  const { firestore: db } = useFirebase();
-  const tentsQuery = useMemoFirebase(() => (db ? collection(db, 'tents') : null), [db]);
+  const { firestore } = useFirebase();
+  // Query for tents that have available kits to show on the map
+  const tentsQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'tents'), where('hasAvailableKits', '==', true)) : null), [firestore]);
   const { data: tents, isLoading: isLoading } = useCollection<TentType>(tentsQuery);
 
-  if (isLoading || !db) {
+  if (isLoading || !firestore) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Logo />
@@ -33,9 +34,9 @@ export default function HomePage() {
          <main className="flex-1 flex items-center justify-center text-center p-4">
            <div className="border-2 border-dashed rounded-lg p-12">
              <TentIcon className="mx-auto h-12 w-12 text-muted-foreground" />
-             <h3 className="mt-4 text-xl font-medium">Nenhuma barraca encontrada</h3>
+             <h3 className="mt-4 text-xl font-medium">Nenhuma barraca disponível</h3>
              <p className="mt-2 text-sm text-muted-foreground">
-               Parece que ainda não há barracas cadastradas no BeachPal.
+               Parece que não há barracas com kits disponíveis no momento.
              </p>
            </div>
          </main>
