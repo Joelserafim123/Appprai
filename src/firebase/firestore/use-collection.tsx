@@ -9,6 +9,8 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 /** Utility type to add an 'id' field to a type T. */
 export type WithId<T> = T & { id: string };
@@ -88,8 +90,12 @@ export function useCollection<T = any>(
             ? (memoizedTargetRefOrQuery as CollectionReference).path
             : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
         
-        console.error(`Firebase permission error trying to list collection '${path}':`, error);
-        setError(error);
+        const contextualError = new FirestorePermissionError({
+          operation: 'list',
+          path,
+        })
+        errorEmitter.emit('permission-error', contextualError)
+        setError(contextualError);
         setData(null);
         setIsLoading(false);
       }

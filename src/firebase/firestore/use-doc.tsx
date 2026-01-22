@@ -8,6 +8,8 @@ import {
   FirestoreError,
   DocumentSnapshot,
 } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 /** Utility type to add an 'id' field to a type T. */
 type WithId<T> = T & { id: string };
@@ -69,8 +71,12 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        console.error(`Firebase permission error trying to get doc '${memoizedDocRef.path}':`, error);
-        setError(error);
+        const contextualError = new FirestorePermissionError({
+          operation: 'get',
+          path: memoizedDocRef.path,
+        });
+        errorEmitter.emit('permission-error', contextualError);
+        setError(contextualError);
         setData(null);
         setIsLoading(false);
       }

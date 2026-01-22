@@ -1,10 +1,64 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ATENÇÃO: Regra de depuração temporária. NÃO USE EM PRODUÇÃO.
-    // Permite a leitura e escrita de todos os dados por qualquer pessoa.
-    match /{document=**} {
-      allow read, write: if true;
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isParticipant(doc) {
+      return request.auth.uid in doc.data.participantIds;
+    }
+
+    // Users can only manage their own profile.
+    match /users/{userId} {
+      allow read, update: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated();
+    }
+
+    // Tents, their menu and rental items are public to read.
+    // Only the owner can write to them.
+    match /tents/{tentId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAuthenticated() && isOwner(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.ownerId);
+
+      match /menuItems/{menuItemId} {
+        allow get, list: if true;
+        allow create, update, delete: if isAuthenticated() && isOwner(get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId);
+      }
+      
+      match /rentalItems/{rentalItemId} {
+        allow get, list: if true;
+        allow create, update, delete: if isAuthenticated() && isOwner(get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId);
+      }
+    }
+    
+    // Reservations can be created by any authenticated user.
+    // They can only be read or updated by the participants (customer and tent owner).
+    match /reservations/{reservationId} {
+      allow get: if isAuthenticated() && isParticipant(resource);
+      allow list: if isAuthenticated(); // Further filtered in queries
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isParticipant(resource);
+    }
+    
+    // Chats can be created by authenticated users.
+    // They can only be read or updated by participants.
+    match /chats/{chatId} {
+      allow get: if isAuthenticated() && isParticipant(resource);
+      allow list: if isAuthenticated(); // Further filtered in queries
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isParticipant(resource);
+      
+      // Messages can only be read and created by chat participants.
+      match /messages/{messageId} {
+        allow read, create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds);
+      }
     }
   }
 }
