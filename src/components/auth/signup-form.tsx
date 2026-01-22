@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useFirebase } from "@/firebase"
-import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -59,7 +59,6 @@ export function SignUpForm() {
         await updateProfile(user, {
             displayName: data.displayName,
         });
-        await sendEmailVerification(user);
       }
       
       const userDocRef = doc(firestore, 'users', user.uid);
@@ -82,10 +81,10 @@ export function SignUpForm() {
         });
 
       toast({
-        title: "Verifique o seu email",
-        description: "Enviámos um link de verificação para a sua caixa de entrada.",
+        title: "Conta criada com sucesso!",
+        description: "Você já pode fazer login.",
       })
-      router.push("/verify-email-notice")
+      router.push("/login")
     } catch (error: any) {
       let description = "Ocorreu um erro. Por favor, tente novamente."
       if (error.code === 'auth/email-already-in-use') {

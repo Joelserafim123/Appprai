@@ -83,23 +83,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!firebaseUser || !firestore) return firebaseUser as UserData | null;
 
     if (firebaseUser.isAnonymous) {
-        // Return a mock customer profile for anonymous users for testing purposes
-        const mockCustomer: UserData = {
-            ...firebaseUser,
-            displayName: 'Cliente Teste',
-            email: 'cliente@teste.com',
-            role: 'customer',
-            profileComplete: true,
-            uid: firebaseUser.uid,
-            cpf: '123.456.789-00',
-            cep: '12345-678',
-            street: 'Rua Fictícia',
-            number: '100',
-            neighborhood: 'Bairro Teste',
-            city: 'Cidade Exemplo',
-            state: 'EX',
-        };
-        return mockCustomer;
+      // For anonymous users, we don't fetch extra data. Just return the base user.
+      return firebaseUser as UserData;
     }
 
     const userDocRef = doc(firestore, 'users', firebaseUser.uid);
