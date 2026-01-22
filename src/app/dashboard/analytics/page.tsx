@@ -30,18 +30,18 @@ const chartConfig = {
 
 export default function AnalyticsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore: db } = useFirebase();
+  const { firestore } = useFirebase();
   
   const tentQuery = useMemoFirebase(
-    () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid)) : null,
-    [db, user]
+    () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid)) : null,
+    [firestore, user]
   );
   const { data: tents, isLoading: isLoadingTent } = useCollection<Tent>(tentQuery);
   const hasTent = useMemo(() => tents && tents.length > 0, [tents]);
 
   const reservationsQuery = useMemoFirebase(
-    () => (user && db) ? query(collection(db, 'reservations'), where('tentOwnerId', '==', user.uid)) : null,
-    [db, user]
+    () => (user && firestore) ? query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid), where('tentOwnerId', '==', user.uid)) : null,
+    [firestore, user]
   );
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
 

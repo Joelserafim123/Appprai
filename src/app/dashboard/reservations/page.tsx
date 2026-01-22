@@ -45,7 +45,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: (id: string) => void }) {
     const { toast } = useToast();
-    const { firestore: db } = useFirebase();
+    const { firestore } = useFirebase();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputCode, setInputCode] = useState('');
     
@@ -63,10 +63,10 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
             toast({ variant: 'destructive', title: 'Código de Check-in Inválido' });
             return;
         }
-        if (!db) return;
+        if (!firestore) return;
         setIsSubmitting(true);
         try {
-            await updateDoc(doc(db, 'reservations', reservation.id), { status: 'checked-in' });
+            await updateDoc(doc(firestore, 'reservations', reservation.id), { status: 'checked-in' });
             toast({ title: 'Check-in realizado com sucesso!' });
             onFinished(reservation.id);
         } catch(error) {
@@ -132,7 +132,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
 
 function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { toast } = useToast();
-    const { firestore: db } = useFirebase();
+    const { firestore } = useFirebase();
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -141,10 +141,10 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
             toast({ variant: 'destructive', title: 'Selecione um método de pagamento.'});
             return;
         };
-        if (!db) return;
+        if (!firestore) return;
         setIsSubmitting(true);
         try {
-            await updateDoc(doc(db, 'reservations', reservation.id), {
+            await updateDoc(doc(firestore, 'reservations', reservation.id), {
                 status: 'completed',
                 paymentMethod: paymentMethod,
             });
@@ -193,7 +193,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
 
 export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore: db } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   
@@ -203,12 +203,13 @@ export default function OwnerReservationsPage() {
   const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
 
   const reservationsQuery = useMemoFirebase(
-    () => (user && db) ? query(
-        collection(db, 'reservations'), 
+    () => (user && firestore) ? query(
+        collection(firestore, 'reservations'), 
+        where('participantIds', 'array-contains', user.uid),
         where('tentOwnerId', '==', user.uid),
         orderBy('createdAt', 'desc')
       ) : null,
-    [db, user]
+    [firestore, user]
   );
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
 
@@ -227,9 +228,9 @@ export default function OwnerReservationsPage() {
 
 
   const handleCancelReservation = async (reservationId: string) => {
-    if (!db) return;
+    if (!firestore) return;
     try {
-        await updateDoc(doc(db, 'reservations', reservationId), { status: 'cancelled' });
+        await updateDoc(doc(firestore, 'reservations', reservationId), { status: 'cancelled' });
         toast({ title: 'Reserva Cancelada!' });
     } catch(error) {
         console.error("Error cancelling reservation: ", error);
@@ -238,9 +239,9 @@ export default function OwnerReservationsPage() {
   };
 
   const handleCloseBill = async (reservationId: string) => {
-    if (!db) return;
+    if (!firestore) return;
     try {
-        await updateDoc(doc(db, 'reservations', reservationId), { status: 'payment-pending' });
+        await updateDoc(doc(firestore, 'reservations', reservationId), { status: 'payment-pending' });
         toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
     } catch(error) {
         console.error("Error closing bill: ", error);
@@ -249,8 +250,8 @@ export default function OwnerReservationsPage() {
   }
 
   const handleItemStatusUpdate = async (reservationId: string, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
-    if (!db) return;
-    const reservationRef = doc(db, 'reservations', reservationId);
+    if (!firestore) return;
+    const reservationRef = doc(firestore, 'reservations', reservationId);
     try {
         const docSnap = await getDoc(reservationRef);
         if(!docSnap.exists()) return;
@@ -278,11 +279,11 @@ export default function OwnerReservationsPage() {
   }
   
   const handleStartChat = async (reservation: Reservation) => {
-    if (!user || !db) return;
+    if (!user || !firestore) return;
     setIsCreatingChat(reservation.id);
     
     try {
-        const chatsRef = collection(db, 'chats');
+        const chatsRef = collection(firestore, 'chats');
         const q = query(chatsRef, 
             where('userId', '==', reservation.userId), 
             where('tentId', '==', reservation.tentId)

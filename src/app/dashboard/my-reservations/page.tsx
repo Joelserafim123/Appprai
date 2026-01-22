@@ -52,23 +52,24 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 export default function MyReservationsPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore: db } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   
   const reservationsQuery = useMemoFirebase(
-    () => (user && db) ? query(
-        collection(db, 'reservations'), 
+    () => (user && firestore) ? query(
+        collection(firestore, 'reservations'), 
+        where('participantIds', 'array-contains', user.uid),
         where('userId', '==', user.uid), 
         orderBy('createdAt', 'desc')
       ) : null,
-    [db, user]
+    [firestore, user]
   );
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
   
   const handleCancelReservation = async (reservationId: string) => {
-    if (!db) return;
+    if (!firestore) return;
      try {
-       await updateDoc(doc(db, 'reservations', reservationId), { status: 'cancelled' });
+       await updateDoc(doc(firestore, 'reservations', reservationId), { status: 'cancelled' });
        toast({ title: "Reserva Cancelada"});
      } catch (error) {
         console.error("Error cancelling reservation: ", error);

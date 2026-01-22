@@ -13,7 +13,7 @@ import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { Tent, OperatingHoursDay, Reservation } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, createSlug } from '@/lib/utils';
 import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
@@ -80,7 +80,7 @@ export default function TentPage() {
   const slug = params.slug as string;
   const router = useRouter();
   const { user, isUserLoading } = useUser();
-  const { firestore: db } = useFirebase();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   
   const [reservationTime, setReservationTime] = useState<string>('');
@@ -91,19 +91,19 @@ export default function TentPage() {
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   
   // Fetch Tent
-  const tentQuery = useMemoFirebase(() => (db && slug) ? query(collection(db, 'tents'), where('slug', '==', slug), limit(1)) : null, [db, slug]);
+  const tentQuery = useMemoFirebase(() => (firestore && slug) ? query(collection(firestore, 'tents'), where('slug', '==', slug), limit(1)) : null, [firestore, slug]);
   const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0];
 
   // Fetch Menu and Rental Items
-  const menuItemsQuery = useMemoFirebase(() => (db && tent) ? collection(db, 'tents', tent.id, 'menuItems') : null, [db, tent]);
+  const menuItemsQuery = useMemoFirebase(() => (firestore && tent) ? collection(firestore, 'tents', tent.id, 'menuItems') : null, [firestore, tent]);
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
   
-  const rentalItemsQuery = useMemoFirebase(() => (db && tent) ? collection(db, 'tents', tent.id, 'rentalItems') : null, [db, tent]);
+  const rentalItemsQuery = useMemoFirebase(() => (firestore && tent) ? collection(firestore, 'tents', tent.id, 'rentalItems') : null, [firestore, tent]);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
 
   // Check for active reservations
-  const activeReservationQuery = useMemoFirebase(() => (db && user) ? query(collection(db, 'reservations'), where('userId', '==', user.uid), where('status', 'in', ['confirmed', 'checked-in', 'payment-pending'])) : null, [db, user]);
+  const activeReservationQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid), where('status', 'in', ['confirmed', 'checked-in', 'payment-pending'])) : null, [firestore, user]);
   const { data: activeReservations, isLoading: loadingActiveReservation } = useCollection<Reservation>(activeReservationQuery);
   const hasActiveReservation = useMemo(() => activeReservations && activeReservations.length > 0, [activeReservations]);
 
@@ -262,7 +262,7 @@ export default function TentPage() {
         return;
     }
     
-    if (!db) return;
+    if (!firestore) return;
     setIsSubmitting(true);
 
     try {
@@ -292,7 +292,7 @@ export default function TentPage() {
             participantIds: [user.uid, tent.ownerId],
         };
 
-        await addDoc(collection(db, 'reservations'), reservationData);
+        await addDoc(collection(firestore, 'reservations'), reservationData);
         
         toast({
             title: "Reserva Confirmada!",
@@ -322,12 +322,12 @@ export default function TentPage() {
       router.push(`/login?redirect=/tents/${slug}`);
       return;
     }
-    if (!tent || !db) return;
+    if (!tent || !firestore) return;
 
     setIsCreatingChat(true);
 
     try {
-      const chatsRef = collection(db, 'chats');
+      const chatsRef = collection(firestore, 'chats');
       const q = query(
         chatsRef,
         where('userId', '==', user.uid),
