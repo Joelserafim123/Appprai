@@ -3,14 +3,9 @@
 import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { getAuth, signInWithPopup, GoogleAuthProvider, getAdditionalUserInfo } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { getAuth, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { UserProfile } from '@/lib/types';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 // A simple SVG for Google icon
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -22,72 +17,36 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export function SocialLogins({ role }: { role?: 'customer' | 'owner' }) {
-  const { firebaseApp, firestore } = useFirebase();
+  const { firebaseApp } = useFirebase();
   const { toast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
-    if (!firebaseApp || !firestore) return;
+    if (!firebaseApp) return;
     setIsLoading(true);
 
     const auth = getAuth(firebaseApp);
     const provider = new GoogleAuthProvider();
 
+    // Store the selected role in session storage to retrieve it after redirect
+    if (role) {
+      sessionStorage.setItem('signup_role', role);
+    } else {
+      sessionStorage.removeItem('signup_role');
+    }
+
+
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const additionalUserInfo = getAdditionalUserInfo(result);
-
-      if (additionalUserInfo?.isNewUser) {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const docSnap = await getDoc(userDocRef);
-
-        if (!docSnap.exists()) {
-             const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
-                uid: user.uid,
-                email: user.email!,
-                displayName: user.displayName!,
-                photoURL: user.photoURL || undefined,
-                role: role || 'customer',
-                profileComplete: false,
-            };
-
-            await setDoc(userDocRef, userProfileData).catch(e => {
-                const permissionError = new FirestorePermissionError({
-                    path: `users/${user.uid}`,
-                    operation: 'create',
-                    requestResourceData: userProfileData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw e;
-            });
-             toast({
-                title: "Bem-vindo(a)!",
-                description: "Sua conta foi criada com sucesso.",
-            });
-        }
-      } else {
-         toast({
-            title: "Login bem-sucedido!",
-            description: "Bem-vindo(a) de volta!",
-        });
-      }
-      
-      const redirectUrl = searchParams.get('redirect') || '/dashboard';
-      router.push(redirectUrl);
-
+      // The page will redirect, so no need to await the result here.
+      // The result will be handled by getRedirectResult in the AuthLayout.
+      await signInWithRedirect(auth, provider);
     } catch (error: any) {
-      if (error.code !== 'permission-denied') {
-        toast({
+      console.error("Google Sign-In Error: ", error);
+      toast({
             variant: "destructive",
             title: "Erro de Autenticação",
-            description: "Não foi possível fazer login com o Google. Por favor, tente novamente.",
+            description: "Não foi possível iniciar o login com o Google. Verifique a sua ligação ou tente novamente.",
         });
-      }
-      console.error("Google Sign-In Error: ", error);
-    } finally {
       setIsLoading(false);
     }
   };
