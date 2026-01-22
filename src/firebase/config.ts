@@ -1,7 +1,7 @@
 
 export const firebaseConfig = {
   apiKey: "AIzaSyD3I4LHBJbHD-Gqtc2HjhAoS-6gs6yI0HI",
-  authDomain: "cadastro-3c63f.firebaseapp.com",
+  authDomain: "cadastro-3c63f-e1d52.firebaseapp.com",
   projectId: "cadastro-3c63f",
   storageBucket: "cadastro-3c63f.firebasestorage.app",
   messagingSenderId: "344820186473",
