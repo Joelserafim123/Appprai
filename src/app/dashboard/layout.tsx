@@ -35,12 +35,14 @@ export default function DashboardLayout({
 
     if (!user || user.isAnonymous) {
       router.push('/login');
+    } else if (!user.emailVerified) {
+      router.push('/verify-email-notice');
     } else if (user.profileComplete === false && pathname !== '/dashboard/settings') {
       router.push('/dashboard/settings');
     }
   }, [user, isUserLoading, router, pathname]);
 
-  if (isUserLoading || !user || user.isAnonymous || (user.profileComplete === false && pathname !== '/dashboard/settings')) {
+  if (isUserLoading || !user || user.isAnonymous || !user.emailVerified || (user.profileComplete === false && pathname !== '/dashboard/settings')) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
