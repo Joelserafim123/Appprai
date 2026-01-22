@@ -21,7 +21,7 @@ export function SocialLogins({ role }: { role?: 'customer' | 'owner' }) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     if (!firebaseApp) return;
     setIsLoading(true);
 
@@ -35,12 +35,10 @@ export function SocialLogins({ role }: { role?: 'customer' | 'owner' }) {
       sessionStorage.removeItem('signup_role');
     }
 
-
-    try {
-      // The page will redirect, so no need to await the result here.
-      // The result will be handled by getRedirectResult in the AuthLayout.
-      signInWithRedirect(auth, provider);
-    } catch (error: any) {
+    // The page will redirect, so we don't use await.
+    // The result is handled by getRedirectResult in the AuthLayout.
+    // We add a .catch() to handle rare cases where the redirect initiation fails.
+    signInWithRedirect(auth, provider).catch((error: any) => {
       console.error("Google Sign-In Error: ", error);
       toast({
             variant: "destructive",
@@ -48,7 +46,7 @@ export function SocialLogins({ role }: { role?: 'customer' | 'owner' }) {
             description: "Não foi possível iniciar o login com o Google. Verifique a sua ligação ou tente novamente.",
         });
       setIsLoading(false);
-    }
+    });
   };
 
   return (
