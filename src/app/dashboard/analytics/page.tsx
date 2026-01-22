@@ -30,7 +30,7 @@ const chartConfig = {
 
 export default function AnalyticsPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   
   const tentQuery = useMemoFirebase(
     () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid)) : null,

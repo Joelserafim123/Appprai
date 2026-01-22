@@ -12,7 +12,7 @@ import { collection, query, where, orderBy } from 'firebase/firestore';
 
 export default function ChatsPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   const chatsQuery = useMemoFirebase(

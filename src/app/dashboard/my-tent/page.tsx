@@ -76,7 +76,7 @@ const defaultCenter = {
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
@@ -349,7 +349,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
 export default function MyTentPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
 
   const tentQuery = useMemoFirebase(
     () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,

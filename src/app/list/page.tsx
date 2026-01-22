@@ -15,7 +15,7 @@ import { collection } from 'firebase/firestore';
 
 export default function ListPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const router = useRouter();
 
   const { searchTerm, setSearchTerm, filteredTents, setFilteredTents } = useSearchStore();
@@ -39,7 +39,7 @@ export default function ListPage() {
     } else {
         setFilteredTents([]);
     }
-  }, [searchTerm, tents]);
+  }, [searchTerm, tents, setFilteredTents]);
 
   const renderContent = () => {
     if (loadingTents || isUserLoading) {

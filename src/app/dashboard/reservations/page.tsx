@@ -45,7 +45,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: (id: string) => void }) {
     const { toast } = useToast();
-    const { db } = useFirebase();
+    const { firestore: db } = useFirebase();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputCode, setInputCode] = useState('');
     
@@ -132,7 +132,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
 
 function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { toast } = useToast();
-    const { db } = useFirebase();
+    const { firestore: db } = useFirebase();
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -193,7 +193,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
 
 export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
   

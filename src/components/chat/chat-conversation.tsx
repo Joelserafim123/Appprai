@@ -22,7 +22,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const scrollAreaViewport = useRef<HTMLDivElement>(null);
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
 
   const messagesQuery = useMemoFirebase(
     () => (chat && db) ? query(collection(db, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc')) : null,

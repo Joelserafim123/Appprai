@@ -80,7 +80,7 @@ export default function TentPage() {
   const slug = params.slug as string;
   const router = useRouter();
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const { toast } = useToast();
   
   const [reservationTime, setReservationTime] = useState<string>('');

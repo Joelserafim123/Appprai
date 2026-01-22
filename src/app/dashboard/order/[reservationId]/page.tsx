@@ -20,7 +20,7 @@ type OrderCartItem = {
 export default function OrderPage() {
     const { reservationId } = useParams();
     const { user, isUserLoading } = useUser();
-    const { db } = useFirebase();
+    const { firestore: db } = useFirebase();
     const router = useRouter();
     const { toast } = useToast();
 

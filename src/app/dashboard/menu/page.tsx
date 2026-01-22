@@ -30,7 +30,7 @@ type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
 function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem, onFinished: () => void }) {
   const { toast } = useToast();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, handleSubmit, control, formState: { errors } } = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
@@ -108,7 +108,7 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
 
 export default function MenuPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const { toast } = useToast();
   
   const [isFormOpen, setIsFormOpen] = useState(false);

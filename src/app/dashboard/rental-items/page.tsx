@@ -27,7 +27,7 @@ type RentalItemFormData = z.infer<typeof rentalItemSchema>;
 
 function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?: RentalItem, onFinished: () => void, hasKit: boolean }) {
   const { toast } = useToast();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { register, handleSubmit, control, formState: { errors } } = useForm<RentalItemFormData>({
@@ -115,7 +115,7 @@ function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?:
 
 export default function RentalItemsPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);

@@ -52,7 +52,7 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 export default function MyReservationsPage() {
   const { user, isUserLoading } = useUser();
-  const { db } = useFirebase();
+  const { firestore: db } = useFirebase();
   const { toast } = useToast();
   
   const reservationsQuery = useMemoFirebase(
