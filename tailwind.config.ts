@@ -1,7 +1,5 @@
 import type {Config} from 'tailwindcss';
 
-const PT_SANS = ['"PT Sans"', 'sans-serif'];
-
 export default {
   darkMode: ['class'],
   content: [
@@ -12,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: PT_SANS,
-        headline: PT_SANS,
+        body: ['var(--font-body)', 'sans-serif'],
+        headline: ['var(--font-body)', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
