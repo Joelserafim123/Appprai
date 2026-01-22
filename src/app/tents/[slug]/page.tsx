@@ -9,11 +9,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState } from 'react';
-import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { Tent, OperatingHoursDay, Reservation } from '@/lib/types';
-import { cn, createSlug } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
-import { collection, query, where, limit, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, limit, addDoc, serverTimestamp, getDocs, doc } from 'firebase/firestore';
 
 
 type CartItem = { 
@@ -77,7 +77,7 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
 
 export default function TentPage() {
   const params = useParams();
-  const slug = params.slug as string;
+  const tentId = params.slug as string; // The segment is named [slug], but we use it as an ID
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
@@ -90,10 +90,9 @@ export default function TentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   
-  // Fetch Tent
-  const tentQuery = useMemoFirebase(() => (firestore && slug) ? query(collection(firestore, 'tents'), where('slug', '==', slug), limit(1)) : null, [firestore, slug]);
-  const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
-  const tent = tents?.[0];
+  // Fetch Tent by ID
+  const tentRef = useMemoFirebase(() => (firestore && tentId) ? doc(firestore, 'tents', tentId) : null, [firestore, tentId]);
+  const { data: tent, isLoading: loadingTent } = useDoc<Tent>(tentRef);
 
   // Fetch Menu and Rental Items
   const menuItemsQuery = useMemoFirebase(() => (firestore && tent) ? collection(firestore, 'tents', tent.id, 'menuItems') : null, [firestore, tent]);
@@ -112,7 +111,7 @@ export default function TentPage() {
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
 
 
-  if (!slug || loadingTent || isUserLoading || loadingActiveReservation || (tents && !tent)) {
+  if (loadingTent || isUserLoading || loadingActiveReservation) {
     return (
        <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -221,7 +220,7 @@ export default function TentPage() {
             title: "Login Necessário",
             description: "Você precisa estar logado para fazer um pedido.",
         });
-        router.push(`/login?redirect=/tents/${slug}`);
+        router.push(`/login?redirect=/tents/${tentId}`);
         return;
     }
     
@@ -319,7 +318,7 @@ export default function TentPage() {
         title: 'Login Necessário',
         description: 'Você precisa estar logado para iniciar uma conversa.',
       });
-      router.push(`/login?redirect=/tents/${slug}`);
+      router.push(`/login?redirect=/tents/${tentId}`);
       return;
     }
     if (!tent || !firestore) return;
@@ -452,7 +451,7 @@ export default function TentPage() {
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Aluguel de Itens e Horário</CardTitle>
-                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${slug}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
+                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${tentId}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                 <div className="space-y-2">
@@ -524,7 +523,7 @@ export default function TentPage() {
                                             Contactar Barraca
                                         </Button>
                                         {isOwnerViewingOwnTent && <p className="text-xs text-center text-muted-foreground mt-2">Você não pode iniciar uma conversa com a sua própria barraca.</p>}
-                                        {user?.isAnonymous && <p className="text-xs text-center text-muted-foreground mt-2">Faça <Link href={`/login?redirect=/tents/${slug}`} className="underline font-medium">login</Link> para contactar a barraca.</p>}
+                                        {user?.isAnonymous && <p className="text-xs text-center text-muted-foreground mt-2">Faça <Link href={`/login?redirect=/tents/${tentId}`} className="underline font-medium">login</Link> para contactar a barraca.</p>}
                                     </div>
                                 </CardContent>
                             </Card>

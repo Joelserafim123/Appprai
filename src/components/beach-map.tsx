@@ -8,7 +8,7 @@ import Link from "next/link";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { cn, createSlug } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 
 const containerStyle = {
@@ -152,12 +152,12 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   };
 
   const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
-    let color = 'hsl(0, 84.2%, 60.2%)';
+    let color = 'hsl(0, 84.2%, 60.2%)'; // red (unavailable)
 
     if (selectedTent?.id === tent.id) {
-      color = 'hsl(var(--accent))';
+      color = 'hsl(var(--accent))'; // yellow (selected)
     } else if (tent.hasAvailableKits) {
-      color = 'hsl(142.1, 76.2%, 36.3%)';
+      color = 'hsl(142.1, 76.2%, 36.3%)'; // green (available)
     }
 
     return {
@@ -256,7 +256,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 {selectedTent.hasAvailableKits ? 'Aluguéis Disponíveis' : 'Aluguéis Indisponíveis'}
               </p>
               <Button asChild size="sm" className="w-full mt-2">
-                <Link href={`/tents/${selectedTent.slug || createSlug(selectedTent.name)}`}>Ver Cardápio e Alugar</Link>
+                <Link href={`/tents/${selectedTent.id}`}>Ver Cardápio e Alugar</Link>
               </Button>
             </div>
           </InfoWindow>

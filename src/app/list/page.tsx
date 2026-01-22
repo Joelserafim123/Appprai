@@ -11,7 +11,6 @@ import Link from 'next/link';
 import { useSearchStore } from '@/hooks/use-search';
 import { Button } from '@/components/ui/button';
 import { collection } from 'firebase/firestore';
-import { createSlug } from '@/lib/utils';
 
 export default function ListPage() {
   const { user, isUserLoading } = useUser();
@@ -83,7 +82,7 @@ export default function ListPage() {
                 </CardContent>
                 <div className="p-6 bg-muted/50">
                     <Button asChild className="w-full">
-                        <Link href={`/tents/${tent.slug || createSlug(tent.name)}`}>
+                        <Link href={`/tents/${tent.id}`}>
                             Ver Cardápio e Alugar
                         </Link>
                     </Button>
