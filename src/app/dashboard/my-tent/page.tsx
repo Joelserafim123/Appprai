@@ -14,7 +14,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import type { Tent, OperatingHours } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn, createSlug } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { collection, query, where, limit, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
@@ -179,18 +179,16 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     setIsSubmitting(true);
 
     try {
-        const slug = createSlug(data.name);
         if(existingTent) {
             // Update
             const tentRef = doc(firestore, 'tents', existingTent.id);
-            await updateDoc(tentRef, { ...data, slug });
+            await updateDoc(tentRef, data);
             toast({ title: "Barraca atualizada com sucesso!" });
         } else {
             // Create
             const tentsCollection = collection(firestore, 'tents');
             await addDoc(tentsCollection, {
                 ...data,
-                slug,
                 ownerId: user.uid,
                 ownerName: user.displayName,
                 hasAvailableKits: false // default value

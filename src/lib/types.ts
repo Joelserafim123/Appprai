@@ -37,7 +37,6 @@ export interface OperatingHours {
 // Represents a beach tent
 export interface Tent {
   id: string;
-  slug: string;
   name: string;
   description: string;
   beachName: string;

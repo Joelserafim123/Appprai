@@ -26,7 +26,6 @@
       "description": "Represents a beach tent available for rental.",
       "type": "object",
       "properties": {
-        "slug": { "type": "string", "description": "A URL-friendly version of the tent name." },
         "name": { "type": "string", "description": "The name of the beach tent." },
         "description": { "type": "string", "description": "A short description of the tent." },
         "beachName": { "type": "string", "description": "The name of the beach where the tent is located." },
@@ -48,7 +47,7 @@
             "description": "The operating hours of the tent for each day of the week."
         }
       },
-      "required": ["slug", "name", "description", "beachName", "ownerId", "ownerName", "location"]
+      "required": ["name", "description", "beachName", "ownerId", "ownerName", "location"]
     },
     "MenuItem": {
       "title": "Menu Item",
