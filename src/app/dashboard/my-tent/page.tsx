@@ -16,6 +16,7 @@ import type { Tent, OperatingHours } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
 
 const operatingHoursSchema = z.object({
@@ -30,8 +31,8 @@ const tentSchema = z.object({
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
   location: z.object({
-    latitude: z.number({ required_error: 'A localização GPS é obrigatória.'}),
-    longitude: z.number({ required_error: 'A localização GPS é obrigatória.'}),
+    latitude: z.number({ required_error: 'A localização no mapa é obrigatória.'}),
+    longitude: z.number({ required_error: 'A localização no mapa é obrigatória.'}),
   }),
   operatingHours: z.object({
     monday: operatingHoursSchema,
@@ -62,11 +63,23 @@ const defaultOperatingHours: OperatingHours = {
   sunday: { ...defaultHours },
 };
 
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%'
+};
+
+const defaultCenter = {
+  lat: -22.9845, // Copacabana default
+  lng: -43.2040
+};
+
+
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
   const { db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, control, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
@@ -80,6 +93,14 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     },
   });
 
+  const watchedLocation = watch('location');
+  const markerPosition = watchedLocation;
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries: ['marker']
+  });
+
   useEffect(() => {
     if (existingTent) {
       reset({
@@ -90,6 +111,9 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         location: existingTent.location || undefined,
         operatingHours: existingTent.operatingHours || defaultOperatingHours,
       });
+      if (existingTent.location) {
+        setMapCenter({ lat: existingTent.location.latitude, lng: existingTent.location.longitude });
+      }
     } else {
         reset({
             name: '',
@@ -98,7 +122,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             minimumOrderForFeeWaiver: null,
             location: undefined,
             operatingHours: defaultOperatingHours,
-        })
+        });
+        handleGetCurrentLocation(true);
     }
   }, [existingTent, reset]);
   
@@ -112,15 +137,31 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       { id: 'saturday', label: 'Sábado' },
   ] as const;
 
-  const watchedLocation = watch('location');
-  const hasLocation = watchedLocation?.latitude && watchedLocation?.longitude;
+  const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+        setValue('location', { latitude: e.latLng.lat(), longitude: e.latLng.lng() }, { shouldValidate: true });
+    }
+  }, [setValue]);
 
-  const handleGetCurrentLocation = () => {
+  const onMarkerDragEnd = useCallback((e: google.maps.MapMouseEvent) => {
+      if (e.latLng) {
+          setValue('location', { latitude: e.latLng.lat(), longitude: e.latLng.lng() }, { shouldValidate: true });
+      }
+  }, [setValue]);
+
+
+  const handleGetCurrentLocation = (panMap = false) => {
     if(navigator.geolocation) {
         setIsLocating(true);
         navigator.geolocation.getCurrentPosition((position) => {
-            setValue('location.latitude', position.coords.latitude, { shouldValidate: true });
-            setValue('location.longitude', position.coords.longitude, { shouldValidate: true });
+            const newLocation = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+            };
+            setValue('location', newLocation, { shouldValidate: true });
+            if (panMap) {
+                setMapCenter({ lat: newLocation.latitude, lng: newLocation.longitude });
+            }
             toast({ title: "Localização GPS obtida com sucesso!" });
             setIsLocating(false);
         }, (error) => {
@@ -170,6 +211,37 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         setIsSubmitting(false);
     }
   };
+  
+    const renderMap = () => {
+        if (loadError) {
+            return <div className="flex items-center justify-center h-full bg-destructive/10 text-destructive-foreground p-4">Erro ao carregar o mapa. Verifique a sua chave de API do Google Maps e as configurações do projeto.</div>;
+        }
+        if (!isLoaded) {
+            return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin mr-2" /> Carregando Mapa...</div>;
+        }
+        return (
+            <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={mapCenter}
+                zoom={18}
+                mapTypeId='satellite'
+                onClick={onMapClick}
+                options={{
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                    gestureHandling: 'greedy'
+                }}
+            >
+                {markerPosition?.latitude && markerPosition?.longitude && (
+                    <Marker
+                        position={{ lat: markerPosition.latitude, lng: markerPosition.longitude }}
+                        draggable={true}
+                        onDragEnd={onMarkerDragEnd}
+                    />
+                )}
+            </GoogleMap>
+        );
+    };
 
 
   return (
@@ -196,28 +268,26 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
            {errors.minimumOrderForFeeWaiver && <p className="text-sm text-destructive">{errors.minimumOrderForFeeWaiver.message}</p>}
         </div>
       
-       <div className="space-y-4 rounded-lg border p-4">
+        <div className="space-y-4 rounded-lg border p-4">
             <header className="space-y-1">
-                 <Label>Localização da Barraca</Label>
-                <p className="text-sm text-muted-foreground">Use o botão abaixo para definir a posição da sua barraca usando o GPS do seu dispositivo.</p>
+                <Label>Localização da Barraca</Label>
+                <p className="text-sm text-muted-foreground">Clique no mapa para definir a localização exata ou arraste o marcador. Use o botão para centrar o mapa na sua posição atual.</p>
             </header>
-            
-            <Button type="button" variant="outline" onClick={handleGetCurrentLocation} className="w-full" disabled={isSubmitting || isLocating}>
-               {isLocating ? (
-                   <Loader2 className="mr-2 animate-spin" />
-               ) : (
-                   <MapPin className="mr-2"/>
-               )}
-                Usar minha Localização GPS
-            </Button>
-            {hasLocation && !isLocating && (
-                <div className="flex items-center justify-center gap-2 text-sm text-green-600 p-2 bg-green-50 rounded-md">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <p>Localização definida com sucesso!</p>
-                </div>
+
+            <div className="h-[400px] w-full rounded-md overflow-hidden bg-muted">
+                {renderMap()}
+            </div>
+
+            <Button type="button" variant="outline" onClick={() => handleGetCurrentLocation(true)} className="w-full" disabled={isSubmitting || isLocating}>
+            {isLocating ? (
+                <Loader2 className="mr-2 animate-spin" />
+            ) : (
+                <MapPin className="mr-2"/>
             )}
-            {errors.location && <p className="text-sm text-destructive">Por favor, use o botão de GPS para definir a localização.</p>}
-       </div>
+                Centrar mapa na minha localização
+            </Button>
+            {errors.location && <p className="text-sm text-destructive">A localização é obrigatória. Por favor, clique no mapa.</p>}
+        </div>
 
         <div className="space-y-4 rounded-lg border p-4">
             <header className="space-y-1">
