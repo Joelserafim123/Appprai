@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
@@ -408,33 +408,41 @@ export default function TentPage() {
                             )}
                             </CardHeader>
                             <CardContent>
-                            {loadingMenu ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : (
-                            <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
-                                {Object.entries(menuByCategory).map(([category, items]) => (
-                                <AccordionItem key={category} value={category}>
-                                    <AccordionTrigger className="text-lg font-semibold">{category}</AccordionTrigger>
-                                    <AccordionContent>
-                                    <div className="space-y-4 pt-2">
-                                        {items.map((item) => (
-                                        <div key={item.id} className="flex items-center justify-between">
-                                            <div>
-                                            <p className="font-medium">{item.name}</p>
-                                            <p className="text-sm text-muted-foreground">{item.description}</p>
-                                            <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
+                                {loadingMenu ? (
+                                    <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
+                                ) : menuItems && menuItems.length > 0 ? (
+                                    <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
+                                    {Object.entries(menuByCategory).map(([category, items]) => (
+                                        <AccordionItem key={category} value={category}>
+                                        <AccordionTrigger className="text-lg font-semibold">{category}</AccordionTrigger>
+                                        <AccordionContent>
+                                            <div className="space-y-4 pt-2">
+                                            {items.map((item) => (
+                                                <div key={item.id} className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium">{item.name}</p>
+                                                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                                                    <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                    <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
+                                                </div>
+                                                </div>
+                                            ))}
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
-                                            </div>
-                                        </div>
-                                        ))}
+                                        </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                    </Accordion>
+                                ) : (
+                                    <div className="py-12 text-center text-muted-foreground">
+                                        <Utensils className="mx-auto h-10 w-10" />
+                                        <h3 className="mt-4 text-lg font-semibold text-card-foreground">Cardápio Indisponível</h3>
+                                        <p className="mt-1 text-sm">Esta barraca ainda não cadastrou itens no cardápio.</p>
                                     </div>
-                                    </AccordionContent>
-                                </AccordionItem>
-                                ))}
-                            </Accordion>
-                            )}
+                                )}
                             </CardContent>
                         </Card>
                         </TabsContent>
