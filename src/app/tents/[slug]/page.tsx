@@ -77,7 +77,7 @@ function OperatingHoursDisplay({ hours }: { hours: Tent['operatingHours'] }) {
 
 export default function TentPage() {
   const params = useParams();
-  const tentId = params.slug as string; // The segment is named [slug], but we use it as an ID
+  const tentId = params.slug as string;
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
@@ -94,11 +94,13 @@ export default function TentPage() {
   const tentRef = useMemoFirebase(() => (firestore && tentId) ? doc(firestore, 'tents', tentId) : null, [firestore, tentId]);
   const { data: tent, isLoading: loadingTent } = useDoc<Tent>(tentRef);
 
+  const subQueryTentId = tent?.id;
+
   // Fetch Menu and Rental Items
-  const menuItemsQuery = useMemoFirebase(() => (firestore && tent) ? collection(firestore, 'tents', tent.id, 'menuItems') : null, [firestore, tent]);
+  const menuItemsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? collection(firestore, 'tents', subQueryTentId, 'menuItems') : null, [firestore, subQueryTentId]);
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
   
-  const rentalItemsQuery = useMemoFirebase(() => (firestore && tent) ? collection(firestore, 'tents', tent.id, 'rentalItems') : null, [firestore, tent]);
+  const rentalItemsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? collection(firestore, 'tents', subQueryTentId, 'rentalItems') : null, [firestore, subQueryTentId]);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
 
   // Check for active reservations
