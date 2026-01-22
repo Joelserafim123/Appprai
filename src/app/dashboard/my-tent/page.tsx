@@ -76,7 +76,7 @@ const defaultCenter = {
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
-  const { firestore: db } = useFirebase();
+  const { firestore } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
@@ -183,19 +183,19 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
 
   const onSubmit = async (data: TentFormData) => {
-    if (!db || !user) return;
+    if (!firestore || !user) return;
     setIsSubmitting(true);
 
     try {
+        const slug = createSlug(data.name);
         if(existingTent) {
             // Update
-            const tentRef = doc(db, 'tents', existingTent.id);
-            await updateDoc(tentRef, data);
+            const tentRef = doc(firestore, 'tents', existingTent.id);
+            await updateDoc(tentRef, { ...data, slug });
             toast({ title: "Barraca atualizada com sucesso!" });
         } else {
             // Create
-            const tentsCollection = collection(db, 'tents');
-            const slug = createSlug(data.name);
+            const tentsCollection = collection(firestore, 'tents');
             await addDoc(tentsCollection, {
                 ...data,
                 slug,
@@ -349,11 +349,11 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
 export default function MyTentPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore: db } = useFirebase();
+  const { firestore } = useFirebase();
 
   const tentQuery = useMemoFirebase(
-    () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
-    [db, user]
+    () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    [firestore, user]
   );
   const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;

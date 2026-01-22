@@ -256,7 +256,7 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
                 {selectedTent.hasAvailableKits ? 'Aluguéis Disponíveis' : 'Aluguéis Indisponíveis'}
               </p>
               <Button asChild size="sm" className="w-full mt-2">
-                <Link href={`/tents/${selectedTent.slug}`}>Ver Cardápio</Link>
+                <Link href={`/tents/${selectedTent.slug}`}>Ver Cardápio e Alugar</Link>
               </Button>
             </div>
           </InfoWindow>
