@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, type ReactNode } from 'react';
-import { FirebaseProvider, initializeFirebase } from '@/firebase/provider';
+import { FirebaseProvider, initializeFirebase, UserProvider } from '@/firebase/provider';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -21,7 +21,9 @@ export function FirebaseClientProvider({
       auth={firebaseServices.auth}
       firestore={firebaseServices.firestore}
     >
-      {children}
+      <UserProvider>
+        {children}
+      </UserProvider>
     </FirebaseProvider>
   );
 }
