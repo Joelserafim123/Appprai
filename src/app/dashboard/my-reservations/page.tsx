@@ -4,7 +4,6 @@ import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, Tent, Plus, User, X, Hourglass, MapPin, Check } from 'lucide-react';
-import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, ReservationItemStatus, PaymentMethod } from '@/lib/types';
@@ -57,7 +56,7 @@ export default function MyReservationsPage() {
   const { toast } = useToast();
   
   const reservationsQuery = useMemoFirebase(
-    () => user ? query(
+    () => (user && db) ? query(
         collection(db, 'reservations'), 
         where('userId', '==', user.uid), 
         orderBy('createdAt', 'desc')
@@ -67,6 +66,7 @@ export default function MyReservationsPage() {
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
   
   const handleCancelReservation = async (reservationId: string) => {
+    if (!db) return;
      try {
        await updateDoc(doc(db, 'reservations', reservationId), { status: 'cancelled' });
        toast({ title: "Reserva Cancelada"});

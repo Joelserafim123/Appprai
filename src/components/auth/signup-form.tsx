@@ -76,7 +76,7 @@ export function SignUpForm() {
 
       await setDoc(userDocRef, userProfileData).catch(e => {
             const permissionError = new FirestorePermissionError({
-                path: `users/${'user.uid'}`,
+                path: `users/${user.uid}`,
                 operation: 'create',
                 requestResourceData: userProfileData,
             });

@@ -3,7 +3,7 @@
 import { useParams, useRouter, notFound } from 'next/navigation';
 import { useUser, useFirebase, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { Loader2, Minus, Plus, Utensils, Scan } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Reservation, MenuItem, ReservationItem } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,10 @@ export default function OrderPage() {
     const [cart, setCart] = useState<Record<string, OrderCartItem>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const reservationRef = useMemoFirebase(() => reservationId ? doc(db, 'reservations', reservationId as string) : null, [db, reservationId]);
+    const reservationRef = useMemoFirebase(() => (reservationId && db) ? doc(db, 'reservations', reservationId as string) : null, [db, reservationId]);
     const { data: reservation, isLoading: loadingReservation } = useDoc<Reservation>(reservationRef);
     
-    const menuItemsQuery = useMemoFirebase(() => reservation ? collection(db, 'tents', reservation.tentId, 'menuItems') : null, [db, reservation]);
+    const menuItemsQuery = useMemoFirebase(() => (reservation && db) ? collection(db, 'tents', reservation.tentId, 'menuItems') : null, [db, reservation]);
     const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
 
 

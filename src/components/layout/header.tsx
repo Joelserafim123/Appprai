@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List } from 'lucide-react';
+import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List, MessageSquare } from 'lucide-react';
 import { useUser, useFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { User as UserIcon } from 'lucide-react';
 
 
 export function Header() {
@@ -100,6 +99,12 @@ export function Header() {
         <Link href="/dashboard/analytics">
           <BarChart className="mr-2 h-4 w-4" />
           <span>Análises</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/chats">
+          <MessageSquare className="mr-2 h-4 w-4" />
+          <span>Conversas</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>

@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Utensils, Plus, Trash, Edit } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
   });
 
   const onSubmit = async (data: MenuItemFormData) => {
+    if (!db) return;
     setIsSubmitting(true);
 
     try {
@@ -114,21 +115,21 @@ export default function MenuPage() {
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
   
   const tentQuery = useMemoFirebase(
-    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
     [db, user]
   );
   const { data: tents, isLoading: tentLoading } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0];
 
   const menuQuery = useMemoFirebase(
-    () => tent ? collection(db, 'tents', tent.id, 'menuItems') : null,
+    () => (tent && db) ? collection(db, 'tents', tent.id, 'menuItems') : null,
     [db, tent]
   );
   const { data: menu, isLoading: menuLoading } = useCollection<MenuItem>(menuQuery);
   
   
   const deleteItem = async (itemId: string) => {
-    if (!tent) return;
+    if (!tent || !db) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     try {
         await deleteDoc(doc(db, 'tents', tent.id, 'menuItems', itemId));

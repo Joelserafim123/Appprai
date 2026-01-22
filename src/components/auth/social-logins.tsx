@@ -28,16 +28,12 @@ export function SocialLogins({ role }: { role?: 'customer' | 'owner' }) {
     const auth = getAuth(firebaseApp);
     const provider = new GoogleAuthProvider();
 
-    // Store the selected role in session storage to retrieve it after redirect
     if (role) {
       sessionStorage.setItem('signup_role', role);
     } else {
       sessionStorage.removeItem('signup_role');
     }
 
-    // The page will redirect, so we don't use await.
-    // The result is handled by getRedirectResult in the AuthLayout.
-    // We add a .catch() to handle rare cases where the redirect initiation fails.
     signInWithRedirect(auth, provider).catch((error: any) => {
       console.error("Google Sign-In Error: ", error);
       toast({

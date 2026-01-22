@@ -1,4 +1,3 @@
-
 'use client';
 
 import { notFound, useRouter, useParams } from 'next/navigation';
@@ -9,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -92,19 +91,19 @@ export default function TentPage() {
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   
   // Fetch Tent
-  const tentQuery = useMemoFirebase(() => db && slug ? query(collection(db, 'tents'), where('slug', '==', slug), limit(1)) : null, [db, slug]);
+  const tentQuery = useMemoFirebase(() => (db && slug) ? query(collection(db, 'tents'), where('slug', '==', slug), limit(1)) : null, [db, slug]);
   const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0];
 
   // Fetch Menu and Rental Items
-  const menuItemsQuery = useMemoFirebase(() => db && tent ? collection(db, 'tents', tent.id, 'menuItems') : null, [db, tent]);
+  const menuItemsQuery = useMemoFirebase(() => (db && tent) ? collection(db, 'tents', tent.id, 'menuItems') : null, [db, tent]);
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
   
-  const rentalItemsQuery = useMemoFirebase(() => db && tent ? collection(db, 'tents', tent.id, 'rentalItems') : null, [db, tent]);
+  const rentalItemsQuery = useMemoFirebase(() => (db && tent) ? collection(db, 'tents', tent.id, 'rentalItems') : null, [db, tent]);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
 
   // Check for active reservations
-  const activeReservationQuery = useMemoFirebase(() => db && user ? query(collection(db, 'reservations'), where('userId', '==', user.uid), where('status', 'in', ['confirmed', 'checked-in', 'payment-pending'])) : null, [db, user]);
+  const activeReservationQuery = useMemoFirebase(() => (db && user) ? query(collection(db, 'reservations'), where('userId', '==', user.uid), where('status', 'in', ['confirmed', 'checked-in', 'payment-pending'])) : null, [db, user]);
   const { data: activeReservations, isLoading: loadingActiveReservation } = useCollection<Reservation>(activeReservationQuery);
   const hasActiveReservation = useMemo(() => activeReservations && activeReservations.length > 0, [activeReservations]);
 
@@ -113,7 +112,7 @@ export default function TentPage() {
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
 
 
-  if (!slug || loadingTent || isUserLoading || loadingActiveReservation) {
+  if (!slug || loadingTent || isUserLoading || loadingActiveReservation || (tents && !tent)) {
     return (
        <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -263,6 +262,7 @@ export default function TentPage() {
         return;
     }
     
+    if (!db) return;
     setIsSubmitting(true);
 
     try {
@@ -322,7 +322,7 @@ export default function TentPage() {
       router.push(`/login?redirect=/tents/${slug}`);
       return;
     }
-    if (!tent) return;
+    if (!tent || !db) return;
 
     setIsCreatingChat(true);
 

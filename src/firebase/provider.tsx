@@ -2,7 +2,7 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect, useCallback } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Firestore, doc, getDoc } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { UserProfile } from '@/lib/types';
@@ -83,7 +83,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!firebaseUser || !firestore) return firebaseUser as UserData | null;
 
     if (firebaseUser.isAnonymous) {
-      // For anonymous users, we don't fetch extra data. Just return the base user.
       return firebaseUser as UserData;
     }
 

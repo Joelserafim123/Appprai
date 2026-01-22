@@ -4,7 +4,6 @@ import { Header } from '@/components/layout/header';
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Loader2, Search, Tent as TentIcon } from 'lucide-react';
 import { useEffect } from 'react';
-import { Logo } from '@/components/icons';
 import type { Tent as TentType } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -45,7 +44,7 @@ export default function ListPage() {
   const renderContent = () => {
     if (loadingTents || isUserLoading) {
       return (
-         <div className="flex-1 flex items-center justify-center">
+         <div className="flex-1 flex items-center justify-center col-span-full">
             <div className="flex items-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
             <p className="text-muted-foreground">Carregando...</p>

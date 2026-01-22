@@ -4,10 +4,10 @@ import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, ChefHat, History, Search, MessageSquare } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { Reservation, ReservationStatus, PaymentMethod, ReservationItem, Tent } from '@/lib/types';
+import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -63,6 +63,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
             toast({ variant: 'destructive', title: 'Código de Check-in Inválido' });
             return;
         }
+        if (!db) return;
         setIsSubmitting(true);
         try {
             await updateDoc(doc(db, 'reservations', reservation.id), { status: 'checked-in' });
@@ -140,6 +141,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
             toast({ variant: 'destructive', title: 'Selecione um método de pagamento.'});
             return;
         };
+        if (!db) return;
         setIsSubmitting(true);
         try {
             await updateDoc(doc(db, 'reservations', reservation.id), {
@@ -201,7 +203,7 @@ export default function OwnerReservationsPage() {
   const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
 
   const reservationsQuery = useMemoFirebase(
-    () => user ? query(
+    () => (user && db) ? query(
         collection(db, 'reservations'), 
         where('tentOwnerId', '==', user.uid),
         orderBy('createdAt', 'desc')
@@ -225,6 +227,7 @@ export default function OwnerReservationsPage() {
 
 
   const handleCancelReservation = async (reservationId: string) => {
+    if (!db) return;
     try {
         await updateDoc(doc(db, 'reservations', reservationId), { status: 'cancelled' });
         toast({ title: 'Reserva Cancelada!' });
@@ -235,6 +238,7 @@ export default function OwnerReservationsPage() {
   };
 
   const handleCloseBill = async (reservationId: string) => {
+    if (!db) return;
     try {
         await updateDoc(doc(db, 'reservations', reservationId), { status: 'payment-pending' });
         toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
@@ -245,6 +249,7 @@ export default function OwnerReservationsPage() {
   }
 
   const handleItemStatusUpdate = async (reservationId: string, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
+    if (!db) return;
     const reservationRef = doc(db, 'reservations', reservationId);
     try {
         const docSnap = await getDoc(reservationRef);
@@ -273,7 +278,7 @@ export default function OwnerReservationsPage() {
   }
   
   const handleStartChat = async (reservation: Reservation) => {
-    if (!user) return;
+    if (!user || !db) return;
     setIsCreatingChat(reservation.id);
     
     try {

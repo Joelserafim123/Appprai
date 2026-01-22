@@ -14,7 +14,7 @@ export default function HomePage() {
   const tentsQuery = useMemoFirebase(() => (db ? collection(db, 'tents') : null), [db]);
   const { data: tents, isLoading: isLoading } = useCollection<TentType>(tentsQuery);
 
-  if (isLoading) {
+  if (isLoading || !db) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
         <Logo />

@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, User as UserIcon, Info } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';

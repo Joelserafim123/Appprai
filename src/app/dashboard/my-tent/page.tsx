@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, CheckCircle2, Clock } from 'lucide-react';
+import { Loader2, Building, MapPin, Clock } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -182,6 +182,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
 
   const onSubmit = async (data: TentFormData) => {
+    if (!db || !user) return;
     setIsSubmitting(true);
 
     try {
@@ -350,10 +351,10 @@ export default function MyTentPage() {
   const { db } = useFirebase();
 
   const tentQuery = useMemoFirebase(
-    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
     [db, user]
   );
-  const { data: tents, isLoading: loadingTent, error } = useCollection<Tent>(tentQuery);
+  const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;
   
 

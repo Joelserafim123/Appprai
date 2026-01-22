@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,7 @@ function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?:
   });
 
   const updateTentAvailability = async () => {
+    if (!db) return;
     const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
     const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
     const querySnapshot = await getDocs(q);
@@ -46,6 +47,7 @@ function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?:
 
 
   const onSubmit = async (data: RentalItemFormData) => {
+    if (!db) return;
     setIsSubmitting(true);
     try {
         const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
@@ -119,20 +121,20 @@ export default function RentalItemsPage() {
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
 
   const tentQuery = useMemoFirebase(
-    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
     [db, user]
   );
   const { data: tents, isLoading: tentLoading } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0];
 
   const rentalItemsQuery = useMemoFirebase(
-    () => tent ? collection(db, 'tents', tent.id, 'rentalItems') : null,
+    () => (tent && db) ? collection(db, 'tents', tent.id, 'rentalItems') : null,
     [db, tent]
   );
   const { data: rentalItems, isLoading: rentalsLoading } = useCollection<RentalItem>(rentalItemsQuery);
 
   const deleteItem = async (itemToDelete: RentalItem) => {
-    if (!tent) return;
+    if (!tent || !db) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
     try {

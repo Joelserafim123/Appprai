@@ -1,10 +1,9 @@
-
 "use client";
 
 import type { Tent } from "@/lib/types";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, MapPin, List } from "lucide-react";
+import { AlertTriangle, Loader2, MapPin } from "lucide-react";
 import Link from "next/link";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";

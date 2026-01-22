@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, MessageSquare, User as UserIcon } from 'lucide-react';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ export default function ChatsPage() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   const chatsQuery = useMemoFirebase(
-    () => user ? query(
+    () => (user && db) ? query(
         collection(db, 'chats'), 
         where('participantIds', 'array-contains', user.uid),
         orderBy('lastMessageTimestamp', 'desc')

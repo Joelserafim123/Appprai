@@ -25,7 +25,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
   const { db } = useFirebase();
 
   const messagesQuery = useMemoFirebase(
-    () => chat ? query(collection(db, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc')) : null,
+    () => (chat && db) ? query(collection(db, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc')) : null,
     [db, chat]
   );
   const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
@@ -44,7 +44,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !chat) return;
+    if (!newMessage.trim() || !chat || !db) return;
 
     setIsSending(true);
     const messageText = newMessage.trim();
@@ -53,7 +53,6 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     try {
         const batch = writeBatch(db);
         
-        // 1. Add new message to the subcollection
         const messageRef = doc(collection(db, 'chats', chat.id, 'messages'));
         batch.set(messageRef, {
             senderId: currentUser.uid,
@@ -61,7 +60,6 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
             timestamp: serverTimestamp()
         });
 
-        // 2. Update the last message on the parent chat document
         const chatRef = doc(db, 'chats', chat.id);
         batch.update(chatRef, {
             lastMessage: messageText,
@@ -89,7 +87,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       <CardHeader>
         <div className="flex items-center gap-3">
              <Avatar>
-                <AvatarImage src={currentUser.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl} />
+                <AvatarImage src={currentUser.role === 'owner' ? chat.userPhotoURL || undefined : chat.tentLogoUrl || undefined} />
                 <AvatarFallback>
                     <UserIcon className="h-4 w-4" />
                 </AvatarFallback>
@@ -119,7 +117,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                   >
                     {!isCurrentUser && (
                        <Avatar className='h-8 w-8'>
-                            <AvatarImage src={getSenderAvatar(message.senderId)} />
+                            <AvatarImage src={getSenderAvatar(message.senderId) || undefined} />
                             <AvatarFallback>
                                 <UserIcon className="h-4 w-4" />
                             </AvatarFallback>

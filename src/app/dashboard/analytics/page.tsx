@@ -4,7 +4,7 @@ import { useUser, useCollection, useMemoFirebase, useFirebase } from '@/firebase
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, DollarSign, BarChart, ShoppingBag } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import {
   Bar,
   BarChart as RechartsBarChart,
@@ -13,7 +13,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { ChartTooltipContent, ChartContainer, ChartConfig, ChartTooltip } from '@/components/ui/chart';
+import { ChartTooltipContent, ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { format, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
@@ -33,14 +33,14 @@ export default function AnalyticsPage() {
   const { db } = useFirebase();
   
   const tentQuery = useMemoFirebase(
-    () => user ? query(collection(db, 'tents'), where('ownerId', '==', user.uid)) : null,
+    () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid)) : null,
     [db, user]
   );
   const { data: tents, isLoading: isLoadingTent } = useCollection<Tent>(tentQuery);
   const hasTent = useMemo(() => tents && tents.length > 0, [tents]);
 
   const reservationsQuery = useMemoFirebase(
-    () => user ? query(collection(db, 'reservations'), where('tentOwnerId', '==', user.uid)) : null,
+    () => (user && db) ? query(collection(db, 'reservations'), where('tentOwnerId', '==', user.uid)) : null,
     [db, user]
   );
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
         <p className="text-muted-foreground">Veja o desempenho da sua barraca.</p>
       </header>
 
-      {analyticsData && reservations ? (
+      {analyticsData && reservations && reservations.length > 0 ? (
         <div className="space-y-8">
           <div className="grid gap-4 md:grid-cols-3">
             <Card>

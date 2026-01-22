@@ -7,7 +7,7 @@ export function Logo({ userName, ...props }: SVGProps<SVGSVGElement> & { userNam
       <div className="p-2 bg-primary/20 text-primary rounded-lg">
         <Sun className="h-5 w-5" />
       </div>
-      <span className="text-xl font-bold text-primary-foreground tracking-tight">
+      <span className="text-xl font-bold tracking-tight">
         {userName ? `Olá, ${userName}` : 'BeachPal'}
       </span>
     </div>
