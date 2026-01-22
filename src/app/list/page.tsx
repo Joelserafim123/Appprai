@@ -39,7 +39,7 @@ export default function ListPage() {
     } else {
         setFilteredTents([]);
     }
-  }, [searchTerm, tents, setFilteredTents]);
+  }, [searchTerm, tents]);
 
   const renderContent = () => {
     if (loadingTents || isUserLoading) {
