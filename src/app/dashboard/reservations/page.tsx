@@ -204,8 +204,7 @@ export default function OwnerReservationsPage() {
 
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
-        collection(firestore, 'reservations'), 
-        where('participantIds', 'array-contains', user.uid),
+        collection(firestore, 'reservations'),
         where('tentOwnerId', '==', user.uid),
         orderBy('createdAt', 'desc')
       ) : null,

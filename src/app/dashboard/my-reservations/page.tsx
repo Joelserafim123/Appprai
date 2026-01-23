@@ -57,9 +57,8 @@ export default function MyReservationsPage() {
   
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
-        collection(firestore, 'reservations'), 
-        where('participantIds', 'array-contains', user.uid),
-        where('userId', '==', user.uid), 
+        collection(firestore, 'reservations'),
+        where('userId', '==', user.uid),
         orderBy('createdAt', 'desc')
       ) : null,
     [firestore, user]

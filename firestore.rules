@@ -52,7 +52,13 @@ service cloud.firestore {
     // Rules for Reservations
     // Only participants (customer and tent owner) can access a reservation.
     match /reservations/{reservationId} {
-      allow read, update: if isSignedIn() && isParticipant(resource);
+      allow get, update: if isSignedIn() && isParticipant(resource);
+      // Allow listing reservations only if the query is filtered by the current user's UID
+      // as either the customer (`userId`) or the tent owner (`tentOwnerId`).
+      allow list: if isSignedIn() && 
+                    request.query.where.size() > 0 &&
+                    (request.query.where[0][0] == 'userId' || request.query.where[0][0] == 'tentOwnerId') && 
+                    request.query.where[0][2] == request.auth.uid;
       allow create: if isSignedIn() && isParticipant(request.resource);
       // Only the customer can truly cancel (it's an update of status), owner can't delete.
       // For simplicity, we are allowing any participant to update.
