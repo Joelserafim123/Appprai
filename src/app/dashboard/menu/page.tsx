@@ -54,8 +54,13 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
             toast({ title: `Item adicionado com sucesso!` });
         }
         onFinished();
-    } catch(error) {
+    } catch(error: any) {
         console.error("Error saving menu item: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao salvar item",
+            description: "Não foi possível salvar o item. Verifique suas permissões e tente novamente.",
+        });
         const isUpdate = !!item;
         const path = isUpdate ? doc(collection(db, 'tents', tent.id, 'menuItems'), item!.id).path : collection(db, 'tents', tent.id, 'menuItems').path;
 
@@ -145,8 +150,13 @@ export default function MenuPage() {
     try {
         await deleteDoc(itemDocRef);
         toast({ title: 'Item apagado com sucesso!' });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error deleting item:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao apagar item",
+            description: "Não foi possível apagar o item. Verifique suas permissões e tente novamente.",
+        });
         const permissionError = new FirestorePermissionError({
             path: itemDocRef.path,
             operation: 'delete',

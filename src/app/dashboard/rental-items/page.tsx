@@ -57,8 +57,13 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
         }
 
         onFinished();
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error saving rental item:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao salvar item",
+            description: "Não foi possível salvar o item. Verifique suas permissões e tente novamente.",
+        });
         
         const isUpdate = !!item;
         const path = isUpdate ? doc(collection(db, 'tents', tent.id, 'rentalItems'), item!.id).path : collection(db, 'tents', tent.id, 'rentalItems').path;
@@ -168,8 +173,13 @@ export default function RentalItemsPage() {
         if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
             await updateTentAvailability();
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error deleting item:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao apagar item",
+            description: "Não foi possível apagar o item. Verifique suas permissões e tente novamente.",
+        });
         const permissionError = new FirestorePermissionError({
             path: itemDocRef.path,
             operation: 'delete',
