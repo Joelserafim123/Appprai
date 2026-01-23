@@ -385,7 +385,7 @@ export default function TentPage() {
                 src={tentBannerUrl}
                 alt={tent.name}
                 className="object-cover"
-                data-ai-hint="beach umbrella"
+                data-ai-hint="beach"
                 fill
                 priority
             />
