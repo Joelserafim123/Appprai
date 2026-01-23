@@ -304,7 +304,7 @@ export default function RentalItemsPage() {
               <DialogHeader>
                   <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
               </DialogHeader>
-              <RentalItemForm tent={tent} item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} updateTentAvailability={updateTentAvailability} />
+              <RentalItemForm key={editingItem?.id || 'new'} tent={tent} item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} updateTentAvailability={updateTentAvailability} />
           </DialogContent>
         }
     </Dialog>

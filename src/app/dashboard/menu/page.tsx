@@ -282,7 +282,7 @@ export default function MenuPage() {
                 <DialogHeader>
                     <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm tent={tent} item={editingItem} onFinished={handleFormFinished} />
+                <MenuItemForm key={editingItem?.id || 'new'} tent={tent} item={editingItem} onFinished={handleFormFinished} />
             </DialogContent>
         )}
     </Dialog>
