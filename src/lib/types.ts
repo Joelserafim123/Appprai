@@ -110,6 +110,7 @@ export interface Reservation {
   checkinCode: string;
   status: ReservationStatus;
   paymentMethod?: PaymentMethod;
+  platformFee?: number;
   tableNumber?: number;
   participantIds: string[];
 }

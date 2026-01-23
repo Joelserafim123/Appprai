@@ -3,7 +3,7 @@
 import { useUser, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, DollarSign, BarChart, ShoppingBag } from 'lucide-react';
+import { Loader2, DollarSign, BarChart, ShoppingBag, Landmark } from 'lucide-react';
 import { useMemo } from 'react';
 import {
   Bar,
@@ -52,6 +52,7 @@ export default function AnalyticsPage() {
     const completedReservations = reservations.filter(r => r.status === 'completed');
 
     const totalRevenue = completedReservations.reduce((acc, res) => acc + res.total, 0);
+    const totalPlatformFee = completedReservations.reduce((acc, res) => acc + (res.platformFee || 0), 0);
     const totalReservations = completedReservations.length;
     const averageOrderValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
 
@@ -73,6 +74,7 @@ export default function AnalyticsPage() {
 
     return {
       totalRevenue,
+      totalPlatformFee,
       totalReservations,
       averageOrderValue,
       chartData,
@@ -122,7 +124,7 @@ export default function AnalyticsPage() {
 
       {analyticsData && reservations && reservations.length > 0 ? (
         <div className="space-y-8">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
@@ -131,6 +133,16 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="text-2xl font-bold">R$ {analyticsData.totalRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">de {analyticsData.totalReservations} reservas completas</p>
+              </CardContent>
+            </Card>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Valor a Repassar</CardTitle>
+                <Landmark className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-destructive">R$ {analyticsData.totalPlatformFee.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Comissão da plataforma (10%)</p>
               </CardContent>
             </Card>
             <Card>
@@ -154,6 +166,17 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+          
+          <Card className="bg-muted/50">
+            <CardHeader>
+                <CardTitle>Entenda a Comissão da Plataforma</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm ">
+                    A plataforma retém uma comissão de <strong>10% sobre o valor total</strong> de cada reserva finalizada, com um valor <strong>mínimo de R$ 3,00</strong> por transação. O montante acumulado, apresentado como "Valor a Repassar", deve ser transferido para a plataforma toda segunda-feira via depósito ou PIX.
+                </p>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

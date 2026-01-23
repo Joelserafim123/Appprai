@@ -100,6 +100,7 @@
         "checkinCode": { "type": "string" },
         "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
         "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"] },
+        "platformFee": { "type": "number", "description": "The 10% commission for the platform, with a minimum of R$3." },
         "tableNumber": { "type": "number" },
         "participantIds": { "type": "array", "items": { "type": "string" } }
       },

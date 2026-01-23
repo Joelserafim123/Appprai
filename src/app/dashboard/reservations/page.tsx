@@ -114,9 +114,11 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
         if (!firestore) return;
         setIsSubmitting(true);
         try {
+            const platformFee = Math.max(reservation.total * 0.10, 3);
             await updateDoc(doc(firestore, 'reservations', reservation.id), {
                 status: 'completed',
                 paymentMethod: paymentMethod,
+                platformFee: platformFee,
             });
             toast({ title: 'Pagamento Confirmado!' });
             onFinished();
