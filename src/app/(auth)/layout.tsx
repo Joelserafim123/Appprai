@@ -50,7 +50,7 @@ export default function AuthLayout({
                     uid: user.uid,
                     email: user.email!,
                     displayName: user.displayName!,
-                    photoURL: user.photoURL || undefined,
+                    photoURL: user.photoURL || null,
                     role: role as 'customer' | 'owner',
                     profileComplete: false,
                 };
