@@ -41,15 +41,22 @@ service cloud.firestore {
       // Owners can update or delete their own tent document
       allow update, delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
       
-      // Menu and Rental items inherit permissions from the parent tent.
+      // Helper function to check if the current user owns the parent tent.
+      function isTentOwner() {
+        return exists(/databases/$(database)/documents/tents/$(tentId)) &&
+               get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      }
+
+      // Menu items inherit permissions from the parent tent.
       match /menuItems/{menuItemId} {
         allow get, list: if true;
-        allow create, update, delete: if isSignedIn() && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+        allow create, update, delete: if isSignedIn() && isTentOwner();
       }
       
+      // Rental items inherit permissions from the parent tent.
       match /rentalItems/{rentalItemId} {
         allow get, list: if true;
-        allow create, update, delete: if isSignedIn() && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+        allow create, update, delete: if isSignedIn() && isTentOwner();
       }
     }
 
