@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User, X, MapPin, AlertCircle } from 'lucide-react';
+import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -256,22 +256,30 @@ export default function MyReservationsPage() {
                 <AlertDialogHeader>
                 <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {isLateCancellation ? (
-                        <div className="space-y-4">
-                            <p>Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva.</p>
-                            <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
-                                <AlertCircle className="h-5 w-5 text-destructive" />
-                                <div>
-                                    <p className="font-bold">Será aplicada uma taxa de R$ 3,00.</p>
-                                    <p className="text-xs">Você está a cancelar a menos de 15 minutos do horário da reserva. Esta taxa será cobrada na sua próxima reserva.</p>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        "Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva sem custos."
-                    )}
+                    {isLateCancellation 
+                        ? "Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva e uma taxa será aplicada."
+                        : "Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva sem custos."
+                    }
                 </AlertDialogDescription>
                 </AlertDialogHeader>
+                <div className="space-y-4 pt-2">
+                    {isLateCancellation && (
+                        <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
+                            <AlertCircle className="h-5 w-5 text-destructive" />
+                            <div>
+                                <div className="font-bold">Será aplicada uma taxa de R$ 3,00.</div>
+                                <div className="text-xs">Você está a cancelar a menos de 15 minutos do horário da reserva. Esta taxa será cobrada na sua próxima reserva.</div>
+                            </div>
+                        </div>
+                    )}
+                    <div className="p-3 rounded-md bg-accent/10 text-accent-foreground/90 flex items-center gap-3">
+                        <AlertTriangle className="h-5 w-5 text-accent" />
+                        <div>
+                            <div className="font-bold">Aviso sobre a Política de Uso</div>
+                            <div className="text-xs">Cancelamentos frequentes podem levar à suspensão ou ao encerramento da sua conta na plataforma.</div>
+                        </div>
+                    </div>
+                </div>
                 <AlertDialogFooter>
                 <AlertDialogCancel disabled={isCancelling}>Voltar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleCancelReservation} disabled={isCancelling}>

@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info, AlertTriangle } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -420,20 +420,30 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                     <AlertDialogHeader>
                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                     <AlertDialogDescription>
-                       {isLateCancellation || reservationForCancel?.status === 'checked-in' ? (
-                            <div className="space-y-4">
-                                <p>Esta ação não pode ser desfeita e irá cancelar a reserva do cliente.</p>
-                                <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
-                                    <AlertCircle className="h-5 w-5 text-destructive" />
-                                    <div>
-                                        <p className="font-bold">Será aplicada uma taxa de R$ 3,00.</p>
-                                        <p className="text-xs">Você está a cancelar perto do horário da reserva ou após o check-in. Esta taxa será somada ao seu repasse para a plataforma.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : "Esta ação não pode ser desfeita e irá cancelar a reserva do cliente."}
+                        {isLateCancellation || reservationForCancel?.status === 'checked-in' 
+                        ? "Esta ação não pode ser desfeita e irá cancelar a reserva do cliente. Uma taxa será aplicada."
+                        : "Esta ação não pode ser desfeita e irá cancelar a reserva do cliente."
+                        }
                     </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <div className="space-y-4 pt-2">
+                        {(isLateCancellation || reservationForCancel?.status === 'checked-in') && (
+                            <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                                <div>
+                                    <div className="font-bold">Será aplicada uma taxa de R$ 3,00.</div>
+                                    <div className="text-xs">Você está a cancelar perto do horário da reserva ou após o check-in. Esta taxa será somada ao seu repasse para a plataforma.</div>
+                                </div>
+                            </div>
+                        )}
+                        <div className="p-3 rounded-md bg-accent/10 text-accent-foreground/90 flex items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-accent" />
+                            <div>
+                                <div className="font-bold">Aviso sobre a Política de Uso</div>
+                                <div className="text-xs">Cancelamentos frequentes podem impactar negativamente a sua reputação e, em casos extremos, levar à suspensão da sua conta.</div>
+                            </div>
+                        </div>
+                    </div>
                     <AlertDialogFooter>
                     <AlertDialogCancel disabled={isSubmitting}>Voltar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleCancelReservation} disabled={isSubmitting}>
