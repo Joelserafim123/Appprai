@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -32,10 +32,26 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
   const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register, handleSubmit, control, formState: { errors } } = useForm<RentalItemFormData>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<RentalItemFormData>({
     resolver: zodResolver(rentalItemSchema),
-    defaultValues: item ? { ...item } : { name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
+    defaultValues: { 
+      name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras', 
+      price: 0, 
+      quantity: 1 
+    },
   });
+
+  useEffect(() => {
+    if (item) {
+        reset(item);
+    } else {
+        reset({
+            name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras',
+            price: 0,
+            quantity: 1
+        });
+    }
+  }, [item, reset, hasKit]);
 
   const onSubmit = (data: RentalItemFormData) => {
     if (!db) return;

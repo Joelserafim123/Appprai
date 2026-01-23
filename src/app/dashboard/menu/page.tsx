@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Utensils, Plus, Trash, Edit } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -34,10 +34,28 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
   const { toast } = useToast();
   const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, control, formState: { errors } } = useForm<MenuItemFormData>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
-    defaultValues: item ? { ...item } : { name: '', description: '', price: 0, category: 'Petiscos' },
+    defaultValues: {
+        name: '',
+        description: '',
+        price: 0,
+        category: 'Petiscos'
+    },
   });
+
+  useEffect(() => {
+      if (item) {
+          reset(item);
+      } else {
+           reset({
+                name: '',
+                description: '',
+                price: 0,
+                category: 'Petiscos'
+            });
+      }
+  }, [item, reset]);
 
   const onSubmit = (data: MenuItemFormData) => {
     if (!db) return;
