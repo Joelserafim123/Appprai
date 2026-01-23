@@ -3,12 +3,12 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, MessageSquare, User as UserIcon } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 
 export default function ChatsPage() {
   const { user, isUserLoading } = useUser();
@@ -18,18 +18,27 @@ export default function ChatsPage() {
   const chatsQuery = useMemoFirebase(
     () => (user && db) ? query(
         collection(db, 'chats'), 
-        where('participantIds', 'array-contains', user.uid),
-        orderBy('lastMessageTimestamp', 'desc')
+        where('participantIds', 'array-contains', user.uid)
       ) : null,
     [db, user]
   );
-  const { data: chats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
+  const { data: rawChats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
+
+  const chats = useMemo(() => {
+    if (!rawChats) return [];
+    return [...rawChats].sort((a, b) => {
+        if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
+            return b.lastMessageTimestamp.toMillis() - a.lastMessageTimestamp.toMillis();
+        }
+        return 0;
+    });
+  }, [rawChats]);
 
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);
   }, []);
 
-  if (isUserLoading || (chatsLoading && !chats)) {
+  if (isUserLoading || (chatsLoading && !rawChats)) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
