@@ -26,7 +26,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { collection, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { useMemo } from 'react';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -58,13 +59,22 @@ export default function MyReservationsPage() {
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
         collection(firestore, 'reservations'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', user.uid)
       ) : null,
     [firestore, user]
   );
-  const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
+  const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
   
+  const reservations = useMemo(() => {
+    if (!rawReservations) return [];
+    return [...rawReservations].sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+            return b.createdAt.toMillis() - a.createdAt.toMillis();
+        }
+        return 0;
+    });
+  }, [rawReservations]);
+
   const handleCancelReservation = async (reservationId: string) => {
     if (!firestore) return;
      try {
@@ -77,7 +87,7 @@ export default function MyReservationsPage() {
   }
 
 
-  if (isUserLoading || reservationsLoading) {
+  if (isUserLoading || (reservationsLoading && !rawReservations)) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />

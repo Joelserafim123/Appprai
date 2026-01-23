@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
-import { collection, query, where, orderBy, doc, updateDoc, getDoc, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDoc, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 
@@ -205,13 +205,16 @@ export default function OwnerReservationsPage() {
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
         collection(firestore, 'reservations'),
-        where('tentOwnerId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        where('tentOwnerId', '==', user.uid)
       ) : null,
     [firestore, user]
   );
-  const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
-
+  const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
+  
+  const reservations = useMemo(() => {
+    if (!rawReservations) return [];
+    return [...rawReservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [rawReservations]);
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
@@ -316,7 +319,7 @@ export default function OwnerReservationsPage() {
   };
 
 
-  if (isUserLoading || reservationsLoading) {
+  if (isUserLoading || (reservationsLoading && !rawReservations)) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
