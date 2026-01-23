@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const profileSchema = z.object({
@@ -112,52 +114,68 @@ export default function SettingsPage() {
    }, [cepValue]);
   
   
-  const onSubmit = async (data: ProfileFormData) => {
+  const onSubmit = (data: ProfileFormData) => {
     if (!user || !firestore || !auth) return;
     setIsSubmitting(true);
-  
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) throw new Error("Usuário não autenticado.");
-      
-      const firestoreData: Partial<UserProfile> = {
-        displayName: data.displayName,
-        profileComplete: true,
-        cpf: data.cpf.replace(/\D/g, ''),
-        cep: data.cep?.replace(/\D/g, '') || null,
-        street: data.street || null,
-        number: data.number || null,
-        neighborhood: data.neighborhood || null,
-        city: data.city || null,
-        state: data.state || null,
-      };
-      
-      const userDocRef = doc(firestore, "users", user.uid);
-      
-      await Promise.all([
-          setDoc(userDocRef, firestoreData, { merge: true }),
-          updateProfile(currentUser, { 
-            displayName: data.displayName,
-         })
-      ]);
-  
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
       toast({
-        title: 'Perfil Atualizado!',
-        description: 'Suas informações foram salvas com sucesso.',
+        variant: 'destructive',
+        title: 'Erro de Autenticação',
+        description: 'Usuário não encontrado. Por favor, faça login novamente.',
       });
-  
-      await refresh();
-  
-    } catch (error: any) {
-      console.error("Error updating profile:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao atualizar",
-        description: "Não foi possível salvar suas informações. Por favor, tente novamente."
-      })
-    } finally {
       setIsSubmitting(false);
+      return;
     }
+
+    const firestoreData: Partial<UserProfile> = {
+      displayName: data.displayName,
+      profileComplete: true,
+      cpf: data.cpf.replace(/\D/g, ''),
+      cep: data.cep?.replace(/\D/g, '') || null,
+      street: data.street || null,
+      number: data.number || null,
+      neighborhood: data.neighborhood || null,
+      city: data.city || null,
+      state: data.state || null,
+    };
+
+    const userDocRef = doc(firestore, 'users', user.uid);
+
+    // Chain the promises
+    setDoc(userDocRef, firestoreData, { merge: true })
+      .then(() => updateProfile(currentUser, { displayName: data.displayName }))
+      .then(async () => {
+        toast({
+          title: 'Perfil Atualizado!',
+          description: 'Suas informações foram salvas com sucesso.',
+        });
+        await refresh();
+      })
+      .catch((error: any) => {
+        // Distinguish between Firestore and Auth errors
+        if (error.name === 'FirebaseError' && error.code?.startsWith('auth/')) {
+          console.error('Error updating auth profile:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao atualizar perfil',
+            description:
+              'Houve um problema ao atualizar seu nome de exibição. Tente novamente.',
+          });
+        } else {
+          // Assume it's a Firestore permission error
+          const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'update',
+            requestResourceData: firestoreData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        }
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
   };
 
   if (isUserLoading) {

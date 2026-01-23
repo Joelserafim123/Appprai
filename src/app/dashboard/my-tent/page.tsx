@@ -17,6 +17,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const operatingHoursSchema = z.object({
@@ -176,33 +178,46 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   }, [setValue]);
 
 
-  const onSubmit = async (data: TentFormData) => {
+  const onSubmit = (data: TentFormData) => {
     if (!firestore || !user) return;
     setIsSubmitting(true);
 
-    try {
-        const dataToSave = { ...data };
-        if (existingTent) {
-            const tentRef = doc(firestore, 'tents', existingTent.id);
-            await updateDoc(tentRef, dataToSave);
-            toast({ title: "Barraca atualizada com sucesso!" });
-        } else {
-            const tentsCollection = collection(firestore, 'tents');
-            await addDoc(tentsCollection, {
-                ...dataToSave,
-                ownerId: user.uid,
-                ownerName: user.displayName,
-                hasAvailableKits: false
-            });
-            toast({ title: "Barraca cadastrada com sucesso!" });
-        }
+    const isUpdate = !!existingTent;
+    const dataToSave = isUpdate
+      ? { ...data }
+      : {
+          ...data,
+          ownerId: user.uid,
+          ownerName: user.displayName,
+          hasAvailableKits: false,
+        };
+
+    const promise = isUpdate
+      ? updateDoc(doc(firestore, 'tents', existingTent!.id), dataToSave)
+      : addDoc(collection(firestore, 'tents'), dataToSave);
+
+    promise
+      .then(() => {
+        toast({ title: `Barraca ${isUpdate ? 'atualizada' : 'cadastrada'} com sucesso!` });
         onFinished();
-    } catch(error) {
-        console.error("Error saving tent data: ", error);
-        toast({ variant: 'destructive', title: "Erro ao salvar", description: 'Não foi possível salvar os dados da barraca.' });
-    } finally {
+      })
+      .catch((error) => {
+        let path;
+        if (isUpdate) {
+          path = doc(firestore, 'tents', existingTent!.id).path;
+        } else {
+          path = collection(firestore, 'tents').path;
+        }
+        const permissionError = new FirestorePermissionError({
+          path,
+          operation: isUpdate ? 'update' : 'create',
+          requestResourceData: dataToSave,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
         setIsSubmitting(false);
-    }
+      });
   };
   
     const renderMap = () => {
