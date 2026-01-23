@@ -139,7 +139,7 @@ export function Header() {
                             <UserIcon className="h-5 w-5" />
                         </AvatarFallback>
                     </Avatar>
-                    <span className="hidden text-sm font-medium sm:inline-block">Olá, {user.displayName?.split(' ')[0]}</span>
+                    <span className="text-sm font-medium">Olá, {user.displayName?.split(' ')[0]}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
