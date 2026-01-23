@@ -104,9 +104,12 @@ export default function TentPage() {
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
 
   // Check for active reservations
-  const activeReservationQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, 'reservations'), where('userId', '==', user.uid), where('status', 'in', ['confirmed', 'checked-in', 'payment-pending'])) : null, [firestore, user]);
-  const { data: activeReservations, isLoading: loadingActiveReservation } = useCollection<Reservation>(activeReservationQuery);
-  const hasActiveReservation = useMemo(() => activeReservations && activeReservations.length > 0, [activeReservations]);
+  const userReservationsQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, 'reservations'), where('userId', '==', user.uid)) : null, [firestore, user]);
+  const { data: userReservations, isLoading: loadingActiveReservation } = useCollection<Reservation>(userReservationsQuery);
+  const hasActiveReservation = useMemo(() => {
+    if (!userReservations) return false;
+    return userReservations.some(r => ['confirmed', 'checked-in', 'payment-pending'].includes(r.status));
+  }, [userReservations]);
 
 
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
