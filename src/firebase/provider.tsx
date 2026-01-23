@@ -128,7 +128,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           uid: firebaseUser.uid,
           email: firebaseUser.email!,
           displayName: firebaseUser.displayName!,
-          photoURL: firebaseUser.photoURL || undefined,
+          photoURL: userProfile?.photoURL || firebaseUser.photoURL || undefined,
           isAnonymous: firebaseUser.isAnonymous,
           // Firestore profile data (or defaults)
           role: userProfile?.role || 'customer',
