@@ -130,8 +130,8 @@ export function Header() {
             </Button>
           {user && !user.isAnonymous ? (
             <>
-              <span className="hidden sm:inline text-sm text-muted-foreground">
-                Seja bem-vindo, <span className="font-semibold text-foreground">{user.displayName?.split(' ')[0]}</span>
+              <span className="text-sm text-muted-foreground">
+                Olá, <span className="font-semibold text-foreground">{user.displayName?.split(' ')[0]}</span>
               </span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
