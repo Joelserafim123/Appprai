@@ -126,6 +126,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           neighborhood: userProfile?.neighborhood,
           city: userProfile?.city,
           state: userProfile?.state,
+          outstandingBalance: userProfile?.outstandingBalance || 0,
       };
 
       return hydratedUser;

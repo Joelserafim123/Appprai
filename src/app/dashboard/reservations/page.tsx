@@ -3,8 +3,8 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -21,9 +21,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 
@@ -39,6 +38,12 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
     card: 'Cartão',
     cash: 'Dinheiro',
     pix: 'PIX'
+}
+
+function getReservationDateTime(reservation: Reservation): Date {
+    const reservationDate = reservation.createdAt.toDate();
+    const [hours, minutes] = reservation.reservationTime.split(':').map(Number);
+    return new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate(), hours, minutes);
 }
 
 function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: (id: string) => void }) {
@@ -160,17 +165,308 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
     );
 }
 
+const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
+    const { firestore } = useFirebase();
+    const { toast } = useToast();
+    const router = useRouter();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
+    const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
+    const [reservationForCancel, setReservationForCancel] = useState<Reservation | null>(null);
+    const [reservationForNoShow, setReservationForNoShow] = useState<Reservation | null>(null);
+    const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
+    const [canMarkNoShow, setCanMarkNoShow] = useState(false);
+
+    useEffect(() => {
+        if (reservation.status !== 'confirmed') {
+            setCanMarkNoShow(false);
+            return;
+        }
+
+        const reservationDateTime = getReservationDateTime(reservation);
+        const checkTime = () => {
+            const now = new Date();
+            const fifteenMinutesAfter = new Date(reservationDateTime.getTime() + 15 * 60 * 1000);
+            setCanMarkNoShow(now > fifteenMinutesAfter);
+        };
+
+        checkTime();
+        const interval = setInterval(checkTime, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [reservation]);
+
+    const isLateCancellation = useMemo(() => {
+        if (!reservationForCancel) return false;
+        const now = new Date();
+        const reservationDateTime = getReservationDateTime(reservationForCancel);
+        return reservationDateTime.getTime() - now.getTime() < 15 * 60 * 1000;
+    }, [reservationForCancel]);
+
+
+    const handleCancelReservation = async () => {
+        if (!firestore || !reservationForCancel) return;
+        setIsSubmitting(true);
+        
+        const reservationRef = doc(firestore, 'reservations', reservationForCancel.id);
+        const updateData: { status: ReservationStatus, platformFee?: number, cancellationReason?: string } = { status: 'cancelled' };
+        let feeApplied = false;
+
+        if (isLateCancellation || reservationForCancel.status === 'checked-in') {
+            updateData.platformFee = 3.00;
+            updateData.cancellationReason = 'owner_late';
+            feeApplied = true;
+        }
+
+        try {
+            await updateDoc(reservationRef, updateData);
+            toast({
+                title: "Reserva Cancelada!",
+                description: feeApplied ? "Uma taxa de R$ 3,00 foi aplicada a você por este cancelamento." : undefined,
+                variant: feeApplied ? 'destructive' : 'default',
+            });
+        } catch (error) {
+            console.error("Error cancelling reservation: ", error);
+            toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
+        } finally {
+            setIsSubmitting(false);
+            setReservationForCancel(null);
+        }
+    };
+    
+    const handleNoShow = async () => {
+        if (!firestore || !reservationForNoShow) return;
+        setIsSubmitting(true);
+
+        const reservationRef = doc(firestore, 'reservations', reservationForNoShow.id);
+        const clientUserRef = doc(firestore, 'users', reservationForNoShow.userId);
+
+        const batch = writeBatch(firestore);
+
+        batch.update(reservationRef, {
+            status: 'cancelled',
+            cancellationFee: 3,
+            cancellationReason: 'no_show'
+        });
+
+        batch.update(clientUserRef, {
+            outstandingBalance: increment(3)
+        });
+
+        try {
+            await batch.commit();
+            toast({ title: 'Reserva cancelada por não comparecimento.', description: 'Uma taxa de R$ 3,00 foi aplicada ao cliente.' });
+        } catch (error) {
+            console.error("Error marking no-show: ", error);
+            toast({ variant: 'destructive', title: 'Erro ao marcar não comparecimento' });
+        } finally {
+            setIsSubmitting(false);
+            setReservationForNoShow(null);
+        }
+    }
+
+
+    const handleCloseBill = async (reservationId: string) => {
+        if (!firestore) return;
+        try {
+            await updateDoc(doc(firestore, 'reservations', reservationId), { status: 'payment-pending' });
+            toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
+        } catch(error) {
+            console.error("Error closing bill: ", error);
+            toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
+        }
+    }
+
+    const handleStartChat = async (reservation: Reservation) => {
+        if (!reservation.tentOwnerId || !firestore) return;
+        setIsCreatingChat(reservation.id);
+        
+        try {
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, 
+                where('userId', '==', reservation.userId), 
+                where('tentId', '==', reservation.tentId)
+            );
+            
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                await addDoc(chatsRef, {
+                    userId: reservation.userId,
+                    userName: reservation.userName,
+                    userPhotoURL: reservation.userPhotoURL || null,
+                    tentId: reservation.tentId,
+                    tentName: reservation.tentName,
+                    tentOwnerId: reservation.tentOwnerId,
+                    tentLogoUrl: reservation.tentLogoUrl || null,
+                    lastMessage: `Conversa iniciada...`,
+                    lastMessageTimestamp: serverTimestamp(),
+                    participantIds: [reservation.userId, reservation.tentOwnerId],
+                });
+            }
+            
+            router.push('/dashboard/chats');
+
+        } catch (error) {
+            console.error("Error starting chat:", error);
+            toast({ variant: 'destructive', title: 'Erro ao iniciar conversa' });
+        } finally {
+            setIsCreatingChat(null);
+        }
+    };
+    
+    return (
+        <>
+            <Card className="flex flex-col transition-all hover:shadow-md">
+                <CardHeader>
+                    <div className='flex justify-between items-start'>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <UserIcon className="w-5 h-5"/>
+                            Reserva de {reservation.userName}
+                        </CardTitle>
+                        <Badge variant={statusConfig[reservation.status].variant}>
+                        {statusConfig[reservation.status].text}
+                        </Badge>
+                    </div>
+                    <div className='text-sm text-muted-foreground space-y-1 pt-2'>
+                        <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> Pedido: {reservation.orderNumber}</p>
+                        <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
+                        {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
+                        day: '2-digit', month: 'long', year: 'numeric',
+                        })} às {reservation.reservationTime}
+                        </p>
+                    </div>
+                </CardHeader>
+                <CardContent className="flex-1">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 mt-4"><History className="w-4 h-4"/> Itens do Pedido</h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                        {reservation.items.map((item, index) => (
+                            <li key={index} className="flex justify-between">
+                                <span>{item.quantity}x {item.name}</span>
+                                <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="mt-4 pt-4 border-t text-right">
+                        <p className="text-sm font-medium text-muted-foreground">Total</p>
+                        <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex-col gap-2">
+                        {reservation.status === 'confirmed' && (
+                        <div className="grid grid-cols-1 gap-2 w-full">
+                            <Button size="sm" onClick={() => setReservationForCheckIn(reservation)}>
+                                <Check className="mr-2 h-4 w-4" /> Fazer Check-in
+                            </Button>
+                             <div className="grid grid-cols-2 gap-2 w-full">
+                                <Button size="sm" variant="destructive" onClick={() => setReservationForCancel(reservation)}>
+                                    <X className="mr-2 h-4 w-4" /> Cancelar
+                                </Button>
+                                <Button size="sm" variant="secondary" onClick={() => setReservationForNoShow(reservation)} disabled={!canMarkNoShow}>
+                                    <UserX className="mr-2 h-4 w-4" /> Não Compareceu
+                                </Button>
+                             </div>
+                        </div>
+                    )}
+                    {reservation.status === 'checked-in' && (
+                        <div className="grid grid-cols-2 gap-2 w-full">
+                            <Button size="sm" variant="secondary" onClick={() => handleCloseBill(reservation.id)} className="w-full">
+                                <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta
+                            </Button>
+                             <Button size="sm" variant="destructive" onClick={() => setReservationForCancel(reservation)}>
+                                <X className="mr-2 h-4 w-4" /> Cancelar
+                            </Button>
+                        </div>
+                    )}
+                    {reservation.status === 'payment-pending' && (
+                        <div className="w-full">
+                            <Button size="sm" className="w-full" onClick={() => setReservationForPayment(reservation)}>
+                                <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
+                            </Button>
+                        </div>
+                    )}
+                    {['confirmed', 'checked-in', 'payment-pending', 'completed'].includes(reservation.status) && reservation.status !== 'cancelled' && (
+                        <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
+                            {isCreatingChat === reservation.id ? <Loader2 className="animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                            Contactar Cliente
+                        </Button>
+                    )}
+                        {reservation.status === 'completed' && reservation.paymentMethod && (
+                        <div className="text-sm text-center w-full bg-green-50 text-green-700 p-2 rounded-md font-semibold">
+                            Pago com {paymentMethodLabels[reservation.paymentMethod]}
+                        </div>
+                    )}
+                </CardFooter>
+            </Card>
+
+            {/* Dialogs */}
+            <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
+                {reservationForPayment && <PaymentDialog reservation={reservationForPayment} onFinished={() => setReservationForPayment(null)} />}
+            </Dialog>
+            <Dialog open={!!reservationForCheckIn} onOpenChange={(open) => !open && setReservationForCheckIn(null)}>
+                {reservationForCheckIn && <CheckInDialog reservation={reservationForCheckIn} onFinished={() => setReservationForCheckIn(null)} />}
+            </Dialog>
+            <AlertDialog open={!!reservationForCancel} onOpenChange={(open) => !open && setReservationForCancel(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                       {isLateCancellation || reservationForCancel?.status === 'checked-in' ? (
+                            <div className="space-y-4">
+                                <p>Esta ação não pode ser desfeita e irá cancelar a reserva do cliente.</p>
+                                <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
+                                    <AlertCircle className="h-5 w-5 text-destructive" />
+                                    <div>
+                                        <p className="font-bold">Será aplicada uma taxa de R$ 3,00.</p>
+                                        <p className="text-xs">Você está a cancelar perto do horário da reserva ou após o check-in. Esta taxa será somada ao seu repasse para a plataforma.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : "Esta ação não pode ser desfeita e irá cancelar a reserva do cliente."}
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isSubmitting}>Voltar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCancelReservation} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="animate-spin"/> : "Sim, cancelar"}
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={!!reservationForNoShow} onOpenChange={(open) => !open && setReservationForNoShow(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Não Comparecimento?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                         <div className="space-y-4">
+                            <p>Isto irá cancelar a reserva de <span className="font-semibold">{reservationForNoShow?.userName}</span>.</p>
+                            <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                                <div>
+                                    <p className="font-bold">Uma taxa de R$ 3,00 será aplicada ao cliente.</p>
+                                    <p className="text-xs">A taxa será cobrada do cliente na próxima reserva que ele fizer na plataforma.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isSubmitting}>Voltar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleNoShow} disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="animate-spin"/> : "Confirmar e Cancelar"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
+};
+
 
 export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
-  const { toast } = useToast();
-  const router = useRouter();
   
-  const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
-  const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
 
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
@@ -199,68 +495,6 @@ export default function OwnerReservationsPage() {
     return reservations;
   }, [reservations, searchTerm]);
 
-
-  const handleCancelReservation = async (reservationId: string) => {
-    if (!firestore) return;
-    try {
-        await updateDoc(doc(firestore, 'reservations', reservationId), { status: 'cancelled' });
-        toast({ title: 'Reserva Cancelada!' });
-    } catch(error) {
-        console.error("Error cancelling reservation: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
-    }
-  };
-
-  const handleCloseBill = async (reservationId: string) => {
-    if (!firestore) return;
-    try {
-        await updateDoc(doc(firestore, 'reservations', reservationId), { status: 'payment-pending' });
-        toast({ title: "Conta fechada!", description: "Aguardando confirmação de pagamento do cliente."});
-    } catch(error) {
-        console.error("Error closing bill: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
-    }
-  }
-  
-  const handleStartChat = async (reservation: Reservation) => {
-    if (!user || !firestore) return;
-    setIsCreatingChat(reservation.id);
-    
-    try {
-        const chatsRef = collection(firestore, 'chats');
-        const q = query(chatsRef, 
-            where('userId', '==', reservation.userId), 
-            where('tentId', '==', reservation.tentId)
-        );
-        
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            await addDoc(chatsRef, {
-                userId: reservation.userId,
-                userName: reservation.userName,
-                userPhotoURL: reservation.userPhotoURL || null,
-                tentId: reservation.tentId,
-                tentName: reservation.tentName,
-                tentOwnerId: reservation.tentOwnerId,
-                tentLogoUrl: reservation.tentLogoUrl || null,
-                lastMessage: `Conversa iniciada...`,
-                lastMessageTimestamp: serverTimestamp(),
-                participantIds: [reservation.userId, reservation.tentOwnerId],
-            });
-        }
-        
-        router.push('/dashboard/chats');
-
-    } catch (error) {
-        console.error("Error starting chat:", error);
-        toast({ variant: 'destructive', title: 'Erro ao iniciar conversa' });
-    } finally {
-        setIsCreatingChat(null);
-    }
-  };
-
-
   if (isUserLoading || (reservationsLoading && !rawReservations)) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -274,140 +508,38 @@ export default function OwnerReservationsPage() {
   }
 
   return (
-    <Dialog>
-        <div className="w-full max-w-6xl">
-        <header className="mb-8 space-y-4">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
-                <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
-            </div>
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Buscar por Nº do Pedido ou nome do cliente..."
-                    className="pl-10"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-        </header>
-
-        {filteredReservations && filteredReservations.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredReservations.map((reservation) => {
-                return (
-                    <Card key={reservation.id} className="flex flex-col transition-all hover:shadow-md">
-                        <CardHeader>
-                            <div className='flex justify-between items-start'>
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    <UserIcon className="w-5 h-5"/>
-                                    Reserva de {reservation.userName}
-                                </CardTitle>
-                                <Badge variant={statusConfig[reservation.status].variant}>
-                                {statusConfig[reservation.status].text}
-                                </Badge>
-                            </div>
-                            <div className='text-sm text-muted-foreground space-y-1 pt-2'>
-                                <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> Pedido: {reservation.orderNumber}</p>
-                                <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
-                                {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
-                                day: '2-digit', month: 'long', year: 'numeric',
-                                })} às {reservation.reservationTime}
-                                </p>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex-1">
-                            <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 mt-4"><History className="w-4 h-4"/> Itens do Pedido</h4>
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                {reservation.items.map((item, index) => (
-                                    <li key={index} className="flex justify-between">
-                                        <span>{item.quantity}x {item.name}</span>
-                                        <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                            <div className="mt-4 pt-4 border-t text-right">
-                                <p className="text-sm font-medium text-muted-foreground">Total</p>
-                                <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="flex-col gap-2">
-                             {reservation.status === 'confirmed' && (
-                                <div className="grid grid-cols-2 gap-2 w-full">
-                                    <Button size="sm" onClick={() => setReservationForCheckIn(reservation)}>
-                                        <Check className="mr-2 h-4 w-4" /> Fazer Check-in
-                                    </Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button size="sm" variant="destructive">
-                                                <X className="mr-2 h-4 w-4" /> Cancelar
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                Esta ação não pode ser desfeita e irá cancelar a reserva do cliente.
-                                            </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                            <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleCancelReservation(reservation.id)}>
-                                                Sim, cancelar
-                                            </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                            )}
-                            {reservation.status === 'checked-in' && (
-                                <div className="w-full">
-                                    <Button size="sm" variant="secondary" onClick={() => handleCloseBill(reservation.id)} className="w-full">
-                                        <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta do Cliente
-                                    </Button>
-                                </div>
-                            )}
-                            {reservation.status === 'payment-pending' && (
-                                <div className="w-full">
-                                    <Button size="sm" className="w-full" onClick={() => setReservationForPayment(reservation)}>
-                                        <CreditCard className="mr-2 h-4 w-4" /> Confirmar Pagamento
-                                    </Button>
-                                </div>
-                            )}
-                            {['confirmed', 'checked-in', 'payment-pending', 'completed'].includes(reservation.status) && reservation.status !== 'cancelled' && (
-                                <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
-                                    {isCreatingChat === reservation.id ? <Loader2 className="animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
-                                    Contactar Cliente
-                                </Button>
-                            )}
-                             {reservation.status === 'completed' && reservation.paymentMethod && (
-                                <div className="text-sm text-center w-full bg-green-50 text-green-700 p-2 rounded-md font-semibold">
-                                    Pago com {paymentMethodLabels[reservation.paymentMethod]}
-                                </div>
-                            )}
-                        </CardFooter>
-                    </Card>
-                )
-            })}
-            </div>
-        ) : (
-            <div className="rounded-lg border-2 border-dashed py-16 text-center">
-                <Star className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {searchTerm ? 'Nenhuma reserva corresponde à sua busca.' : 'Sua barraca ainda não recebeu nenhuma reserva.'}
-                </p>
-            </div>
-        )}
+    <div className="w-full max-w-6xl">
+    <header className="mb-8 space-y-4">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
+            <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
         </div>
-        
-        <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
-            {reservationForPayment && <PaymentDialog reservation={reservationForPayment} onFinished={() => setReservationForPayment(null)} />}
-        </Dialog>
-        <Dialog open={!!reservationForCheckIn} onOpenChange={(open) => !open && setReservationForCheckIn(null)}>
-            {reservationForCheckIn && <CheckInDialog reservation={reservationForCheckIn} onFinished={() => setReservationForCheckIn(null)} />}
-        </Dialog>
+        <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Buscar por Nº do Pedido ou nome do cliente..."
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+    </header>
 
-    </Dialog>
+    {filteredReservations && filteredReservations.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {filteredReservations.map((reservation) => (
+            <ReservationCard key={reservation.id} reservation={reservation} />
+        ))}
+        </div>
+    ) : (
+        <div className="rounded-lg border-2 border-dashed py-16 text-center">
+            <Star className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-4 text-lg font-medium">Nenhuma reserva encontrada</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+                {searchTerm ? 'Nenhuma reserva corresponde à sua busca.' : 'Sua barraca ainda não recebeu nenhuma reserva.'}
+            </p>
+        </div>
+    )}
+    </div>
   );
 }

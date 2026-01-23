@@ -17,7 +17,8 @@
         "neighborhood": { "type": "string", "description": "The user's neighborhood." },
         "city": { "type": "string", "description": "The user's city." },
         "state": { "type": "string", "description": "The user's state." },
-        "profileComplete": { "type": "boolean", "description": "Flag indicating if the user has completed their profile." }
+        "profileComplete": { "type": "boolean", "description": "Flag indicating if the user has completed their profile." },
+        "outstandingBalance": { "type": "number", "description": "Client's outstanding debt to the platform for late cancellation fees." }
       },
       "required": ["uid", "email", "displayName", "role"]
     },
@@ -101,6 +102,9 @@
         "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
         "paymentMethod": { "type": "string", "enum": ["card", "cash", "pix"] },
         "platformFee": { "type": "number", "description": "The 10% commission for the platform, with a minimum of R$3." },
+        "cancellationFee": { "type": "number", "description": "The fee charged for late cancellation." },
+        "cancellationReason": { "type": "string", "description": "The reason for cancellation (e.g., 'client_late', 'owner_late', 'no_show')." },
+        "outstandingBalancePaid": { "type": "number", "description": "Amount of outstanding balance paid with this reservation." },
         "tableNumber": { "type": "number" },
         "participantIds": { "type": "array", "items": { "type": "string" } }
       },

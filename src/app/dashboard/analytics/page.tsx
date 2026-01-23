@@ -50,9 +50,15 @@ export default function AnalyticsPage() {
     if (!reservations || !user) return null;
 
     const completedReservations = reservations.filter(r => r.status === 'completed');
+    
+    // Include platform fees from completed reservations AND specific cancelled ones
+    const feeBearingReservations = reservations.filter(r => 
+        r.status === 'completed' || 
+        (r.status === 'cancelled' && r.cancellationReason === 'owner_late' && r.platformFee && r.platformFee > 0)
+    );
 
     const totalRevenue = completedReservations.reduce((acc, res) => acc + res.total, 0);
-    const totalPlatformFee = completedReservations.reduce((acc, res) => acc + (res.platformFee || 0), 0);
+    const totalPlatformFee = feeBearingReservations.reduce((acc, res) => acc + (res.platformFee || 0), 0);
     const totalReservations = completedReservations.length;
     const averageOrderValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
 
@@ -142,7 +148,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-destructive">R$ {analyticsData.totalPlatformFee.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">Comissão da plataforma (10%)</p>
+                <p className="text-xs text-muted-foreground">Comissões da plataforma</p>
               </CardContent>
             </Card>
             <Card>
@@ -173,7 +179,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
                 <p className="text-sm ">
-                    A plataforma retém uma comissão de <strong>10% sobre o valor total</strong> de cada reserva finalizada, com um valor <strong>mínimo de R$ 3,00</strong> por transação. O montante acumulado, apresentado como "Valor a Repassar", deve ser transferido para a plataforma toda segunda-feira via depósito ou PIX.
+                    A plataforma retém uma comissão de <strong>10% sobre o valor total</strong> de cada reserva finalizada, com um valor <strong>mínimo de R$ 3,00</strong> por transação. Taxas de cancelamento tardio por parte do barraqueiro também são somadas aqui. O montante acumulado, apresentado como "Valor a Repassar", deve ser transferido para a plataforma toda segunda-feira via depósito ou PIX.
                 </p>
             </CardContent>
           </Card>

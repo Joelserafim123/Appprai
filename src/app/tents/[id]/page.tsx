@@ -26,10 +26,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
-import { collection, query, where, addDoc, serverTimestamp, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch } from 'firebase/firestore';
 
 
 type CartItem = { 
@@ -79,7 +78,7 @@ export default function TentPage() {
   const params = useParams();
   const tentId = params.id as string;
   const router = useRouter();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, refresh } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
   
@@ -200,7 +199,8 @@ export default function TentPage() {
   
   const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
   
-  const finalTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
+  const cartTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
+  const finalTotal = cartTotal + (user?.outstandingBalance || 0);
   
   const isCartEmpty = Object.keys(cart).length === 0;
 
@@ -277,6 +277,12 @@ export default function TentPage() {
     setIsSubmitting(true);
 
     try {
+        const batch = writeBatch(firestore);
+        
+        const newReservationRef = doc(collection(firestore, 'reservations'));
+        const userRef = doc(firestore, 'users', user.uid);
+        const outstandingBalance = user.outstandingBalance || 0;
+
         const reservationData = {
             userId: user.uid,
             userName: user.displayName,
@@ -294,6 +300,7 @@ export default function TentPage() {
                 quantity: quantity
             })),
             total: finalTotal,
+            outstandingBalancePaid: outstandingBalance,
             createdAt: serverTimestamp(),
             reservationTime,
             orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
@@ -301,13 +308,19 @@ export default function TentPage() {
             status: 'confirmed',
             participantIds: [user.uid, tent.ownerId],
         };
+        
+        batch.set(newReservationRef, reservationData);
+        if (outstandingBalance > 0) {
+            batch.update(userRef, { outstandingBalance: 0 });
+        }
 
-        await addDoc(collection(firestore, 'reservations'), reservationData);
+        await batch.commit();
         
         toast({
             title: "Reserva Confirmada!",
             description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
         });
+        await refresh();
         router.push('/dashboard/my-reservations');
 
     } catch(error) {
@@ -575,6 +588,12 @@ export default function TentPage() {
                                     <span>- R$ {rentalTotal.toFixed(2)}</span>
                                 </div>
                            )}
+                           {user && user.outstandingBalance && user.outstandingBalance > 0 && (
+                                <div className="flex justify-between text-sm font-semibold text-destructive">
+                                    <span>Taxa pendente</span>
+                                    <span>R$ {user.outstandingBalance.toFixed(2)}</span>
+                                </div>
+                            )}
                         </div>
 
                     </CardContent>
@@ -617,7 +636,7 @@ export default function TentPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Confirmar Reserva</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Você está prestes a confirmar a sua reserva. Deseja continuar?
+                                            Você está prestes a confirmar a sua reserva no valor de R$ {finalTotal.toFixed(2)}. Deseja continuar?
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>

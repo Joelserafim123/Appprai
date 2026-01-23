@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User, X, MapPin } from 'lucide-react';
+import { Loader2, Star, Tent, User, X, MapPin, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -17,7 +17,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Tooltip,
@@ -25,8 +24,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
-import { useMemo } from 'react';
+import { collection, query, where, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
+import { useMemo, useState } from 'react';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -45,9 +44,11 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
 
 
 export default function MyReservationsPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, refresh } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
+  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
@@ -68,15 +69,55 @@ export default function MyReservationsPage() {
     });
   }, [rawReservations]);
 
-  const handleCancelReservation = async (reservationId: string) => {
-    if (!firestore) return;
-     try {
-       await updateDoc(doc(firestore, 'reservations', reservationId), { status: 'cancelled' });
-       toast({ title: "Reserva Cancelada"});
-     } catch (error) {
+  const isLateCancellation = useMemo(() => {
+    if (!reservationToCancel) return false;
+    const now = new Date();
+    const reservationDate = reservationToCancel.createdAt.toDate();
+    const [hours, minutes] = reservationToCancel.reservationTime.split(':').map(Number);
+    const reservationDateTime = new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate(), hours, minutes);
+    
+    return reservationDateTime.getTime() - now.getTime() < 15 * 60 * 1000;
+  }, [reservationToCancel]);
+
+  const handleCancelReservation = async () => {
+    if (!firestore || !user || !reservationToCancel) return;
+    setIsCancelling(true);
+
+    const reservationRef = doc(firestore, 'reservations', reservationToCancel.id);
+    const userRef = doc(firestore, 'users', user.uid);
+    const batch = writeBatch(firestore);
+    
+    let feeApplied = false;
+
+    if (isLateCancellation) {
+        batch.update(reservationRef, { 
+            status: 'cancelled',
+            cancellationFee: 3,
+            cancellationReason: 'client_late',
+        });
+        batch.update(userRef, {
+            outstandingBalance: increment(3)
+        });
+        feeApplied = true;
+    } else {
+        batch.update(reservationRef, { status: 'cancelled' });
+    }
+
+    try {
+       await batch.commit();
+       toast({ 
+           title: "Reserva Cancelada",
+           description: feeApplied ? "Uma taxa de R$ 3,00 foi adicionada à sua conta por cancelamento tardio." : "A sua reserva foi cancelada com sucesso.",
+           variant: feeApplied ? 'destructive' : 'default',
+        });
+       await refresh();
+    } catch (error) {
         console.error("Error cancelling reservation: ", error);
         toast({ variant: 'destructive', title: "Erro ao cancelar reserva"});
-     }
+    } finally {
+        setIsCancelling(false);
+        setReservationToCancel(null);
+    }
   }
 
 
@@ -149,6 +190,12 @@ export default function MyReservationsPage() {
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                           </li>
                       ))}
+                      {reservation.outstandingBalancePaid && reservation.outstandingBalancePaid > 0 && (
+                        <li className="flex justify-between font-semibold text-destructive">
+                            <span>Taxa de cancelamento anterior</span>
+                            <span>R$ {reservation.outstandingBalancePaid.toFixed(2)}</span>
+                        </li>
+                      )}
                   </ul>
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -170,27 +217,9 @@ export default function MyReservationsPage() {
                           </Button>
                       )}
                       {reservation.status === 'confirmed' && (
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="destructive">
-                                <X className="mr-2 h-4 w-4"/> Cancelar Reserva
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleCancelReservation(reservation.id)}>
-                                  Sim, cancelar reserva
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                        <Button variant="destructive" onClick={() => setReservationToCancel(reservation)}>
+                            <X className="mr-2 h-4 w-4"/> Cancelar Reserva
+                        </Button>
                       )}
                       {reservation.status === 'checked-in' && (
                           <Tooltip>
@@ -222,6 +251,35 @@ export default function MyReservationsPage() {
             </Button>
         </div>
       )}
+       <AlertDialog open={!!reservationToCancel} onOpenChange={(open) => !open && setReservationToCancel(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    {isLateCancellation ? (
+                        <div className="space-y-4">
+                            <p>Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva.</p>
+                            <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                                <div>
+                                    <p className="font-bold">Será aplicada uma taxa de R$ 3,00.</p>
+                                    <p className="text-xs">Você está a cancelar a menos de 15 minutos do horário da reserva. Esta taxa será cobrada na sua próxima reserva.</p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        "Esta ação não pode ser desfeita. Isso cancelará permanentemente sua reserva sem custos."
+                    )}
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel disabled={isCancelling}>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleCancelReservation} disabled={isCancelling}>
+                    {isCancelling ? <Loader2 className="animate-spin" /> : "Sim, cancelar reserva"}
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

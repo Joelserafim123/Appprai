@@ -15,6 +15,7 @@ export interface UserProfile {
     city?: string;
     state?: string;
     profileComplete?: boolean;
+    outstandingBalance?: number;
 }
 
 // Full user data including Firebase User properties
@@ -107,6 +108,9 @@ export interface Reservation {
   status: ReservationStatus;
   paymentMethod?: PaymentMethod;
   platformFee?: number;
+  cancellationFee?: number;
+  cancellationReason?: string;
+  outstandingBalancePaid?: number;
   tableNumber?: number;
   participantIds: string[];
 }
