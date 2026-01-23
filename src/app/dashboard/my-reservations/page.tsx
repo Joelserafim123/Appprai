@@ -272,11 +272,11 @@ export default function MyReservationsPage() {
                             </div>
                         </div>
                     )}
-                    <div className="p-3 rounded-md bg-accent/10 text-accent-foreground/90 flex items-center gap-3">
-                        <AlertTriangle className="h-5 w-5 text-accent" />
+                    <div className="p-3 rounded-md bg-muted/50 border flex items-center gap-3">
+                        <AlertTriangle className="h-5 w-5 text-muted-foreground" />
                         <div>
-                            <div className="font-bold">Aviso sobre a Política de Uso</div>
-                            <div className="text-xs">Cancelamentos frequentes podem levar à suspensão ou ao encerramento da sua conta na plataforma.</div>
+                            <div className="font-bold text-foreground">Aviso sobre a Política de Uso</div>
+                            <div className="text-xs text-muted-foreground">Cancelamentos frequentes podem levar à suspensão ou ao encerramento da sua conta na plataforma.</div>
                         </div>
                     </div>
                 </div>
