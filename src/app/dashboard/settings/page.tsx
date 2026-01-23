@@ -1,10 +1,9 @@
 'use client';
 
-import { useUser, useFirebase, useStorage } from '@/firebase';
+import { useUser, useFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Info, Camera, User as UserIcon } from 'lucide-react';
+import { Loader2, Info, User as UserIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -14,10 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
-import { deleteFileByUrl, uploadFile } from '@/firebase/storage';
 
 
 const profileSchema = z.object({
@@ -36,13 +34,10 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading, refresh } = useUser();
-  const { auth, firestore, storage } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
@@ -75,14 +70,6 @@ export default function SettingsPage() {
       });
     }
   }, [user, reset]);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        setPhotoFile(file);
-        setPhotoPreview(URL.createObjectURL(file));
-    }
-  }
 
   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
@@ -133,16 +120,6 @@ export default function SettingsPage() {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Usuário não autenticado.");
       
-      let newPhotoURL = user.photoURL;
-
-      if(photoFile && storage) {
-        if(user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
-            await deleteFileByUrl(storage, user.photoURL).catch(err => console.warn("Não foi possível apagar a foto antiga, continuando...", err));
-        }
-        const { downloadURL } = await uploadFile(storage, photoFile, `user-avatars/${user.uid}`);
-        newPhotoURL = downloadURL;
-      }
-
       const firestoreData: Partial<UserProfile> = {
         displayName: data.displayName,
         profileComplete: true, // Mark profile as complete on save
@@ -153,7 +130,6 @@ export default function SettingsPage() {
         neighborhood: data.neighborhood,
         city: data.city,
         state: data.state,
-        photoURL: newPhotoURL || null
       };
       
       const userDocRef = doc(firestore, "users", user.uid);
@@ -162,7 +138,6 @@ export default function SettingsPage() {
           setDoc(userDocRef, firestoreData, { merge: true }),
           updateProfile(currentUser, { 
             displayName: data.displayName,
-            photoURL: newPhotoURL || null,
          })
       ]);
   
@@ -172,8 +147,6 @@ export default function SettingsPage() {
       });
   
       await refresh();
-      setPhotoFile(null);
-      setPhotoPreview(null);
   
     } catch (error: any) {
       console.error("Error updating profile:", error);
@@ -226,19 +199,12 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
-                <div className='relative'>
-                    <Avatar className="h-24 w-24">
-                        <AvatarImage src={photoPreview || user.photoURL || ''} alt={user.displayName || "User"} />
-                        <AvatarFallback>
-                           <UserIcon className="h-12 w-12 text-muted-foreground" />
-                        </AvatarFallback>
-                    </Avatar>
-                    <Button type="button" size="icon" className="absolute -bottom-2 -right-2 rounded-full h-8 w-8" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
-                        <Camera className="h-4 w-4" />
-                        <span className="sr-only">Alterar foto</span>
-                    </Button>
-                    <input type='file' ref={fileInputRef} onChange={handleFileSelect} accept="image/png, image/jpeg, image/webp" className="hidden"/>
-                </div>
+                <Avatar className="h-24 w-24">
+                    <AvatarImage src={user.photoURL || ''} alt={user.displayName || "User"} />
+                    <AvatarFallback>
+                        <UserIcon className="h-12 w-12 text-muted-foreground" />
+                    </AvatarFallback>
+                </Avatar>
 
                 <div className="space-y-2">
                     <p className="text-lg font-semibold">{user.displayName?.split(' ')[0]}</p>
@@ -309,7 +275,7 @@ export default function SettingsPage() {
 
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isSubmitting || (!isDirty && !photoFile)}>
+            <Button type="submit" disabled={isSubmitting || !isDirty}>
               {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
             </Button>
           </CardFooter>

@@ -17,7 +17,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { getInitials } from '@/lib/utils';
 
 
 export function Header() {
@@ -122,7 +121,7 @@ export function Header() {
         <Link href="/" className="flex items-center space-x-2">
           <Logo />
         </Link>
-        <nav className="flex items-center space-x-4">
+        <nav className="flex items-center space-x-2">
            <Button asChild variant="outline">
                 <Link href="/list">
                     <List className="mr-2 h-4 w-4"/>
@@ -130,43 +129,38 @@ export function Header() {
                 </Link>
             </Button>
           {user && !user.isAnonymous ? (
-            <>
-              <span className="font-medium text-sm hidden sm:inline">
-                Olá, {user.displayName?.split(' ')[0]}
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8">
-                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
-                        <AvatarFallback>
-                            <UserIcon className="h-4 w-4" />
-                        </AvatarFallback>
-                    </Avatar>
-                    <span className="sr-only">Abrir menu do usuário</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.displayName}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  
-                  {user.role === 'owner' ? <OwnerMenuItems /> : <CustomerMenuItems />}
-                  
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sair</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-auto p-1 pr-3">
+                  <Avatar className="h-7 w-7">
+                      <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
+                      <AvatarFallback>
+                          <UserIcon className="h-4 w-4" />
+                      </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden sm:inline font-medium">{user.displayName?.split(' ')[0]}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                
+                {user.role === 'owner' ? <OwnerMenuItems /> : <CustomerMenuItems />}
+                
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <>
               <Button asChild variant="ghost">
