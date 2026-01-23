@@ -17,11 +17,6 @@ service cloud.firestore {
       return request.auth.uid in doc.data.participantIds;
     }
 
-    // Is the user the owner of the resource being modified?
-    function isResourceOwner(doc) {
-      return request.auth.uid == doc.data.ownerId;
-    }
-
     // Checks if a list query for chats is securely filtered.
     function isQueryingOwnChats() {
         return 'where' in request.query &&
@@ -43,17 +38,23 @@ service cloud.firestore {
     match /tents/{tentId} {
       allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && isResourceOwner(get(/databases/$(database)/documents/tents/$(tentId)));
+      // Owners can update or delete their own tent document
+      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
+      
+      // Helper function to check if the user is the owner of the parent tent
+      function isTentOwner() {
+        return request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
+      }
       
       // Menu and Rental items inherit permissions from the parent tent.
       match /menuItems/{menuItemId} {
         allow get, list: if true;
-        allow create, update, delete: if isSignedIn() && isResourceOwner(get(/databases/$(database)/documents/tents/$(tentId)));
+        allow create, update, delete: if isSignedIn() && isTentOwner();
       }
       
       match /rentalItems/{rentalItemId} {
         allow get, list: if true;
-        allow create, update, delete: if isSignedIn() && isResourceOwner(get(/databases/$(database)/documents/tents/$(tentId)));
+        allow create, update, delete: if isSignedIn() && isTentOwner();
       }
     }
 
@@ -61,7 +62,6 @@ service cloud.firestore {
     // Only participants (customer and tent owner) can access a reservation.
     match /reservations/{reservationId} {
       allow get, update: if isSignedIn() && isParticipant(resource);
-      // Allow listing reservations only if the query is securely filtered by the current user's UID.
       allow list: if isSignedIn() &&
                      'where' in request.query && (
                        request.query.where.filter(w => w[0] == 'userId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0 ||
