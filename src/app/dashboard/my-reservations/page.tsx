@@ -3,12 +3,11 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, Plus, User, X, Hourglass, MapPin, Check } from 'lucide-react';
+import { Loader2, Star, Tent, User, X, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import type { Reservation, ReservationStatus, ReservationItemStatus, PaymentMethod } from '@/lib/types';
+import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,12 +36,6 @@ const statusConfig: Record<ReservationStatus, { text: string; variant: "default"
   'completed': { text: 'Completa', variant: 'secondary' },
   'cancelled': { text: 'Cancelada', variant: 'destructive' }
 };
-
-const itemStatusConfig: Record<ReservationItemStatus, { text: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
-  'pending': { text: 'Pendente', color: 'text-amber-600', icon: Hourglass },
-  'confirmed': { text: 'Confirmado', color: 'text-green-600', icon: Check },
-  'cancelled': { text: 'Cancelado', color: 'text-red-600', icon: X },
-}
 
 const paymentMethodLabels: Record<PaymentMethod, string> = {
     card: 'Cartão',
@@ -149,26 +142,13 @@ export default function MyReservationsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {reservation.status === 'payment-pending' && (
-                      <div className="mb-4 rounded-lg border border-dashed border-amber-500 bg-amber-50 p-4 text-center">
-                          <Hourglass className="mx-auto h-8 w-8 text-amber-600 mb-2" />
-                          <h4 className="font-semibold text-amber-800">Aguardando Pagamento</h4>
-                          <p className="text-sm text-amber-700">O dono da barraca precisa confirmar o recebimento para finalizar o pedido.</p>
-                      </div>
-                  )}
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                      {reservation.items.map((item, index) => {
-                        const StatusIcon = item.status ? itemStatusConfig[item.status]?.icon : null;
-                        return (
-                          <li key={`${item.name}-${index}`} className="flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                {StatusIcon && <StatusIcon className={cn("w-3 h-3", item.status ? itemStatusConfig[item.status].color : '')}/>}
-                                <span>{item.quantity}x {item.name}</span>
-                              </div>
+                      {reservation.items.map((item, index) => (
+                          <li key={`${item.name}-${index}`} className="flex justify-between">
+                              <span>{item.quantity}x {item.name}</span>
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                           </li>
-                        )
-                      })}
+                      ))}
                   </ul>
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -187,13 +167,6 @@ export default function MyReservationsPage() {
                               <a href={`https://www.google.com/maps/dir/?api=1&destination=${reservation.tentLocation.latitude},${reservation.tentLocation.longitude}`} target="_blank" rel="noopener noreferrer">
                                   <MapPin className="mr-2 h-4 w-4"/> Como Chegar
                               </a>
-                          </Button>
-                      )}
-                      {reservation.status === 'checked-in' && (
-                          <Button asChild className='flex-1'>
-                              <Link href={`/dashboard/order/${reservation.id}`}>
-                                  <Plus className="mr-2 h-4 w-4"/> Adicionar Itens
-                              </Link>
                           </Button>
                       )}
                       {reservation.status === 'confirmed' && (

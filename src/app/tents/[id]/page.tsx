@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -29,7 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
-import { collection, query, where, limit, addDoc, serverTimestamp, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp, getDocs, doc } from 'firebase/firestore';
 
 
 type CartItem = { 
@@ -291,8 +291,7 @@ export default function TentPage() {
                 itemId: item.id,
                 name: item.name,
                 price: item.price,
-                quantity: quantity,
-                status: 'confirmed'
+                quantity: quantity
             })),
             total: finalTotal,
             createdAt: serverTimestamp(),

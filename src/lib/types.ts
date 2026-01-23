@@ -71,16 +71,12 @@ export interface RentalItem {
   quantity: number;
 }
 
-// Status for an individual item within a reservation
-export type ReservationItemStatus = 'pending' | 'confirmed' | 'cancelled';
-
 // An item within a reservation (can be menu or rental)
 export interface ReservationItem {
     itemId: string;
     name: string;
     price: number;
     quantity: number;
-    status: ReservationItemStatus;
 };
 
 // Overall status of a reservation

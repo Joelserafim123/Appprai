@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, ChefHat, History, Search, MessageSquare } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,8 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { cn } from '@/lib/utils';
-import { collection, query, where, doc, updateDoc, getDoc, addDoc, getDocs, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 
@@ -223,35 +221,6 @@ export default function OwnerReservationsPage() {
         toast({ variant: 'destructive', title: 'Erro ao fechar a conta' });
     }
   }
-
-  const handleItemStatusUpdate = async (reservationId: string, itemIndex: number, newStatus: 'confirmed' | 'cancelled') => {
-    if (!firestore) return;
-    const reservationRef = doc(firestore, 'reservations', reservationId);
-    try {
-        const docSnap = await getDoc(reservationRef);
-        if(!docSnap.exists()) return;
-
-        const reservationData = docSnap.data() as Reservation;
-        const updatedItems = [...reservationData.items];
-        const itemToUpdate = updatedItems[itemIndex];
-        
-        if (!itemToUpdate || itemToUpdate.status !== 'pending') return;
-
-        updatedItems[itemIndex] = { ...itemToUpdate, status: newStatus };
-        
-        let newTotal = reservationData.total;
-        if (newStatus === 'confirmed') {
-            newTotal += itemToUpdate.price * itemToUpdate.quantity;
-        }
-
-        await updateDoc(reservationRef, { items: updatedItems, total: newTotal });
-        toast({ title: `Item ${newStatus === 'confirmed' ? 'Confirmado' : 'Cancelado' }!` });
-
-    } catch(error) {
-        console.error("Error updating item status: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao atualizar status do item' });
-    }
-  }
   
   const handleStartChat = async (reservation: Reservation) => {
     if (!user || !firestore) return;
@@ -326,9 +295,6 @@ export default function OwnerReservationsPage() {
         {filteredReservations && filteredReservations.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredReservations.map((reservation) => {
-                const pendingItems = reservation.items.map((item, index) => ({...item, originalIndex: index})).filter(item => item.status === 'pending');
-                const nonPendingItems = reservation.items.filter(item => item.status !== 'pending');
-
                 return (
                     <Card key={reservation.id} className="flex flex-col transition-all hover:shadow-md">
                         <CardHeader>
@@ -351,36 +317,15 @@ export default function OwnerReservationsPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="flex-1">
-                            {pendingItems.length > 0 && (
-                                <div className="mb-4">
-                                    <h4 className="flex items-center gap-2 text-sm font-semibold mb-2"><ChefHat className="w-4 h-4"/> Itens Pendentes</h4>
-                                    <ul className="space-y-2 text-sm text-amber-800 bg-amber-50 p-3 rounded-md">
-                                        {pendingItems.map((item) => (
-                                            <li key={`pending-${item.originalIndex}`} className="flex justify-between items-center">
-                                                <span>{item.quantity}x {item.name}</span>
-                                                <div className="flex gap-1">
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => handleItemStatusUpdate(reservation.id, item.originalIndex, 'confirmed')}><Check className="w-4 h-4"/></Button>
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={() => handleItemStatusUpdate(reservation.id, item.originalIndex, 'cancelled')}><X className="w-4 h-4"/></Button>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {nonPendingItems.length > 0 && (
-                                <>
-                                    <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 mt-4"><History className="w-4 h-4"/> Itens do Pedido</h4>
-                                    <ul className="space-y-2 text-sm text-muted-foreground">
-                                        {nonPendingItems.map((item, index) => (
-                                            <li key={`confirmed-${index}`} className="flex justify-between">
-                                                <span className={cn(item.status === 'cancelled' && 'line-through')}>{item.quantity}x {item.name}</span>
-                                                <span className={cn(item.status === 'cancelled' && 'line-through')}>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </>
-                            )}
+                            <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 mt-4"><History className="w-4 h-4"/> Itens do Pedido</h4>
+                            <ul className="space-y-2 text-sm text-muted-foreground">
+                                {reservation.items.map((item, index) => (
+                                    <li key={index} className="flex justify-between">
+                                        <span>{item.quantity}x {item.name}</span>
+                                        <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                    </li>
+                                ))}
+                            </ul>
                             <div className="mt-4 pt-4 border-t text-right">
                                 <p className="text-sm font-medium text-muted-foreground">Total</p>
                                 <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
