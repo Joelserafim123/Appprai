@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -469,7 +469,7 @@ export default function TentPage() {
                                 <div className="space-y-2">
                                     <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
                                     <Input id="reservation-time" type="time" value={reservationTime} onChange={e => setReservationTime(e.target.value)} disabled={isSubmitting}/>
-                                    <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje. Há uma tolerância de 15 minutos para o check-in.</p>
+                                    <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje.</p>
                                 </div>
 
                                 {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
@@ -616,9 +616,9 @@ export default function TentPage() {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>Aviso de Tolerância</AlertDialogTitle>
+                                        <AlertDialogTitle>Confirmar Reserva</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Lembre-se: você tem uma tolerância de 15 minutos a partir do horário agendado para fazer o check-in. Após esse período, o dono da barraca poderá cancelar sua reserva.
+                                            Você está prestes a confirmar a sua reserva. Deseja continuar?
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>

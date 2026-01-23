@@ -25,7 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
-import { collection, query, where, doc, updateDoc, getDoc, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDoc, addDoc, getDocs, serverTimestamp, orderBy } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 
@@ -49,15 +49,6 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputCode, setInputCode] = useState('');
     
-    const isCheckinExpired = useMemo(() => {
-        if (!reservation.reservationTime) return false;
-        const [hours, minutes] = reservation.reservationTime.split(':').map(Number);
-        const reservationDate = reservation.createdAt.toDate();
-        reservationDate.setHours(hours, minutes, 0, 0);
-        const toleranceLimit = new Date(reservationDate.getTime() + 16 * 60 * 1000); 
-        return new Date() > toleranceLimit;
-    }, [reservation.reservationTime, reservation.createdAt]);
-
     const handleConfirmCheckIn = async () => {
         if (inputCode !== reservation.checkinCode) {
             toast({ variant: 'destructive', title: 'Código de Check-in Inválido' });
@@ -77,27 +68,6 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
         }
     };
     
-    if (isCheckinExpired) {
-         return (
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Check-in Expirado</DialogTitle>
-                </DialogHeader>
-                <div className="py-4">
-                    <Alert variant="destructive">
-                      <AlertTitle>Tempo de Tolerância Excedido</AlertTitle>
-                      <AlertDescription>
-                        O cliente não chegou dentro dos 15 minutos de tolerância. O check-in não é mais possível para esta reserva.
-                      </AlertDescription>
-                    </Alert>
-                </div>
-                 <DialogFooter>
-                    <DialogClose asChild><Button variant="secondary">Fechar</Button></DialogClose>
-                </DialogFooter>
-            </DialogContent>
-        )
-    }
-
     return (
         <DialogContent>
             <DialogHeader>
@@ -213,6 +183,7 @@ export default function OwnerReservationsPage() {
   
   const reservations = useMemo(() => {
     if (!rawReservations) return [];
+    // Sort locally after fetching
     return [...rawReservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
   }, [rawReservations]);
 
@@ -368,14 +339,14 @@ export default function OwnerReservationsPage() {
                                 {statusConfig[reservation.status].text}
                                 </Badge>
                             </div>
-                            <CardDescription className='space-y-1 pt-2'>
+                            <div className='text-sm text-muted-foreground space-y-1 pt-2'>
                                 <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> Pedido: {reservation.orderNumber}</p>
                                 <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
                                 {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
                                 day: '2-digit', month: 'long', year: 'numeric',
                                 })} às {reservation.reservationTime}
                                 </p>
-                            </CardDescription>
+                            </div>
                         </CardHeader>
                         <CardContent className="flex-1">
                             {pendingItems.length > 0 && (
