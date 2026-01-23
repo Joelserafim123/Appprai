@@ -104,8 +104,15 @@ export default function TentPage() {
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
 
   // Check for active reservations
-  const userReservationsQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, 'reservations'), where('userId', '==', user.uid)) : null, [firestore, user]);
+  const userReservationsQuery = useMemoFirebase(() => {
+    if (firestore && user && !user.isAnonymous && user.uid) {
+        return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
+    }
+    return null;
+  }, [firestore, user]);
+  
   const { data: userReservations, isLoading: loadingActiveReservation } = useCollection<Reservation>(userReservationsQuery);
+  
   const hasActiveReservation = useMemo(() => {
     if (!userReservations) return false;
     return userReservations.some(r => ['confirmed', 'checked-in', 'payment-pending'].includes(r.status));
