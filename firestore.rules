@@ -22,19 +22,6 @@ service cloud.firestore {
       return request.auth.uid == doc.data.ownerId;
     }
 
-    // Generic function to check if a query is securely filtered to the user's data on a specific field.
-    function isQueryingOwnData(field) {
-      return 'where' in request.query &&
-             request.query.where.filter(w =>
-               w[0] == field && w[1] == '==' && w[2] == request.auth.uid
-             ).size() > 0;
-    }
-
-    // Checks if a list query for reservations is securely filtered.
-    function isQueryingOwnReservations() {
-      return isQueryingOwnData('userId') || isQueryingOwnData('tentOwnerId');
-    }
-    
     // Checks if a list query for chats is securely filtered.
     function isQueryingOwnChats() {
         return 'where' in request.query &&
@@ -75,7 +62,11 @@ service cloud.firestore {
     match /reservations/{reservationId} {
       allow get, update: if isSignedIn() && isParticipant(resource);
       // Allow listing reservations only if the query is securely filtered by the current user's UID.
-      allow list: if isSignedIn() && isQueryingOwnReservations();
+      allow list: if isSignedIn() &&
+                     'where' in request.query && (
+                       request.query.where.filter(w => w[0] == 'userId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0 ||
+                       request.query.where.filter(w => w[0] == 'tentOwnerId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0
+                     );
       allow create: if isSignedIn() && isParticipant(request.resource);
       // For simplicity, we are allowing any participant to update. Deletion is disabled.
       allow delete: if false; // Prevent accidental deletion. Status should be updated to 'cancelled'.
