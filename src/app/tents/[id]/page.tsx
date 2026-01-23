@@ -26,6 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
 import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch } from 'firebase/firestore';
