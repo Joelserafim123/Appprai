@@ -39,40 +39,36 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
     defaultValues: item ? { ...item } : { name: '', description: '', price: 0, category: 'Petiscos' },
   });
 
-  const onSubmit = async (data: MenuItemFormData) => {
+  const onSubmit = (data: MenuItemFormData) => {
     if (!db) return;
     setIsSubmitting(true);
 
-    try {
-        const menuItemsCollectionRef = collection(db, 'tents', tent.id, 'menuItems');
-        if (item) {
-            const itemDocRef = doc(menuItemsCollectionRef, item.id);
-            await updateDoc(itemDocRef, data);
-            toast({ title: `Item atualizado com sucesso!` });
-        } else {
-            await addDoc(menuItemsCollectionRef, data);
-            toast({ title: `Item adicionado com sucesso!` });
-        }
+    const menuItemsCollectionRef = collection(db, 'tents', tent.id, 'menuItems');
+    const promise = item
+      ? updateDoc(doc(menuItemsCollectionRef, item.id), data)
+      : addDoc(menuItemsCollectionRef, data);
+
+    promise
+      .then(() => {
+        toast({ title: `Item ${item ? 'atualizado' : 'adicionado'} com sucesso!` });
         onFinished();
-    } catch(error: any) {
-        console.error("Error saving menu item: ", error);
-        toast({
-            variant: "destructive",
-            title: "Erro ao salvar item",
-            description: "Não foi possível salvar o item. Verifique suas permissões e tente novamente.",
-        });
+      })
+      .catch((error) => {
         const isUpdate = !!item;
-        const path = isUpdate ? doc(collection(db, 'tents', tent.id, 'menuItems'), item!.id).path : collection(db, 'tents', tent.id, 'menuItems').path;
+        const path = isUpdate
+          ? doc(collection(db, 'tents', tent.id, 'menuItems'), item!.id).path
+          : collection(db, 'tents', tent.id, 'menuItems').path;
 
         const permissionError = new FirestorePermissionError({
-            path,
-            operation: isUpdate ? 'update' : 'create',
-            requestResourceData: data,
+          path,
+          operation: isUpdate ? 'update' : 'create',
+          requestResourceData: data,
         });
         errorEmitter.emit('permission-error', permissionError);
-    } finally {
+      })
+      .finally(() => {
         setIsSubmitting(false);
-    }
+      });
   };
 
   return (
@@ -143,26 +139,22 @@ export default function MenuPage() {
   const { data: menu, isLoading: menuLoading } = useCollection<MenuItem>(menuQuery);
   
   
-  const deleteItem = async (itemId: string) => {
+  const deleteItem = (itemId: string) => {
     if (!tent || !db) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     const itemDocRef = doc(db, 'tents', tent.id, 'menuItems', itemId);
-    try {
-        await deleteDoc(itemDocRef);
-        toast({ title: 'Item apagado com sucesso!' });
-    } catch (error: any) {
-        console.error("Error deleting item:", error);
-        toast({
-            variant: "destructive",
-            title: "Erro ao apagar item",
-            description: "Não foi possível apagar o item. Verifique suas permissões e tente novamente.",
+    
+    deleteDoc(itemDocRef)
+        .then(() => {
+            toast({ title: 'Item apagado com sucesso!' });
+        })
+        .catch((error) => {
+            const permissionError = new FirestorePermissionError({
+                path: itemDocRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
         });
-        const permissionError = new FirestorePermissionError({
-            path: itemDocRef.path,
-            operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
   }
 
   const handleFormFinished = () => {

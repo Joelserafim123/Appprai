@@ -37,36 +37,32 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
     defaultValues: item ? { ...item } : { name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
   });
 
-  const onSubmit = async (data: RentalItemFormData) => {
+  const onSubmit = (data: RentalItemFormData) => {
     if (!db) return;
     setIsSubmitting(true);
     
-    try {
-        const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
-        if (item) {
-            const itemDocRef = doc(rentalItemsCollectionRef, item.id);
-            await updateDoc(itemDocRef, data);
-            toast({ title: 'Item de aluguel atualizado com sucesso!' });
-        } else {
-            await addDoc(rentalItemsCollectionRef, data);
-            toast({ title: 'Item de aluguel adicionado com sucesso!' });
-        }
+    const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
+    
+    const promise = item
+        ? updateDoc(doc(rentalItemsCollectionRef, item.id), data)
+        : addDoc(rentalItemsCollectionRef, data);
 
-        if (data.name === 'Kit Guarda-sol + 2 Cadeiras' || (item && item.name === 'Kit Guarda-sol + 2 Cadeiras')) {
-            await updateTentAvailability();
-        }
-
-        onFinished();
-    } catch (error: any) {
-        console.error("Error saving rental item:", error);
-        toast({
-            variant: "destructive",
-            title: "Erro ao salvar item",
-            description: "Não foi possível salvar o item. Verifique suas permissões e tente novamente.",
-        });
+    promise.then(() => {
+        toast({ title: `Item de aluguel ${item ? 'atualizado' : 'adicionado'} com sucesso!` });
         
+        const promiseChain = (data.name === 'Kit Guarda-sol + 2 Cadeiras' || (item && item.name === 'Kit Guarda-sol + 2 Cadeiras'))
+            ? updateTentAvailability()
+            : Promise.resolve();
+
+        promiseChain.then(() => {
+            onFinished();
+        });
+    })
+    .catch((error) => {
         const isUpdate = !!item;
-        const path = isUpdate ? doc(collection(db, 'tents', tent.id, 'rentalItems'), item!.id).path : collection(db, 'tents', tent.id, 'rentalItems').path;
+        const path = isUpdate 
+            ? doc(collection(db, 'tents', tent.id, 'rentalItems'), item!.id).path 
+            : collection(db, 'tents', tent.id, 'rentalItems').path;
         
         const permissionError = new FirestorePermissionError({
             path,
@@ -74,9 +70,10 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
             requestResourceData: data,
         });
         errorEmitter.emit('permission-error', permissionError);
-    } finally {
+    })
+    .finally(() => {
         setIsSubmitting(false);
-    }
+    });
   };
 
 
@@ -145,47 +142,44 @@ export default function RentalItemsPage() {
     if (!db || !tent) return;
     const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
     const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
-    const querySnapshot = await getDocs(q);
-    const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
     
-    const tentDocRef = doc(db, 'tents', tent.id);
-    try {
-        await updateDoc(tentDocRef, { hasAvailableKits: hasAvailable });
-    } catch(error) {
-        console.error("Error updating tent availability", error);
-        const permissionError = new FirestorePermissionError({
-            path: tentDocRef.path,
-            operation: 'update',
-            requestResourceData: { hasAvailableKits: hasAvailable }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
+    return getDocs(q).then(querySnapshot => {
+        const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
+        const tentDocRef = doc(db, 'tents', tent.id);
+        
+        return updateDoc(tentDocRef, { hasAvailableKits: hasAvailable })
+            .catch(error => {
+                console.error("Error updating tent availability", error);
+                const permissionError = new FirestorePermissionError({
+                    path: tentDocRef.path,
+                    operation: 'update',
+                    requestResourceData: { hasAvailableKits: hasAvailable }
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
+    });
   }, [db, tent]);
 
-  const deleteItem = async (itemToDelete: RentalItem) => {
+  const deleteItem = (itemToDelete: RentalItem) => {
     if (!tent || !db) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
     const itemDocRef = doc(db, 'tents', tent.id, 'rentalItems', itemToDelete.id);
-    try {
-        await deleteDoc(itemDocRef);
-        toast({ title: 'Item apagado com sucesso!' });
-        if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
-            await updateTentAvailability();
-        }
-    } catch (error: any) {
-        console.error("Error deleting item:", error);
-        toast({
-            variant: "destructive",
-            title: "Erro ao apagar item",
-            description: "Não foi possível apagar o item. Verifique suas permissões e tente novamente.",
+
+    deleteDoc(itemDocRef)
+        .then(() => {
+            toast({ title: 'Item apagado com sucesso!' });
+            if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
+                updateTentAvailability();
+            }
+        })
+        .catch((error) => {
+            const permissionError = new FirestorePermissionError({
+                path: itemDocRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
         });
-        const permissionError = new FirestorePermissionError({
-            path: itemDocRef.path,
-            operation: 'delete',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-    }
   }
 
 
