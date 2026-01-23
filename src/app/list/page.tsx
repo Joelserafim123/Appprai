@@ -7,7 +7,6 @@ import { useEffect } from 'react';
 import type { Tent as TentType } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Link from 'next/link';
 import { useSearchStore } from '@/hooks/use-search';
 import { Button } from '@/components/ui/button';
 import { collection } from 'firebase/firestore';
@@ -82,9 +81,9 @@ export default function ListPage() {
                 </CardContent>
                 <div className="p-6 bg-muted/50">
                     <Button asChild className="w-full">
-                        <Link href={`/tents/${tent.id}`}>
+                        <a href={`/tents/${tent.id}`}>
                             Ver Cardápio e Alugar
-                        </Link>
+                        </a>
                     </Button>
                 </div>
             </Card>
