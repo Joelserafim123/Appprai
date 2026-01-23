@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase, useStorage } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Info, Camera } from 'lucide-react';
+import { Loader2, Info, Camera, User as UserIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -153,7 +153,7 @@ export default function SettingsPage() {
         neighborhood: data.neighborhood,
         city: data.city,
         state: data.state,
-        photoURL: newPhotoURL
+        photoURL: newPhotoURL || null
       };
       
       const userDocRef = doc(firestore, "users", user.uid);
@@ -162,7 +162,7 @@ export default function SettingsPage() {
           setDoc(userDocRef, firestoreData, { merge: true }),
           updateProfile(currentUser, { 
             displayName: data.displayName,
-            photoURL: newPhotoURL,
+            photoURL: newPhotoURL || null,
          })
       ]);
   
@@ -229,8 +229,8 @@ export default function SettingsPage() {
                 <div className='relative'>
                     <Avatar className="h-24 w-24">
                         <AvatarImage src={photoPreview || user.photoURL || ''} alt={user.displayName || "User"} />
-                        <AvatarFallback className="text-3xl">
-                            {getInitials(user.displayName)}
+                        <AvatarFallback>
+                           <UserIcon className="h-12 w-12 text-muted-foreground" />
                         </AvatarFallback>
                     </Avatar>
                     <Button type="button" size="icon" className="absolute -bottom-2 -right-2 rounded-full h-8 w-8" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>

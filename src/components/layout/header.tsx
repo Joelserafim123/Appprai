@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List, MessageSquare } from 'lucide-react';
+import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List, MessageSquare, User as UserIcon } from 'lucide-react';
 import { useUser, useFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -140,7 +140,7 @@ export function Header() {
                      <Avatar className="h-8 w-8">
                         <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
                         <AvatarFallback>
-                            {getInitials(user.displayName)}
+                            <UserIcon className="h-4 w-4" />
                         </AvatarFallback>
                     </Avatar>
                     <span className="sr-only">Abrir menu do usuário</span>
