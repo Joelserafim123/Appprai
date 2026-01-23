@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { MenuItem, Tent } from '@/lib/types';
 import { collection, query, where, limit, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const menuItemSchema = z.object({
@@ -54,7 +56,15 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
         onFinished();
     } catch(error) {
         console.error("Error saving menu item: ", error);
-        toast({ variant: 'destructive', title: `Erro ao salvar item`, description: 'Por favor, tente novamente.' });
+        const isUpdate = !!item;
+        const path = isUpdate ? doc(collection(db, 'tents', tent.id, 'menuItems'), item!.id).path : collection(db, 'tents', tent.id, 'menuItems').path;
+
+        const permissionError = new FirestorePermissionError({
+            path,
+            operation: isUpdate ? 'update' : 'create',
+            requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
     } finally {
         setIsSubmitting(false);
     }
@@ -131,12 +141,17 @@ export default function MenuPage() {
   const deleteItem = async (itemId: string) => {
     if (!tent || !db) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
+    const itemDocRef = doc(db, 'tents', tent.id, 'menuItems', itemId);
     try {
-        await deleteDoc(doc(db, 'tents', tent.id, 'menuItems', itemId));
+        await deleteDoc(itemDocRef);
         toast({ title: 'Item apagado com sucesso!' });
     } catch (error) {
         console.error("Error deleting item:", error);
-        toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
+        const permissionError = new FirestorePermissionError({
+            path: itemDocRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     }
   }
 

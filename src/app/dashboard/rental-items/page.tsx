@@ -69,7 +69,6 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
             requestResourceData: data,
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: 'Erro ao salvar item.' });
     } finally {
         setIsSubmitting(false);
     }
@@ -155,9 +154,8 @@ export default function RentalItemsPage() {
             requestResourceData: { hasAvailableKits: hasAvailable }
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: 'Erro ao atualizar disponibilidade da barraca.' });
     }
-  }, [db, tent, toast]);
+  }, [db, tent]);
 
   const deleteItem = async (itemToDelete: RentalItem) => {
     if (!tent || !db) return;
@@ -177,7 +175,6 @@ export default function RentalItemsPage() {
             operation: 'delete',
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
     }
   }
 
