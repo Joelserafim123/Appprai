@@ -22,11 +22,25 @@ service cloud.firestore {
       return request.auth.uid == doc.data.ownerId;
     }
 
-    // Checks if a list query is securely filtered to the user's data
+    // Generic function to check if a query is securely filtered to the user's data on a specific field.
+    function isQueryingOwnData(field) {
+      return 'where' in request.query &&
+             request.query.where.filter(w =>
+               w[0] == field && w[1] == '==' && w[2] == request.auth.uid
+             ).size() > 0;
+    }
+
+    // Checks if a list query for reservations is securely filtered.
     function isQueryingOwnReservations() {
-      return request.query.where.filter(w => 
-        (w[0] == 'userId' || w[0] == 'tentOwnerId') && w[1] == '==' && w[2] == request.auth.uid
-      ).size() > 0;
+      return isQueryingOwnData('userId') || isQueryingOwnData('tentOwnerId');
+    }
+    
+    // Checks if a list query for chats is securely filtered.
+    function isQueryingOwnChats() {
+        return 'where' in request.query &&
+               request.query.where.filter(w => 
+                   w[0] == 'participantIds' && w[1] == 'array-contains' && w[2] == request.auth.uid
+               ).size() > 0;
     }
 
     // Rules for User Profiles
@@ -72,6 +86,7 @@ service cloud.firestore {
     match /chats/{chatId} {
       allow read, update: if isSignedIn() && isParticipant(resource);
       allow create: if isSignedIn() && isParticipant(request.resource);
+      allow list: if isSignedIn() && isQueryingOwnChats();
       
       match /messages/{messageId} {
         allow read, create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/chats/$(chatId)));
