@@ -107,7 +107,7 @@ export default function MyReservationsPage() {
                       <Tent className="w-5 h-5"/>
                       {reservation.tentName}
                     </CardTitle>
-                    <CardDescription className="space-y-1 mt-1">
+                    <div className="text-sm text-muted-foreground space-y-1 mt-1">
                       <p className='flex items-center gap-2 text-xs'><User className="w-3 h-3"/> Por: {reservation.tentOwnerName}</p>
                       <p>
                           {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
@@ -116,7 +116,7 @@ export default function MyReservationsPage() {
                           year: 'numeric',
                           })} às {reservation.reservationTime}
                       </p>
-                    </CardDescription>
+                    </div>
                   </div>
                   <div className='text-right space-y-2'>
                       <Badge variant={statusConfig[reservation.status].variant}>
