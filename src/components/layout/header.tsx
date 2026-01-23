@@ -119,7 +119,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 max-w-7xl items-center justify-between">
         <Link href="/" className="flex items-center space-x-2">
-          <Logo userName={user ? `Olá, ${user.displayName?.split(' ')[0]}` : undefined} />
+          <Logo />
         </Link>
         <nav className="flex items-center space-x-4">
            <Button asChild variant="outline">
@@ -132,13 +132,14 @@ export function Header() {
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                  <Button variant="ghost" className="flex h-auto items-center gap-2 rounded-full p-1 pr-3">
                     <Avatar className="h-8 w-8">
                         <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
                         <AvatarFallback className="bg-primary/20 text-primary">
                             <UserIcon className="h-5 w-5" />
                         </AvatarFallback>
                     </Avatar>
+                    <span className="hidden text-sm font-medium sm:inline-block">Olá, {user.displayName?.split(' ')[0]}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
