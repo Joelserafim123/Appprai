@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ const rentalItemSchema = z.object({
 
 type RentalItemFormData = z.infer<typeof rentalItemSchema>;
 
-function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?: RentalItem, onFinished: () => void, hasKit: boolean }) {
+function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability }: { tent: Tent; item?: RentalItem, onFinished: () => void, hasKit: boolean, updateTentAvailability: () => Promise<void> }) {
   const { toast } = useToast();
   const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,62 +37,41 @@ function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?:
     defaultValues: item ? { ...item } : { name: hasKit ? 'Cadeira Adicional' : 'Kit Guarda-sol + 2 Cadeiras', price: 0, quantity: 1 },
   });
 
-  const updateTentAvailability = async () => {
-    if (!db) return;
-    const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
-    const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
-    const querySnapshot = await getDocs(q);
-    const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
-    
-    await updateDoc(doc(db, 'tents', tent.id), { hasAvailableKits: hasAvailable });
-  };
-
-
-  const onSubmit = (data: RentalItemFormData) => {
+  const onSubmit = async (data: RentalItemFormData) => {
     if (!db) return;
     setIsSubmitting(true);
-    const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
+    
+    try {
+        const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
+        if (item) {
+            const itemDocRef = doc(rentalItemsCollectionRef, item.id);
+            await updateDoc(itemDocRef, data);
+            toast({ title: 'Item de aluguel atualizado com sucesso!' });
+        } else {
+            await addDoc(rentalItemsCollectionRef, data);
+            toast({ title: 'Item de aluguel adicionado com sucesso!' });
+        }
 
-    const afterSave = async () => {
         if (data.name === 'Kit Guarda-sol + 2 Cadeiras' || (item && item.name === 'Kit Guarda-sol + 2 Cadeiras')) {
             await updateTentAvailability();
         }
-        onFinished();
-    };
 
-    if (item) {
-        const itemDocRef = doc(rentalItemsCollectionRef, item.id);
-        updateDoc(itemDocRef, data)
-            .then(async () => {
-                toast({ title: 'Item de aluguel atualizado com sucesso!' });
-                await afterSave();
-                setIsSubmitting(false);
-            })
-            .catch((error) => {
-                const permissionError = new FirestorePermissionError({
-                    path: itemDocRef.path,
-                    operation: 'update',
-                    requestResourceData: data,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                setIsSubmitting(false);
-            });
-    } else {
-        addDoc(rentalItemsCollectionRef, data)
-            .then(async () => {
-                toast({ title: 'Item de aluguel adicionado com sucesso!' });
-                await afterSave();
-                setIsSubmitting(false);
-            })
-            .catch((error) => {
-                const permissionError = new FirestorePermissionError({
-                    path: rentalItemsCollectionRef.path,
-                    operation: 'create',
-                    requestResourceData: data,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                setIsSubmitting(false);
-            });
+        onFinished();
+    } catch (error) {
+        console.error("Error saving rental item:", error);
+        
+        const isUpdate = !!item;
+        const path = isUpdate ? doc(collection(db, 'tents', tent.id, 'rentalItems'), item!.id).path : collection(db, 'tents', tent.id, 'rentalItems').path;
+        
+        const permissionError = new FirestorePermissionError({
+            path,
+            operation: isUpdate ? 'update' : 'create',
+            requestResourceData: data,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: 'destructive', title: 'Erro ao salvar item.' });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -158,29 +137,48 @@ export default function RentalItemsPage() {
   );
   const { data: rentalItems, isLoading: rentalsLoading } = useCollection<RentalItem>(rentalItemsQuery);
 
-  const deleteItem = (itemToDelete: RentalItem) => {
+  const updateTentAvailability = useCallback(async () => {
+    if (!db || !tent) return;
+    const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
+    const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
+    const querySnapshot = await getDocs(q);
+    const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
+    
+    const tentDocRef = doc(db, 'tents', tent.id);
+    try {
+        await updateDoc(tentDocRef, { hasAvailableKits: hasAvailable });
+    } catch(error) {
+        console.error("Error updating tent availability", error);
+        const permissionError = new FirestorePermissionError({
+            path: tentDocRef.path,
+            operation: 'update',
+            requestResourceData: { hasAvailableKits: hasAvailable }
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: 'destructive', title: 'Erro ao atualizar disponibilidade da barraca.' });
+    }
+  }, [db, tent, toast]);
+
+  const deleteItem = async (itemToDelete: RentalItem) => {
     if (!tent || !db) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
     const itemDocRef = doc(db, 'tents', tent.id, 'rentalItems', itemToDelete.id);
-    deleteDoc(itemDocRef)
-        .then(async () => {
-            toast({ title: 'Item apagado com sucesso!' });
-            if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
-                const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
-                const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
-                const querySnapshot = await getDocs(q);
-                const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
-                await updateDoc(doc(db, 'tents', tent.id), { hasAvailableKits: hasAvailable });
-            }
-        })
-        .catch((error) => {
-            const permissionError = new FirestorePermissionError({
-                path: itemDocRef.path,
-                operation: 'delete',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+    try {
+        await deleteDoc(itemDocRef);
+        toast({ title: 'Item apagado com sucesso!' });
+        if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
+            await updateTentAvailability();
+        }
+    } catch (error) {
+        console.error("Error deleting item:", error);
+        const permissionError = new FirestorePermissionError({
+            path: itemDocRef.path,
+            operation: 'delete',
         });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: 'destructive', title: 'Erro ao apagar item.' });
+    }
   }
 
 
@@ -289,7 +287,7 @@ export default function RentalItemsPage() {
               <DialogHeader>
                   <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
               </DialogHeader>
-              <RentalItemForm tent={tent} item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} />
+              <RentalItemForm tent={tent} item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} updateTentAvailability={updateTentAvailability} />
           </DialogContent>
         }
     </Dialog>
