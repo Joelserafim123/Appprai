@@ -23,6 +23,7 @@ import {
   getFirestore,
 } from 'firebase/firestore';
 import { Auth, User, getAuth, onAuthStateChanged } from 'firebase/auth';
+import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import type { UserProfile, UserData } from '@/lib/types';
 import { firebaseConfig } from './config';
@@ -54,6 +55,7 @@ export function getSdks(firebaseApp: FirebaseApp) {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp),
+    storage: getStorage(firebaseApp),
   };
 }
 
@@ -62,6 +64,7 @@ interface FirebaseContextState {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
   auth: Auth;
+  storage: FirebaseStorage;
 }
 
 interface UserContextType {
@@ -83,14 +86,16 @@ export const FirebaseProvider: React.FC<{
   firebaseApp: FirebaseApp;
   firestore: Firestore;
   auth: Auth;
-}> = ({ children, firebaseApp, firestore, auth }) => {
+  storage: FirebaseStorage;
+}> = ({ children, firebaseApp, firestore, auth, storage }) => {
   const contextValue = useMemo(
     () => ({
       firebaseApp,
       firestore,
       auth,
+      storage,
     }),
-    [firebaseApp, firestore, auth]
+    [firebaseApp, firestore, auth, storage]
   );
 
   return (
@@ -219,6 +224,8 @@ export const useUser = (): UserContextType => {
 export const useAuth = (): Auth => useFirebase().auth;
 export const useFirestore = (): Firestore => useFirebase().firestore;
 export const useFirebaseApp = (): FirebaseApp => useFirebase().firebaseApp;
+export const useStorage = (): FirebaseStorage => useFirebase().storage;
+
 
 export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T {
   const memoized = useMemo(factory, deps);
