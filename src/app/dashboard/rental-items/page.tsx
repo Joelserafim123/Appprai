@@ -16,6 +16,8 @@ import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { collection, query, where, limit, doc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Tent, RentalItem } from '@/lib/types';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 const rentalItemSchema = z.object({
   name: z.enum(['Kit Guarda-sol + 2 Cadeiras', 'Cadeira Adicional'], { required_error: 'O nome é obrigatório.' }),
@@ -46,31 +48,54 @@ function RentalItemForm({ tent, item, onFinished, hasKit }: { tent: Tent; item?:
   };
 
 
-  const onSubmit = async (data: RentalItemFormData) => {
+  const onSubmit = (data: RentalItemFormData) => {
     if (!db) return;
     setIsSubmitting(true);
-    try {
-        const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
-        if (item) {
-            await updateDoc(doc(rentalItemsCollectionRef, item.id), data);
-            toast({ title: 'Item de aluguel atualizado com sucesso!' });
-        } else {
-            await addDoc(rentalItemsCollectionRef, data);
-            toast({ title: 'Item de aluguel adicionado com sucesso!' });
-        }
-        
-        if (data.name === 'Kit Guarda-sol + 2 Cadeiras') {
+    const rentalItemsCollectionRef = collection(db, 'tents', tent.id, 'rentalItems');
+
+    const afterSave = async () => {
+        if (data.name === 'Kit Guarda-sol + 2 Cadeiras' || (item && item.name === 'Kit Guarda-sol + 2 Cadeiras')) {
             await updateTentAvailability();
         }
         onFinished();
+    };
 
-    } catch(error) {
-        console.error("Error saving rental item: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao salvar item', description: 'Por favor tente novamente.' });
-    } finally {
-        setIsSubmitting(false);
+    if (item) {
+        const itemDocRef = doc(rentalItemsCollectionRef, item.id);
+        updateDoc(itemDocRef, data)
+            .then(async () => {
+                toast({ title: 'Item de aluguel atualizado com sucesso!' });
+                await afterSave();
+                setIsSubmitting(false);
+            })
+            .catch((error) => {
+                const permissionError = new FirestorePermissionError({
+                    path: itemDocRef.path,
+                    operation: 'update',
+                    requestResourceData: data,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                setIsSubmitting(false);
+            });
+    } else {
+        addDoc(rentalItemsCollectionRef, data)
+            .then(async () => {
+                toast({ title: 'Item de aluguel adicionado com sucesso!' });
+                await afterSave();
+                setIsSubmitting(false);
+            })
+            .catch((error) => {
+                const permissionError = new FirestorePermissionError({
+                    path: rentalItemsCollectionRef.path,
+                    operation: 'create',
+                    requestResourceData: data,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                setIsSubmitting(false);
+            });
     }
   };
+
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -133,25 +158,31 @@ export default function RentalItemsPage() {
   );
   const { data: rentalItems, isLoading: rentalsLoading } = useCollection<RentalItem>(rentalItemsQuery);
 
-  const deleteItem = async (itemToDelete: RentalItem) => {
+  const deleteItem = (itemToDelete: RentalItem) => {
     if (!tent || !db) return;
     if (!confirm('Tem certeza que deseja apagar este item?')) return;
     
-    try {
-        await deleteDoc(doc(db, 'tents', tent.id, 'rentalItems', itemToDelete.id));
-        if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
-            const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
-            const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
-            const querySnapshot = await getDocs(q);
-            const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
-            await updateDoc(doc(db, 'tents', tent.id), { hasAvailableKits: hasAvailable });
-        }
-        toast({ title: 'Item apagado com sucesso!' });
-    } catch(error) {
-        console.error("Error deleting rental item: ", error);
-        toast({ title: 'Erro ao apagar item', variant: 'destructive' });
-    }
+    const itemDocRef = doc(db, 'tents', tent.id, 'rentalItems', itemToDelete.id);
+    deleteDoc(itemDocRef)
+        .then(async () => {
+            toast({ title: 'Item apagado com sucesso!' });
+            if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
+                const rentalItemsRef = collection(db, 'tents', tent.id, 'rentalItems');
+                const q = query(rentalItemsRef, where('name', '==', 'Kit Guarda-sol + 2 Cadeiras'));
+                const querySnapshot = await getDocs(q);
+                const hasAvailable = querySnapshot.docs.some(doc => doc.data().quantity > 0);
+                await updateDoc(doc(db, 'tents', tent.id), { hasAvailableKits: hasAvailable });
+            }
+        })
+        .catch((error) => {
+            const permissionError = new FirestorePermissionError({
+                path: itemDocRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   }
+
 
   const handleFormFinished = () => {
     setIsFormOpen(false);
