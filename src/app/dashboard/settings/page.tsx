@@ -22,11 +22,11 @@ const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "CPF inválido. Use o formato 000.000.000-00." }),
   cep: z.string().refine(value => /^\d{5}-\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
-  street: z.string().optional(),
-  number: z.string().optional(),
-  neighborhood: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
+  street: z.string().optional().or(z.literal('')),
+  number: z.string().optional().or(z.literal('')),
+  neighborhood: z.string().optional().or(z.literal('')),
+  city: z.string().optional().or(z.literal('')),
+  state: z.string().optional().or(z.literal('')),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -77,7 +77,7 @@ export default function SettingsPage() {
     value = value.replace(/(\d{3})(\d)/, "$1.$2");
     value = value.replace(/(\d{3})(\d)/, "$1.$2");
     value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-    setValue('cpf', value, { shouldValidate: true });
+    setValue('cpf', value, { shouldValidate: true, shouldDirty: true });
   }, [setValue]);
 
 
@@ -85,17 +85,17 @@ export default function SettingsPage() {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 8) value = value.slice(0, 8);
     
-    setValue('cep', value, { shouldValidate: true }); // Update unformatted value
+    setValue('cep', value, { shouldValidate: true, shouldDirty: true }); // Update unformatted value
 
     if (value.length === 8) {
       try {
         const res = await fetch(`https://viacep.com.br/ws/${value}/json/`);
         const data = await res.json();
         if (!data.erro) {
-          setValue('street', data.logradouro, { shouldTouch: true });
-          setValue('neighborhood', data.bairro, { shouldTouch: true });
-          setValue('city', data.localidade, { shouldTouch: true });
-          setValue('state', data.uf, { shouldTouch: true });
+          setValue('street', data.logradouro, { shouldTouch: true, shouldDirty: true });
+          setValue('neighborhood', data.bairro, { shouldTouch: true, shouldDirty: true });
+          setValue('city', data.localidade, { shouldTouch: true, shouldDirty: true });
+          setValue('state', data.uf, { shouldTouch: true, shouldDirty: true });
           toast({ title: "Endereço encontrado!" });
         } else {
           toast({ variant: 'destructive', title: "CEP não encontrado." });
@@ -122,14 +122,14 @@ export default function SettingsPage() {
       
       const firestoreData: Partial<UserProfile> = {
         displayName: data.displayName,
-        profileComplete: true, // Mark profile as complete on save
+        profileComplete: true,
         cpf: data.cpf.replace(/\D/g, ''),
-        cep: data.cep,
-        street: data.street,
-        number: data.number,
-        neighborhood: data.neighborhood,
-        city: data.city,
-        state: data.state,
+        cep: data.cep?.replace(/\D/g, '') || null,
+        street: data.street || null,
+        number: data.number || null,
+        neighborhood: data.neighborhood || null,
+        city: data.city || null,
+        state: data.state || null,
       };
       
       const userDocRef = doc(firestore, "users", user.uid);
@@ -199,7 +199,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24">
+                <Avatar className="h-24 w-24 rounded-lg">
                     <AvatarImage src={user.photoURL || ''} alt={user.displayName || "User"} />
                     <AvatarFallback>
                         <UserIcon className="h-12 w-12 text-muted-foreground" />
@@ -207,7 +207,7 @@ export default function SettingsPage() {
                 </Avatar>
 
                 <div className="space-y-2">
-                    <p className="text-lg font-semibold">{user.displayName?.split(' ')[0]}</p>
+                    <p className="text-lg font-semibold">{user.displayName}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                     {user.role && <p className="text-xs font-semibold text-primary capitalize py-1 px-2 bg-primary/10 rounded-full inline-block">{user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</p>}
                 </div>
