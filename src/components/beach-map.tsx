@@ -4,7 +4,6 @@ import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2, MapPin } from "lucide-react";
-import { useRouter } from 'next/navigation';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
@@ -56,7 +55,6 @@ const haversineDistance = (
 
 
 export function BeachMap({ tents }: { tents: Tent[] }) {
-  const router = useRouter();
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [isLocating, setIsLocating] = useState(false);
@@ -256,12 +254,8 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
               )}>
                 {selectedTent.hasAvailableKits ? 'Aluguéis Disponíveis' : 'Aluguéis Indisponíveis'}
               </p>
-              <Button 
-                size="sm" 
-                className="w-full mt-2"
-                onClick={() => router.push(`/tents/${selectedTent.id}`)}
-              >
-                Ver Cardápio e Alugar
+              <Button asChild size="sm" className="w-full mt-2">
+                  <a href={`/tents/${selectedTent.id}`}>Ver Cardápio e Alugar</a>
               </Button>
             </div>
           </InfoWindow>
