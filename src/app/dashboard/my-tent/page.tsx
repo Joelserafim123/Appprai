@@ -102,6 +102,29 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     libraries: ['marker']
   });
 
+  const handleGetCurrentLocation = useCallback((panMap = false) => {
+    if(navigator.geolocation) {
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition((position) => {
+            const newLocation = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+            };
+            setValue('location', newLocation, { shouldValidate: true });
+            if (panMap) {
+                setMapCenter({ lat: newLocation.latitude, lng: newLocation.longitude });
+            }
+            toast({ title: "Localização GPS obtida com sucesso!" });
+            setIsLocating(false);
+        }, (error) => {
+            toast({ variant: 'destructive', title: "Erro ao obter localização", description: "Por favor, habilite a permissão de localização no seu navegador." });
+            setIsLocating(false);
+        });
+    } else {
+        toast({ variant: 'destructive', title: "Erro de localização", description: "Geolocalização não é suportada neste navegador." });
+    }
+  }, [setValue, toast]);
+
   useEffect(() => {
     if (existingTent) {
       reset({
@@ -114,6 +137,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       });
       if (existingTent.location) {
         setMapCenter({ lat: existingTent.location.latitude, lng: existingTent.location.longitude });
+      } else {
+        handleGetCurrentLocation(true);
       }
     } else {
         reset({
@@ -126,7 +151,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         });
         handleGetCurrentLocation(true);
     }
-  }, [existingTent, reset]);
+  }, [existingTent, reset, handleGetCurrentLocation]);
   
   const daysOfWeek = [
       { id: 'sunday', label: 'Domingo' },
@@ -151,47 +176,23 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   }, [setValue]);
 
 
-  const handleGetCurrentLocation = (panMap = false) => {
-    if(navigator.geolocation) {
-        setIsLocating(true);
-        navigator.geolocation.getCurrentPosition((position) => {
-            const newLocation = {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-            };
-            setValue('location', newLocation, { shouldValidate: true });
-            if (panMap) {
-                setMapCenter({ lat: newLocation.latitude, lng: newLocation.longitude });
-            }
-            toast({ title: "Localização GPS obtida com sucesso!" });
-            setIsLocating(false);
-        }, (error) => {
-            toast({ variant: 'destructive', title: "Erro ao obter localização", description: "Por favor, habilite a permissão de localização no seu navegador." });
-            setIsLocating(false);
-        });
-    } else {
-        toast({ variant: 'destructive', title: "Erro de localização", description: "Geolocalização não é suportada neste navegador." });
-    }
-  }
-
   const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user) return;
     setIsSubmitting(true);
 
     try {
-        if(existingTent) {
-            // Update
+        const dataToSave = { ...data };
+        if (existingTent) {
             const tentRef = doc(firestore, 'tents', existingTent.id);
-            await updateDoc(tentRef, data);
+            await updateDoc(tentRef, dataToSave);
             toast({ title: "Barraca atualizada com sucesso!" });
         } else {
-            // Create
             const tentsCollection = collection(firestore, 'tents');
             await addDoc(tentsCollection, {
-                ...data,
+                ...dataToSave,
                 ownerId: user.uid,
                 ownerName: user.displayName,
-                hasAvailableKits: false // default value
+                hasAvailableKits: false
             });
             toast({ title: "Barraca cadastrada com sucesso!" });
         }
@@ -215,7 +216,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             <GoogleMap
                 mapContainerStyle={mapContainerStyle}
                 center={mapCenter}
-                zoom={18}
+                zoom={16}
                 mapTypeId='satellite'
                 onClick={onMapClick}
                 options={{
