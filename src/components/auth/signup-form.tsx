@@ -17,7 +17,6 @@ import type { UserProfile } from "@/lib/types"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { SocialLogins } from "./social-logins"
 import { FirebaseError } from "firebase/app"
 
 
@@ -151,18 +150,6 @@ export function SignUpForm() {
           Cadastrar com Email
         </Button>
       </form>
-       <div className="relative pt-4">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-2 text-muted-foreground">
-            Ou
-          </span>
-        </div>
-      </div>
-
-      <SocialLogins role={role} />
     </>
   )
 }
