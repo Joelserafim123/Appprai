@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -337,19 +337,29 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1">
-                    <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 mt-4"><History className="w-4 h-4"/> Itens do Pedido</h4>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                        {reservation.items.map((item, index) => (
-                            <li key={index} className="flex justify-between">
-                                <span>{item.quantity}x {item.name}</span>
-                                <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
-                            </li>
-                        ))}
-                    </ul>
-                    <div className="mt-4 pt-4 border-t text-right">
-                        <p className="text-sm font-medium text-muted-foreground">Total</p>
-                        <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
-                    </div>
+                    {['checked-in', 'payment-pending', 'completed'].includes(reservation.status) ? (
+                        <>
+                            <h4 className="flex items-center gap-2 text-sm font-semibold mb-2"><History className="w-4 h-4"/> Itens do Pedido</h4>
+                            <ul className="space-y-2 text-sm text-muted-foreground">
+                                {reservation.items.map((item, index) => (
+                                    <li key={index} className="flex justify-between">
+                                        <span>{item.quantity}x {item.name}</span>
+                                        <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="mt-4 pt-4 border-t text-right">
+                                <p className="text-sm font-medium text-muted-foreground">Total</p>
+                                <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center text-muted-foreground bg-muted p-4 rounded-md my-4">
+                            <Info className="mx-auto h-6 w-6 mb-2" />
+                            <p className="text-sm font-semibold">Detalhes do pedido ocultos</p>
+                            <p className="text-xs">Os itens e o valor total serão exibidos após o check-in do cliente.</p>
+                        </div>
+                    )}
                 </CardContent>
                 <CardFooter className="flex-col gap-2">
                         {reservation.status === 'confirmed' && (
