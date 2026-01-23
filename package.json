@@ -11,6 +11,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
+  "engines": {
+    "node": "20"
+  },
   "dependencies": {
     "@genkit-ai/google-genai": "latest",
     "@genkit-ai/next": "latest",
