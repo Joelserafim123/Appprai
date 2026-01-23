@@ -22,6 +22,13 @@ service cloud.firestore {
       return request.auth.uid == doc.data.ownerId;
     }
 
+    // Checks if a list query is securely filtered to the user's data
+    function isQueryingOwnReservations() {
+      return request.query.where.filter(w => 
+        (w[0] == 'userId' || w[0] == 'tentOwnerId') && w[1] == '==' && w[2] == request.auth.uid
+      ).size() > 0;
+    }
+
     // Rules for User Profiles
     // Users can read and write their own profile, but cannot list all users.
     match /users/{userId} {
@@ -53,15 +60,10 @@ service cloud.firestore {
     // Only participants (customer and tent owner) can access a reservation.
     match /reservations/{reservationId} {
       allow get, update: if isSignedIn() && isParticipant(resource);
-      // Allow listing reservations only if the query is filtered by the current user's UID
-      // as either the customer (`userId`) or the tent owner (`tentOwnerId`).
-      allow list: if isSignedIn() && 
-                    request.query.where.size() > 0 &&
-                    (request.query.where[0][0] == 'userId' || request.query.where[0][0] == 'tentOwnerId') && 
-                    request.query.where[0][2] == request.auth.uid;
+      // Allow listing reservations only if the query is securely filtered by the current user's UID.
+      allow list: if isSignedIn() && isQueryingOwnReservations();
       allow create: if isSignedIn() && isParticipant(request.resource);
-      // Only the customer can truly cancel (it's an update of status), owner can't delete.
-      // For simplicity, we are allowing any participant to update.
+      // For simplicity, we are allowing any participant to update. Deletion is disabled.
       allow delete: if false; // Prevent accidental deletion. Status should be updated to 'cancelled'.
     }
     
