@@ -236,7 +236,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                 onClick={onMapClick}
                 options={{
                     disableDefaultUI: true,
-                    zoomControl: true,
+                    zoomControl: false,
                     gestureHandling: 'greedy'
                 }}
             >

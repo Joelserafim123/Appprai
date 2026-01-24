@@ -29,7 +29,7 @@ const mapOptions = {
     { "featureType": "water", "elementType": "geometry.fill", "stylers": [{ "color": "#87ceeb" }] }
   ],
   disableDefaultUI: true,
-  zoomControl: true,
+  zoomControl: false,
   gestureHandling: 'greedy'
 };
 
