@@ -455,20 +455,20 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             <AlertDialog open={!!reservationForNoShow} onOpenChange={(open) => !open && setReservationForNoShow(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar Não Comparecimento?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                         <div className="space-y-4">
-                            <p>Isto irá cancelar a reserva de <span className="font-semibold">{reservationForNoShow?.userName}</span>.</p>
-                            <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
-                                <AlertCircle className="h-5 w-5 text-destructive" />
-                                <div>
-                                    <p className="font-bold">Uma taxa de R$ 3,00 será aplicada ao cliente.</p>
-                                    <p className="text-xs">A taxa será cobrada do cliente na próxima reserva que ele fizer na plataforma.</p>
-                                </div>
+                        <AlertDialogTitle>Confirmar Não Comparecimento?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                           Isto irá cancelar a reserva de <span className="font-semibold">{reservationForNoShow?.userName}</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                     <div className="space-y-4">
+                        <div className="p-3 rounded-md bg-destructive/10 text-destructive-foreground flex items-center gap-3">
+                            <AlertCircle className="h-5 w-5 text-destructive" />
+                            <div>
+                                <div className="font-bold">Uma taxa de R$ 3,00 será aplicada ao cliente.</div>
+                                <div className="text-xs">A taxa será cobrada do cliente na próxima reserva que ele fizer na plataforma.</div>
                             </div>
                         </div>
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isSubmitting}>Voltar</AlertDialogCancel>
                         <AlertDialogAction onClick={handleNoShow} disabled={isSubmitting}>
