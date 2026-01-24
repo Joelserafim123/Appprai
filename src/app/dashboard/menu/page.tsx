@@ -6,6 +6,16 @@ import { Loader2, Utensils, Plus, Trash, Edit } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,7 +34,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 const menuItemSchema = z.object({
   name: z.string().min(2, 'O nome é obrigatório.'),
   description: z.string().optional(),
-  price: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().min(0, 'O preço deve ser positivo.')),
+  price: z.coerce.number().min(0, 'O preço deve ser positivo.'),
   category: z.enum(['Bebidas', 'Petiscos', 'Pratos Principais'], { required_error: 'A categoria é obrigatória.' }),
 });
 
@@ -73,8 +83,8 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
       })
       .catch((error) => {
         const isUpdate = !!item;
-        const path = isUpdate
-          ? doc(collection(db, 'tents', tent.id, 'menuItems'), item!.id).path
+        const path = isUpdate && item
+          ? doc(collection(db, 'tents', tent.id, 'menuItems'), item.id).path
           : collection(db, 'tents', tent.id, 'menuItems').path;
 
         const permissionError = new FirestorePermissionError({
@@ -142,6 +152,8 @@ export default function MenuPage() {
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const tentQuery = useMemoFirebase(
     () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
@@ -156,11 +168,10 @@ export default function MenuPage() {
   );
   const { data: menu, isLoading: menuLoading } = useCollection<MenuItem>(menuQuery);
   
-  
-  const deleteItem = (itemId: string) => {
-    if (!tent || !db) return;
-    if (!confirm('Tem certeza que deseja apagar este item?')) return;
-    const itemDocRef = doc(db, 'tents', tent.id, 'menuItems', itemId);
+  const handleConfirmDelete = () => {
+    if (!tent || !db || !itemToDelete) return;
+    setIsDeleting(true);
+    const itemDocRef = doc(db, 'tents', tent.id, 'menuItems', itemToDelete.id);
     
     deleteDoc(itemDocRef)
         .then(() => {
@@ -172,6 +183,10 @@ export default function MenuPage() {
                 operation: 'delete',
             });
             errorEmitter.emit('permission-error', permissionError);
+        })
+        .finally(() => {
+          setItemToDelete(null);
+          setIsDeleting(false);
         });
   }
 
@@ -224,67 +239,85 @@ export default function MenuPage() {
     }
 
   return (
-    <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <div className="w-full max-w-4xl">
-        <header className="mb-8 flex justify-between items-center">
-            <div>
-            <h1 className="text-3xl font-bold tracking-tight">Meu Cardápio</h1>
-            <p className="text-muted-foreground">Adicione, edite ou remova itens do seu cardápio.</p>
-            </div>
-            <Button onClick={openNewForm}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Item
-            </Button>
-        </header>
+    <>
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <div className="w-full max-w-4xl">
+          <header className="mb-8 flex justify-between items-center">
+              <div>
+              <h1 className="text-3xl font-bold tracking-tight">Meu Cardápio</h1>
+              <p className="text-muted-foreground">Adicione, edite ou remova itens do seu cardápio.</p>
+              </div>
+              <Button onClick={openNewForm}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar Item
+              </Button>
+          </header>
 
-        {menu && menu.length > 0 ? (
-            <div className="space-y-4">
-            {menu.map((item) => (
-                <Card key={item.id}>
-                <CardHeader className='flex-row justify-between items-start'>
-                    <div>
-                        <CardTitle>{item.name}</CardTitle>
-                        <CardDescription>
-                            {item.description}
-                        </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditForm(item)}>
-                            <Edit className='w-4 h-4'/>
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteItem(item.id)}>
-                            <Trash className='w-4 h-4' />
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex justify-between items-end">
-                        <p className="text-sm font-semibold text-primary/80">{item.category}</p>
-                        <p className='font-bold text-lg'>R$ {item.price.toFixed(2)}</p>
-                    </div>
-                </CardContent>
-                </Card>
-            ))}
-            </div>
-        ) : (
-            <div className="text-center py-16 border-2 border-dashed rounded-lg">
-                <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">Seu cardápio está vazio</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Comece adicionando o primeiro item.</p>
-                <Button onClick={openNewForm} className="mt-6">
-                    Adicionar Item ao Cardápio
-                </Button>
-            </div>
-        )}
-        </div>
-        {tent && (
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
-                </DialogHeader>
-                <MenuItemForm key={editingItem?.id || 'new'} tent={tent} item={editingItem} onFinished={handleFormFinished} />
-            </DialogContent>
-        )}
-    </Dialog>
+          {menu && menu.length > 0 ? (
+              <div className="space-y-4">
+              {menu.map((item) => (
+                  <Card key={item.id}>
+                  <CardHeader className='flex-row justify-between items-start'>
+                      <div>
+                          <CardTitle>{item.name}</CardTitle>
+                          <CardDescription>
+                              {item.description}
+                          </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => openEditForm(item)}>
+                              <Edit className='w-4 h-4'/>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
+                              <Trash className='w-4 h-4' />
+                          </Button>
+                      </div>
+                  </CardHeader>
+                  <CardContent>
+                      <div className="flex justify-between items-end">
+                          <p className="text-sm font-semibold text-primary/80">{item.category}</p>
+                          <p className='font-bold text-lg'>R$ {item.price.toFixed(2)}</p>
+                      </div>
+                  </CardContent>
+                  </Card>
+              ))}
+              </div>
+          ) : (
+              <div className="text-center py-16 border-2 border-dashed rounded-lg">
+                  <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">Seu cardápio está vazio</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">Comece adicionando o primeiro item.</p>
+                  <Button onClick={openNewForm} className="mt-6">
+                      Adicionar Item ao Cardápio
+                  </Button>
+              </div>
+          )}
+          </div>
+          {tent && (
+              <DialogContent>
+                  <DialogHeader>
+                      <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
+                  </DialogHeader>
+                  <MenuItemForm key={editingItem?.id || 'new'} tent={tent} item={editingItem} onFinished={handleFormFinished} />
+              </DialogContent>
+          )}
+      </Dialog>
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso irá apagar permanentemente o item "{itemToDelete?.name}" do seu cardápio.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="animate-spin" /> : "Sim, apagar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

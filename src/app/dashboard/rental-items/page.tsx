@@ -6,6 +6,16 @@ import { Loader2, Armchair, Plus, Trash, Edit } from 'lucide-react';
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useForm, Controller } from 'react-hook-form';
@@ -21,8 +31,8 @@ import { errorEmitter } from '@/firebase/error-emitter';
 
 const rentalItemSchema = z.object({
   name: z.enum(['Kit Guarda-sol + 2 Cadeiras', 'Cadeira Adicional'], { required_error: 'O nome é obrigatório.' }),
-  price: z.preprocess((a) => parseFloat(z.string().parse(a)), z.number().min(0, 'O preço deve ser positivo.')),
-  quantity: z.preprocess((a) => parseInt(z.string().parse(a), 10), z.number().min(0, 'A quantidade deve ser positiva.')),
+  price: z.coerce.number().min(0, 'O preço deve ser positivo.'),
+  quantity: z.coerce.number().int('A quantidade deve ser um número inteiro.').min(0, 'A quantidade deve ser positiva.'),
 });
 
 type RentalItemFormData = z.infer<typeof rentalItemSchema>;
@@ -76,8 +86,8 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
     })
     .catch((error) => {
         const isUpdate = !!item;
-        const path = isUpdate 
-            ? doc(collection(db, 'tents', tent.id, 'rentalItems'), item!.id).path 
+        const path = isUpdate && item
+            ? doc(collection(db, 'tents', tent.id, 'rentalItems'), item.id).path 
             : collection(db, 'tents', tent.id, 'rentalItems').path;
         
         const permissionError = new FirestorePermissionError({
@@ -140,6 +150,8 @@ export default function RentalItemsPage() {
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
+  const [itemToDelete, setItemToDelete] = useState<RentalItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const tentQuery = useMemoFirebase(
     () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
@@ -176,9 +188,9 @@ export default function RentalItemsPage() {
     });
   }, [db, tent]);
 
-  const deleteItem = (itemToDelete: RentalItem) => {
-    if (!tent || !db) return;
-    if (!confirm('Tem certeza que deseja apagar este item?')) return;
+  const handleConfirmDelete = () => {
+    if (!tent || !db || !itemToDelete) return;
+    setIsDeleting(true);
     
     const itemDocRef = doc(db, 'tents', tent.id, 'rentalItems', itemToDelete.id);
 
@@ -195,6 +207,10 @@ export default function RentalItemsPage() {
                 operation: 'delete',
             });
             errorEmitter.emit('permission-error', permissionError);
+        })
+        .finally(() => {
+          setItemToDelete(null);
+          setIsDeleting(false);
         });
   }
 
@@ -251,62 +267,80 @@ export default function RentalItemsPage() {
   }
 
   return (
-    <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <div className="w-full max-w-4xl">
-        <header className="mb-8 flex justify-between items-center">
-            <div>
-            <h1 className="text-3xl font-bold tracking-tight">Itens de Aluguel</h1>
-            <p className="text-muted-foreground">Gerencie cadeiras, guarda-sóis e outros itens.</p>
-            </div>
-            <Button onClick={openNewForm} disabled={!!(hasKit && hasAdditionalChair)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Item
-            </Button>
-        </header>
+    <>
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <div className="w-full max-w-4xl">
+          <header className="mb-8 flex justify-between items-center">
+              <div>
+              <h1 className="text-3xl font-bold tracking-tight">Itens de Aluguel</h1>
+              <p className="text-muted-foreground">Gerencie cadeiras, guarda-sóis e outros itens.</p>
+              </div>
+              <Button onClick={openNewForm} disabled={!!(hasKit && hasAdditionalChair)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Adicionar Item
+              </Button>
+          </header>
 
-        {rentalItems && rentalItems.length > 0 ? (
-            <div className="space-y-4">
-            {rentalItems.map((item) => (
-                <Card key={item.id}>
-                    <CardHeader className='flex-row justify-between items-center'>
-                        <CardTitle>{item.name}</CardTitle>
-                        <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEditForm(item)}>
-                                <Edit className='w-4 h-4'/>
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteItem(item)}>
-                                <Trash className='w-4 h-4' />
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex justify-between items-end">
-                         <div>
-                            <p className='font-bold text-lg'>R$ {item.price.toFixed(2)} / dia</p>
-                            <p className="text-sm text-muted-foreground">Quantidade: {item.quantity}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-            </div>
-        ) : (
-            <div className="text-center py-16 border-2 border-dashed rounded-lg">
-                <Armchair className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-medium">Nenhum item de aluguel cadastrado</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Comece adicionando o "Kit Guarda-sol + 2 Cadeiras".</p>
-                <Button onClick={openNewForm} className="mt-6">
-                    Adicionar Item de Aluguel
-                </Button>
-            </div>
-        )}
-        </div>
-        {tent && 
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
-              </DialogHeader>
-              <RentalItemForm key={editingItem?.id || 'new'} tent={tent} item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} updateTentAvailability={updateTentAvailability} />
-          </DialogContent>
-        }
-    </Dialog>
+          {rentalItems && rentalItems.length > 0 ? (
+              <div className="space-y-4">
+              {rentalItems.map((item) => (
+                  <Card key={item.id}>
+                      <CardHeader className='flex-row justify-between items-center'>
+                          <CardTitle>{item.name}</CardTitle>
+                          <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => openEditForm(item)}>
+                                  <Edit className='w-4 h-4'/>
+                              </Button>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
+                                  <Trash className='w-4 h-4' />
+                              </Button>
+                          </div>
+                      </CardHeader>
+                      <CardContent className="flex justify-between items-end">
+                           <div>
+                              <p className='font-bold text-lg'>R$ {item.price.toFixed(2)} / dia</p>
+                              <p className="text-sm text-muted-foreground">Quantidade: {item.quantity}</p>
+                          </div>
+                      </CardContent>
+                  </Card>
+              ))}
+              </div>
+          ) : (
+              <div className="text-center py-16 border-2 border-dashed rounded-lg">
+                  <Armchair className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-medium">Nenhum item de aluguel cadastrado</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">Comece adicionando o "Kit Guarda-sol + 2 Cadeiras".</p>
+                  <Button onClick={openNewForm} className="mt-6">
+                      Adicionar Item de Aluguel
+                  </Button>
+              </div>
+          )}
+          </div>
+          {tent && 
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Novo Item'}</DialogTitle>
+                </DialogHeader>
+                <RentalItemForm key={editingItem?.id || 'new'} tent={tent} item={editingItem} onFinished={handleFormFinished} hasKit={!!hasKit} updateTentAvailability={updateTentAvailability} />
+            </DialogContent>
+          }
+      </Dialog>
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso irá apagar permanentemente o item "{itemToDelete?.name}" dos seus itens de aluguel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="animate-spin" /> : "Sim, apagar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
