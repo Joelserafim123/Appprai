@@ -29,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch } from 'firebase/firestore';
 
 
@@ -95,6 +96,22 @@ export default function TentPage() {
   const { data: tent, isLoading: loadingTent } = useDoc<Tent>(tentRef);
 
   const subQueryTentId = tent?.id;
+
+  const todayKey = useMemo(() => new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), []);
+  
+  const isTentOpenToday = useMemo(() => {
+    if (!tent?.operatingHours) {
+        return true; 
+    }
+    const todayHours = tent.operatingHours[todayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
+    
+    if (!todayHours || todayHours.isOpen === false) {
+        return false;
+    }
+
+    return true;
+  }, [tent?.operatingHours, todayKey]);
+
 
   // Fetch Menu and Rental Items
   const menuItemsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? collection(firestore, 'tents', subQueryTentId, 'menuItems') : null, [firestore, subQueryTentId]);
@@ -479,52 +496,63 @@ export default function TentPage() {
                                     <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${tentId}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
-                                    <Input id="reservation-time" type="time" value={reservationTime} onChange={e => setReservationTime(e.target.value)} disabled={isSubmitting}/>
-                                    <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje.</p>
-                                </div>
-
-                                {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
-                                    <>
-                                        {rentalKit && (
-                                            <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-                                                <div>
-                                                    <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                        <Armchair className="h-5 w-5"/>
-                                                        {rentalKit.name}
-                                                    </h3>
-                                                    <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
-                                                    <p className="text-2xl font-bold text-primary">R$ {rentalKit.price.toFixed(2)}</p>
-                                                </div>
-                                                <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                    <Input type="number" readOnly value={cart[rentalKit.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity || (cart[rentalKit.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {additionalChair && (
-                                             <div className={cn("flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between transition-opacity", !hasRentalKitInCart && "opacity-50 pointer-events-none")}>
-                                                <div>
-                                                    <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                        <Armchair className="h-5 w-5"/>
-                                                        {additionalChair.name}
-                                                    </h3>
-                                                    <p className="text-sm text-muted-foreground">Disponível: {additionalChair.quantity - (cart[additionalChair.id]?.quantity || 0)}</p>
-                                                    <p className="text-xl font-bold text-primary">R$ {additionalChair.price.toFixed(2)}</p>
-                                                </div>
-                                                <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', -1)} disabled={isSubmitting || !hasRentalKitInCart}><Minus className="h-4 w-4"/></Button>
-                                                    <Input type="number" readOnly value={cart[additionalChair.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting || !hasRentalKitInCart}/>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity || (cart[additionalChair.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                    ) : (
-                                        <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
+                                    {!isTentOpenToday && (
+                                        <Alert variant="destructive">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertTitle>Barraca Fechada Hoje</AlertTitle>
+                                            <AlertDescription>
+                                                Esta barraca não está a aceitar reservas para hoje. Por favor, verifique o horário de funcionamento na aba 'Informações'.
+                                            </AlertDescription>
+                                        </Alert>
                                     )}
+                                    <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
+                                            <Input id="reservation-time" type="time" value={reservationTime} onChange={e => setReservationTime(e.target.value)} disabled={isSubmitting}/>
+                                            <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje.</p>
+                                        </div>
+
+                                        {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
+                                            <div className='space-y-4'>
+                                                {rentalKit && (
+                                                    <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                                                        <div>
+                                                            <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                                <Armchair className="h-5 w-5"/>
+                                                                {rentalKit.name}
+                                                            </h3>
+                                                            <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
+                                                            <p className="text-2xl font-bold text-primary">R$ {rentalKit.price.toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="mt-4 flex items-center gap-2 sm:mt-0">
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                            <Input type="number" readOnly value={cart[rentalKit.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity || (cart[rentalKit.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {additionalChair && (
+                                                    <div className={cn("flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between transition-opacity", !hasRentalKitInCart && "opacity-50 pointer-events-none")}>
+                                                        <div>
+                                                            <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                                <Armchair className="h-5 w-5"/>
+                                                                {additionalChair.name}
+                                                            </h3>
+                                                            <p className="text-sm text-muted-foreground">Disponível: {additionalChair.quantity - (cart[additionalChair.id]?.quantity || 0)}</p>
+                                                            <p className="text-xl font-bold text-primary">R$ {additionalChair.price.toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="mt-4 flex items-center gap-2 sm:mt-0">
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', -1)} disabled={isSubmitting || !hasRentalKitInCart}><Minus className="h-4 w-4"/></Button>
+                                                            <Input type="number" readOnly value={cart[additionalChair.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting || !hasRentalKitInCart}/>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity || (cart[additionalChair.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            ) : (
+                                                <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
+                                            )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -623,13 +651,13 @@ export default function TentPage() {
                                 </Button>
                             </div>
                         ) : activeTab === 'reserve' ? (
-                             <Button size="lg" className="w-full" onClick={handleProceedToMenu} disabled={!hasRentalKitInCart || isSubmitting}>
+                             <Button size="lg" className="w-full" onClick={handleProceedToMenu} disabled={!hasRentalKitInCart || isSubmitting || !isTentOpenToday}>
                                 {isSubmitting ? <Loader2 className="animate-spin" /> : <>Próximo Passo <ArrowRight className="ml-2" /></>}
                             </Button>
                         ) : (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button size="lg" className="w-full" disabled={!hasRentalKitInCart || isSubmitting}>
+                                    <Button size="lg" className="w-full" disabled={!hasRentalKitInCart || isSubmitting || !isTentOpenToday}>
                                         {isSubmitting ? <Loader2 className="animate-spin" /> : <>Fazer Reserva <ShoppingCart className="ml-2" /></>}
                                     </Button>
                                 </AlertDialogTrigger>
