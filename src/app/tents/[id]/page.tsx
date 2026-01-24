@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -99,17 +99,13 @@ export default function TentPage() {
 
   const todayKey = useMemo(() => new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), []);
   
-  const isTentOpenToday = useMemo(() => {
-    if (!tent?.operatingHours) {
-        return true; 
-    }
-    const todayHours = tent.operatingHours[todayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
-    
-    if (!todayHours || todayHours.isOpen === false) {
-        return false;
-    }
+  const [isTentOpenToday, setIsTentOpenToday] = useState(true);
 
-    return true;
+  useEffect(() => {
+    if (tent?.operatingHours) {
+        const todayHours = tent.operatingHours[todayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
+        setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
+    }
   }, [tent?.operatingHours, todayKey]);
 
 
@@ -291,6 +287,28 @@ export default function TentPage() {
         return;
     }
     
+    if (tent.operatingHours) {
+        const todayHours = tent.operatingHours[todayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
+        if (todayHours && todayHours.isOpen) {
+            const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
+            const [openHour, openMinute] = todayHours.open.split(':').map(Number);
+            const [closeHour, closeMinute] = todayHours.close.split(':').map(Number);
+
+            const selectedTimeInMinutes = selectedHour * 60 + selectedMinute;
+            const openTimeInMinutes = openHour * 60 + openMinute;
+            const closeTimeInMinutes = closeHour * 60 + closeMinute;
+
+            if (selectedTimeInMinutes < openTimeInMinutes || selectedTimeInMinutes > closeTimeInMinutes) {
+                toast({
+                    variant: "destructive",
+                    title: "Fora do Horário de Funcionamento",
+                    description: `A barraca só aceita reservas entre ${todayHours.open} e ${todayHours.close}.`,
+                });
+                return;
+            }
+        }
+    }
+
     if (!firestore) return;
     setIsSubmitting(true);
 
