@@ -33,12 +33,20 @@ export default function DashboardLayout({
 
     if (!user || user.isAnonymous) {
       router.replace('/login');
-    } else if (user.profileComplete === false && pathname !== '/dashboard/settings') {
+      return;
+    }
+    
+    if (!user.emailVerified) {
+        router.replace('/verify-email-notice');
+        return;
+    }
+
+    if (user.profileComplete === false && pathname !== '/dashboard/settings') {
       router.replace('/dashboard/settings');
     }
   }, [user, isUserLoading, router, pathname]);
 
-  if (isUserLoading || !user || user.isAnonymous || (user.profileComplete === false && pathname !== '/dashboard/settings')) {
+  if (isUserLoading || !user || user.isAnonymous || !user.emailVerified || (user.profileComplete === false && pathname !== '/dashboard/settings')) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

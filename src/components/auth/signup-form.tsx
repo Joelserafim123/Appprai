@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useFirebase } from "@/firebase"
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth"
 import { doc, setDoc } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -58,6 +58,8 @@ export function SignUpForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
       const user = userCredential.user
 
+      await sendEmailVerification(user);
+
       await updateProfile(user, {
           displayName: data.displayName,
       });
@@ -75,9 +77,9 @@ export function SignUpForm() {
 
       toast({
         title: "Conta criada com sucesso!",
-        description: "Você já pode fazer login.",
+        description: "Enviámos um email de verificação. Por favor, verifique a sua caixa de entrada.",
       })
-      router.push("/login")
+      router.push("/verify-email-notice")
     } catch (error: unknown) {
       let description = "Ocorreu um erro. Por favor, tente novamente."
       if (error instanceof FirestorePermissionError) {

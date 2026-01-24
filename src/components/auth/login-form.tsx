@@ -41,7 +41,18 @@ export function LoginForm() {
     setIsLoading(true)
 
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password)
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+
+      if (!user.emailVerified) {
+          toast({
+              title: 'Verificação de Email Pendente',
+              description: 'Por favor, verifique o seu email para continuar. A redirecioná-lo...',
+          });
+          router.push('/verify-email-notice');
+          return;
+      }
+
       toast({
         title: "Login bem-sucedido!",
         description: "Bem-vindo(a) de volta!",

@@ -21,6 +21,7 @@ export interface UserProfile {
 // Full user data including Firebase User properties
 export interface UserData extends UserProfile {
     isAnonymous?: boolean;
+    emailVerified: boolean;
 }
 
 // Operating hours for a single day
