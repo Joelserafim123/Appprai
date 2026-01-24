@@ -31,7 +31,10 @@ const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
   description: z.string().min(10, 'A descrição é obrigatória.'),
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
-  minimumOrderForFeeWaiver: z.preprocess((a) => (a ? parseFloat(z.string().parse(a)) : null), z.number().nullable()),
+  minimumOrderForFeeWaiver: z.preprocess(
+    (val) => (val === '' || val === null ? null : parseFloat(String(val))),
+    z.number({ invalid_type_error: 'O valor deve ser um número.' }).nullable()
+  ),
   location: z.object({
     latitude: z.number({ required_error: 'A localização no mapa é obrigatória.'}),
     longitude: z.number({ required_error: 'A localização no mapa é obrigatória.'}),
@@ -133,7 +136,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         name: existingTent.name || '',
         description: existingTent.description || '',
         beachName: existingTent.beachName || '',
-        minimumOrderForFeeWaiver: existingTent.minimumOrderForFeeWaiver || null,
+        minimumOrderForFeeWaiver: existingTent.minimumOrderForFeeWaiver ?? null,
         location: existingTent.location || undefined,
         operatingHours: existingTent.operatingHours || defaultOperatingHours,
       });
