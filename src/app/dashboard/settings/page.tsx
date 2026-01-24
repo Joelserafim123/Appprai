@@ -23,7 +23,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
   cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "CPF inválido. Use o formato 000.000.000-00." }),
-  cep: z.string().refine(value => /^\d{5}-\d{3}$/.test(value), 'CEP inválido.').optional().or(z.literal('')),
+  cep: z.string().refine(value => !value || /^\d{8}$/.test(value), { message: 'CEP inválido. Deve conter 8 números.' }).optional(),
   street: z.string().optional().or(z.literal('')),
   number: z.string().optional().or(z.literal('')),
   neighborhood: z.string().optional().or(z.literal('')),
