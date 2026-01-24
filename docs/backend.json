@@ -138,6 +138,18 @@
             "timestamp": { "type": "string", "format": "date-time" }
         },
         "required": ["senderId", "text", "timestamp"]
+    },
+    "CpfRecord": {
+      "title": "CPF Record",
+      "description": "Represents a record in the CPF registry for uniqueness checks.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user associated with this CPF."
+        }
+      },
+      "required": ["userId"]
     }
   },
   "auth": {
@@ -173,6 +185,10 @@
     "/chats/{chatId}/messages/{messageId}": {
         "schema": { "$ref": "#/entities/ChatMessage" },
         "description": "Messages within a chat. Access controlled by parent chat document."
+    },
+    "/cpfs/{cpf}": {
+      "schema": { "$ref": "#/entities/CpfRecord" },
+      "description": "Used to enforce CPF uniqueness. The document ID is the CPF number (digits only)."
     }
   }
 }

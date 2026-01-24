@@ -10,14 +10,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const profileSchema = z.object({
@@ -114,7 +112,7 @@ export default function SettingsPage() {
    }, [cepValue]);
   
   
-  const onSubmit = (data: ProfileFormData) => {
+  const onSubmit = async (data: ProfileFormData) => {
     if (!user || !firestore || !auth) return;
     setIsSubmitting(true);
 
@@ -129,53 +127,93 @@ export default function SettingsPage() {
       return;
     }
 
-    const firestoreData: Partial<UserProfile> = {
-      displayName: data.displayName,
-      profileComplete: true,
-      cpf: data.cpf.replace(/\D/g, ''),
-      cep: data.cep?.replace(/\D/g, '') || null,
-      street: data.street || null,
-      number: data.number || null,
-      neighborhood: data.neighborhood || null,
-      city: data.city || null,
-      state: data.state || null,
-    };
+    const cpfDigits = data.cpf.replace(/\D/g, '');
+    const oldCpfDigits = user.cpf;
+    const cpfHasChanged = cpfDigits !== oldCpfDigits;
 
-    const userDocRef = doc(firestore, 'users', user.uid);
+    // Pre-flight check for CPF uniqueness if it has changed
+    if (cpfHasChanged && cpfDigits) {
+        const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
+        try {
+            const cpfDoc = await getDoc(newCpfDocRef);
+            if (cpfDoc.exists()) {
+                toast({
+                    variant: 'destructive',
+                    title: 'CPF já em uso',
+                    description: 'Este CPF já está associado a outra conta.',
+                });
+                setIsSubmitting(false);
+                return;
+            }
+        } catch (e) {
+            console.error("Error checking CPF uniqueness:", e);
+            toast({
+                variant: 'destructive',
+                title: 'Erro de verificação',
+                description: 'Não foi possível verificar a disponibilidade do CPF. Tente novamente.',
+            });
+            setIsSubmitting(false);
+            return;
+        }
+    }
 
-    // Chain the promises
-    setDoc(userDocRef, firestoreData, { merge: true })
-      .then(() => updateProfile(currentUser, { displayName: data.displayName }))
-      .then(async () => {
+    try {
+        const batch = writeBatch(firestore);
+
+        const firestoreData: Partial<UserProfile> = {
+          displayName: data.displayName,
+          profileComplete: true,
+          cpf: cpfDigits,
+          cep: data.cep?.replace(/\D/g, '') || null,
+          street: data.street || null,
+          number: data.number || null,
+          neighborhood: data.neighborhood || null,
+          city: data.city || null,
+          state: data.state || null,
+        };
+
+        const userDocRef = doc(firestore, 'users', user.uid);
+        batch.set(userDocRef, firestoreData, { merge: true });
+
+        // Handle CPF registry changes
+        if (cpfHasChanged) {
+            if (oldCpfDigits) {
+                const oldCpfDocRef = doc(firestore, 'cpfs', oldCpfDigits);
+                batch.delete(oldCpfDocRef);
+            }
+            if (cpfDigits) {
+                const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
+                batch.set(newCpfDocRef, { userId: user.uid });
+            }
+        }
+
+        await batch.commit();
+        await updateProfile(currentUser, { displayName: data.displayName });
+        
         toast({
           title: 'Perfil Atualizado!',
           description: 'Suas informações foram salvas com sucesso.',
         });
         await refresh();
-      })
-      .catch((error: any) => {
-        // Distinguish between Firestore and Auth errors
-        if (error.name === 'FirebaseError' && error.code?.startsWith('auth/')) {
-          console.error('Error updating auth profile:', error);
-          toast({
-            variant: 'destructive',
-            title: 'Erro ao atualizar perfil',
-            description:
-              'Houve um problema ao atualizar seu nome de exibição. Tente novamente.',
-          });
-        } else {
-          // Assume it's a Firestore permission error
-          const permissionError = new FirestorePermissionError({
-            path: userDocRef.path,
-            operation: 'update',
-            requestResourceData: firestoreData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
+
+    } catch (error: any) {
+        console.error("Error updating profile:", error);
+        let description = 'Não foi possível salvar as alterações. Verifique os dados e tente novamente.';
+        if (error.name === 'FirebaseError') {
+             if (error.code?.startsWith('auth/')) {
+                description = 'Houve um problema ao atualizar seu nome de exibição.';
+             } else if (error.code === 'permission-denied') {
+                description = 'Não foi possível salvar. O CPF pode já estar em uso ou você não tem permissão.'
+             }
         }
-      })
-      .finally(() => {
+        toast({
+            variant: 'destructive',
+            title: 'Erro ao Salvar',
+            description,
+        });
+    } finally {
         setIsSubmitting(false);
-      });
+    }
   };
 
   if (isUserLoading) {

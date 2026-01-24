@@ -25,12 +25,46 @@ service cloud.firestore {
                ).size() > 0;
     }
 
+    function isCpfUnchanged() {
+      // If cpf is not in the incoming data, it's not being changed.
+      if (!('cpf' in request.resource.data)) {
+        return true;
+      }
+      // If it is in the incoming data, check if it's the same as the existing one.
+      // If the existing one doesn't exist, this will be false, which is correct (it's a change).
+      return 'cpf' in resource.data && request.resource.data.cpf == resource.data.cpf;
+    }
+
+    function isNewCpfUnique(newCpf) {
+      // Checks that a document for the new CPF doesn't already exist.
+      return !exists(/databases/$(database)/documents/cpfs/$(newCpf));
+    }
+
     // Rules for User Profiles
     // Users can read and write their own profile, but cannot list all users.
     match /users/{userId} {
-      allow read, update, delete: if isOwner(userId);
+      allow read, delete: if isOwner(userId);
       allow create: if isSignedIn() && request.resource.data.uid == userId;
+      // An update is allowed if the user is the owner, AND
+      // either the CPF is not being changed, OR the new CPF is unique.
+      allow update: if isOwner(userId) && (isCpfUnchanged() || isNewCpfUnique(request.resource.data.cpf));
       allow list: if false; // Prevent listing all users for privacy
+    }
+
+    // Rules for CPFs (to enforce uniqueness)
+    match /cpfs/{cpf} {
+      // Allow any signed-in user to check if a CPF exists for client-side validation.
+      allow get: if isSignedIn();
+      allow list: if false; // Do not allow listing all CPFs.
+      // Allow creation only if the document doesn't exist (implicit in create)
+      // and the creator is the one associated with the CPF being written in the user profile document as part of a batch write.
+      allow create: if isSignedIn() && 
+                     request.resource.data.userId == request.auth.uid &&
+                     getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.cpf == cpf;
+      // Allow deletion only by the owner of the CPF record.
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Updates are not allowed. Must delete and create.
+      allow update: if false;
     }
 
     // Rules for Tents and their subcollections
