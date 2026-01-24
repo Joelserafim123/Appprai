@@ -16,11 +16,14 @@ import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
+import { isValidCpf } from '@/lib/utils';
 
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
-  cpf: z.string().refine((cpf) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(cpf), { message: "CPF inválido. Use o formato 000.000.000-00." }),
+  cpf: z.string()
+    .min(1, "O CPF é obrigatório.")
+    .refine(isValidCpf, { message: "O número do CPF informado é inválido." }),
   cep: z.string().refine(value => !value || /^\d{8}$/.test(value), { message: 'CEP inválido. Deve conter 8 números.' }).optional(),
   street: z.string().optional().or(z.literal('')),
   number: z.string().optional().or(z.literal('')),
