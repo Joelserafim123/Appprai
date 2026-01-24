@@ -97,16 +97,21 @@ export default function TentPage() {
 
   const subQueryTentId = tent?.id;
 
-  const todayKey = useMemo(() => new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(), []);
-  
+  const [todayKey, setTodayKey] = useState('');
   const [isTentOpenToday, setIsTentOpenToday] = useState(true);
 
   useEffect(() => {
+    const key = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    setTodayKey(key);
+
     if (tent?.operatingHours) {
-        const todayHours = tent.operatingHours[todayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
+        const todayHours = tent.operatingHours[key as keyof typeof tent.operatingHours] as OperatingHoursDay;
         setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
+    } else {
+        // If operating hours are not defined, assume it's open
+        setIsTentOpenToday(true);
     }
-  }, [tent?.operatingHours, todayKey]);
+  }, [tent?.operatingHours]);
 
 
   // Fetch Menu and Rental Items
