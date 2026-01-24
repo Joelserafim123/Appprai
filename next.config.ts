@@ -22,8 +22,9 @@ const nextConfig = {
     ],
   },
   experimental: {
-    allowedDevOrigins: ['*.cloudworkstations.dev'],
+    // allowedDevOrigins was moved to the top level in this Next.js version.
   },
+  allowedDevOrigins: ['*.cloudworkstations.dev'],
 };
 
 export default nextConfig;
