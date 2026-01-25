@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Info, User as UserIcon } from 'lucide-react';
+import { Loader2, Info, User as UserIcon, Bell, BellRing } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
 import { getInitials, isValidCpf } from '@/lib/utils';
 import { FirebaseError } from 'firebase/app';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -59,6 +61,9 @@ export default function SettingsPage() {
   const watchedCep = watch('cep');
 
   const profileIncomplete = user && !user.profileComplete;
+
+  const isOwner = user?.role === 'owner';
+  const pushNotifications = usePushNotifications();
 
   useEffect(() => {
     if (user) {
@@ -317,6 +322,42 @@ const onSubmit = async (data: ProfileFormData) => {
 
           </CardContent>
         </Card>
+
+        {isOwner && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Bell /> Notificações Push</CardTitle>
+                <CardDescription>
+                  Receba notificações instantâneas no seu dispositivo quando uma nova reserva for feita.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!pushNotifications.isSupported ? (
+                  <p className="text-sm text-destructive">Seu navegador não suporta notificações push.</p>
+                ) : pushNotifications.permission === 'granted' ? (
+                  <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                    <BellRing className="h-5 w-5" />
+                    <p>As notificações estão ativadas para este dispositivo.</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {pushNotifications.permission === 'denied'
+                      ? 'Você bloqueou as notificações. Para ativá-las, precisa de alterar as permissões do seu navegador para este site.'
+                      : 'Ative as notificações para ser informado sobre novas reservas.'
+                    }
+                  </p>
+                )}
+              </CardContent>
+              {pushNotifications.isSupported && pushNotifications.permission !== 'granted' && (
+                <CardFooter>
+                  <Button onClick={pushNotifications.subscribeToNotifications} disabled={pushNotifications.permission === 'denied' || pushNotifications.isSubscribing}>
+                    {pushNotifications.isSubscribing ? <Loader2 className="mr-2 animate-spin" /> : <BellRing className="mr-2" />}
+                    Ativar Notificações
+                  </Button>
+                </CardFooter>
+              )}
+            </Card>
+          )}
       
     </div>
   );

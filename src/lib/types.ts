@@ -17,6 +17,7 @@ export interface UserProfile {
     profileComplete?: boolean;
     outstandingBalance?: number;
     favoriteTentIds?: string[];
+    fcmTokens?: string[];
 }
 
 // Full user data including Firebase User properties

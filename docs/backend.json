@@ -18,7 +18,12 @@
         "state": { "type": "string", "description": "The user's state." },
         "profileComplete": { "type": "boolean", "description": "Flag indicating if the user has completed their profile." },
         "outstandingBalance": { "type": "number", "description": "Client's outstanding debt to the platform for late cancellation fees." },
-        "favoriteTentIds": { "type": "array", "items": { "type": "string" }, "description": "List of tent IDs favorited by the user." }
+        "favoriteTentIds": { "type": "array", "items": { "type": "string" }, "description": "List of tent IDs favorited by the user." },
+        "fcmTokens": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of Firebase Cloud Messaging device tokens for push notifications."
+        }
       },
       "required": ["uid", "email", "displayName", "role"]
     },
