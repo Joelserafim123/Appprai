@@ -21,6 +21,9 @@ const nextConfig = {
       }
     ],
   },
+  experimental: {
+    allowedDevOrigins: ["https://6000-firebase-beachpal-mostra-1-1769019234060.cluster-j6d3cbsvdbe5uxnhqrfzzeyj7i.cloudworkstations.dev"],
+  },
 };
 
 export default nextConfig;
