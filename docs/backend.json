@@ -138,7 +138,7 @@
     },
     "Chat": {
         "title": "Chat",
-        "description": "A conversation between a user and a tent owner.",
+        "description": "A conversation between a user and a tent owner, tied to a specific reservation.",
         "type": "object",
         "properties": {
             "participantIds": { "type": "array", "items": { "type": "string" } },
@@ -149,11 +149,13 @@
             "tentName": { "type": "string" },
             "tentOwnerId": { "type": "string" },
             "tentLogoUrl": { "type": "string", "format": "uri" },
+            "reservationId": { "type": "string" },
+            "status": { "type": "string", "enum": ["active", "archived"] },
             "lastMessage": { "type": "string" },
             "lastMessageSenderId": { "type": "string", "description": "The UID of the user who sent the last message." },
             "lastMessageTimestamp": { "type": "string", "format": "date-time" }
         },
-        "required": ["participantIds", "userId", "userName", "tentId", "tentName", "tentOwnerId", "lastMessageTimestamp"]
+        "required": ["participantIds", "userId", "userName", "tentId", "tentName", "tentOwnerId", "reservationId", "status", "lastMessageTimestamp"]
     },
     "ChatMessage": {
         "title": "Chat Message",

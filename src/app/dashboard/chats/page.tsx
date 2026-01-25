@@ -24,6 +24,7 @@ export default function ChatsPage() {
         ? query(
             collection(db, 'chats'),
             where('participantIds', 'array-contains', user.uid),
+            where('status', '==', 'active'),
             orderBy('lastMessageTimestamp', 'desc')
           )
         : null,

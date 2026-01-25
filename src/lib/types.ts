@@ -148,6 +148,8 @@ export interface Chat {
   tentName: string;
   tentOwnerId: string;
   tentLogoUrl?: string | null;
+  reservationId: string;
+  status: 'active' | 'archived';
   lastMessage?: string;
   lastMessageSenderId?: string;
   lastMessageTimestamp: Timestamp;

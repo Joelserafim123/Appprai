@@ -35,7 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { collection, query, where, doc, updateDoc, writeBatch, increment, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, writeBatch, increment, getDocs, addDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
 import { ReviewDialog } from '@/components/reviews/review-dialog';
 import { useTranslations } from '@/i18n';
@@ -70,12 +70,26 @@ function CustomerPaymentDialog({ reservation, onFinished }: { reservation: Reser
         if (!firestore || !reservation) return;
         setIsSubmitting(true);
         try {
+            const batch = writeBatch(firestore);
+
+            const reservationRef = doc(firestore, 'reservations', reservation.id);
             const platformFee = Math.max(reservation.total * 0.10, 3);
-            await updateDoc(doc(firestore, 'reservations', reservation.id), {
+            batch.update(reservationRef, {
                 status: 'completed',
                 paymentMethod: paymentMethod,
                 platformFee: platformFee,
             });
+
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+            if (!chatSnapshot.empty) {
+                const chatDoc = chatSnapshot.docs[0];
+                batch.update(chatDoc.ref, { status: 'archived' });
+            }
+
+            await batch.commit();
+
             toast({ title: 'Pagamento Confirmado!', description: 'O seu pagamento foi processado com sucesso.' });
             onFinished();
         } catch(error) {
@@ -138,7 +152,6 @@ export default function MyReservationsPage() {
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationToReview, setReservationToReview] = useState<Reservation | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
   
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
@@ -210,41 +223,8 @@ export default function MyReservationsPage() {
     }
   }
 
-  const handleStartChat = async (reservation: Reservation) => {
-    if (!firestore || !user) return;
-    setIsCreatingChat(reservation.id);
-    
-    try {
-        const chatsRef = collection(firestore, 'chats');
-        const q = query(chatsRef, 
-            where('userId', '==', reservation.userId), 
-            where('tentId', '==', reservation.tentId)
-        );
-        
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            await addDoc(chatsRef, {
-                userId: reservation.userId,
-                userName: reservation.userName,
-                tentId: reservation.tentId,
-                tentName: reservation.tentName,
-                tentOwnerId: reservation.tentOwnerId,
-                lastMessage: `Conversa iniciada...`,
-                lastMessageSenderId: user.uid,
-                lastMessageTimestamp: serverTimestamp(),
-                participantIds: [reservation.userId, reservation.tentOwnerId],
-            });
-        }
-        
-        router.push('/dashboard/chats');
-
-    } catch (error) {
-        console.error("Error starting chat:", error);
-        toast({ variant: 'destructive', title: 'Erro ao iniciar conversa' });
-    } finally {
-        setIsCreatingChat(null);
-    }
+  const handleStartChat = (reservation: Reservation) => {
+    router.push('/dashboard/chats');
   };
 
 
@@ -362,8 +342,8 @@ export default function MyReservationsPage() {
                           </Button>
                       )}
                        {['confirmed', 'checked-in', 'payment-pending'].includes(reservation.status) && reservation.status !== 'cancelled' && (
-                          <Button variant="outline" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
-                              {isCreatingChat === reservation.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4"/>}
+                          <Button variant="outline" onClick={() => handleStartChat(reservation)}>
+                              <MessageSquare className="mr-2 h-4 w-4"/>
                               Contactar Barraca
                           </Button>
                       )}

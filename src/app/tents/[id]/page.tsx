@@ -12,7 +12,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { Tent, OperatingHoursDay, Reservation, Review } from '@/lib/types';
+import type { Tent, OperatingHoursDay, Reservation, Review, Chat } from '@/lib/types';
 import { cn, getInitials } from '@/lib/utils';
 import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
@@ -331,6 +331,7 @@ export default function TentPage() {
         const batch = writeBatch(firestore);
         
         const newReservationRef = doc(collection(firestore, 'reservations'));
+        const newChatRef = doc(collection(firestore, 'chats'));
         const userRef = doc(firestore, 'users', user.uid);
         const outstandingBalance = user.outstandingBalance || 0;
 
@@ -359,8 +360,26 @@ export default function TentPage() {
             status: 'confirmed',
             participantIds: [user.uid, tent.ownerId],
         };
+
+        const chatData: Omit<Chat, 'id'> = {
+            reservationId: newReservationRef.id,
+            userId: user.uid,
+            userName: user.displayName,
+            userPhotoURL: user.photoURL || null,
+            tentId: tent.id,
+            tentName: tent.name,
+            tentOwnerId: tent.ownerId,
+            tentLogoUrl: tent.logoUrl || null,
+            participantIds: [user.uid, tent.ownerId],
+            status: 'active',
+            lastMessage: 'Reserva criada. Inicie a conversa!',
+            lastMessageSenderId: 'system',
+            lastMessageTimestamp: serverTimestamp() as any,
+        };
         
         batch.set(newReservationRef, reservationData);
+        batch.set(newChatRef, chatData);
+        
         if (outstandingBalance > 0) {
             batch.update(userRef, { outstandingBalance: 0 });
         }

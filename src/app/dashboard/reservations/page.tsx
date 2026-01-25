@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment, limit } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
 
@@ -118,12 +118,26 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
         if (!firestore) return;
         setIsSubmitting(true);
         try {
+            const batch = writeBatch(firestore);
+            
+            const reservationRef = doc(firestore, 'reservations', reservation.id);
             const platformFee = Math.max(reservation.total * 0.10, 3);
-            await updateDoc(doc(firestore, 'reservations', reservation.id), {
+            batch.update(reservationRef, {
                 status: 'completed',
                 paymentMethod: paymentMethod,
                 platformFee: platformFee,
             });
+
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+            if (!chatSnapshot.empty) {
+                const chatDoc = chatSnapshot.docs[0];
+                batch.update(chatDoc.ref, { status: 'archived' });
+            }
+            
+            await batch.commit();
+
             toast({ title: 'Pagamento Confirmado!' });
             onFinished();
         } catch(error) {
@@ -177,7 +191,6 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
     const [reservationForCancel, setReservationForCancel] = useState<Reservation | null>(null);
     const [reservationForNoShow, setReservationForNoShow] = useState<Reservation | null>(null);
-    const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
     const [canMarkNoShow, setCanMarkNoShow] = useState(false);
 
     useEffect(() => {
@@ -279,42 +292,8 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         }
     }
 
-    const handleStartChat = async (reservation: Reservation) => {
-        if (!reservation.tentOwnerId || !firestore || !user) return;
-        setIsCreatingChat(reservation.id);
-        
-        try {
-            const chatsRef = collection(firestore, 'chats');
-            // This is the owner's view, so user.uid is the tentOwnerId
-            const q = query(chatsRef, 
-                where('tentOwnerId', '==', user.uid), 
-                where('userId', '==', reservation.userId)
-            );
-            
-            const querySnapshot = await getDocs(q);
-
-            if (querySnapshot.empty) {
-                await addDoc(chatsRef, {
-                    userId: reservation.userId,
-                    userName: reservation.userName,
-                    tentId: reservation.tentId,
-                    tentName: reservation.tentName,
-                    tentOwnerId: reservation.tentOwnerId,
-                    lastMessage: `Conversa iniciada...`,
-                    lastMessageSenderId: user.uid,
-                    lastMessageTimestamp: serverTimestamp(),
-                    participantIds: [reservation.userId, reservation.tentOwnerId],
-                });
-            }
-            
-            router.push('/dashboard/chats');
-
-        } catch (error) {
-            console.error("Error starting chat:", error);
-            toast({ variant: 'destructive', title: 'Erro ao iniciar conversa' });
-        } finally {
-            setIsCreatingChat(null);
-        }
+    const handleStartChat = (reservation: Reservation) => {
+        router.push('/dashboard/chats');
     };
     
     return (
@@ -401,8 +380,8 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                         </div>
                     )}
                     {['confirmed', 'checked-in'].includes(reservation.status) && reservation.status !== 'cancelled' && (
-                        <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
-                            {isCreatingChat === reservation.id ? <Loader2 className="animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                        <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)}>
+                            <MessageSquare className="mr-2 h-4 w-4" />
                             Contactar Cliente
                         </Button>
                     )}
