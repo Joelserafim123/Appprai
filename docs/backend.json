@@ -153,7 +153,8 @@
         "properties": {
             "senderId": { "type": "string" },
             "text": { "type": "string" },
-            "timestamp": { "type": "string", "format": "date-time" }
+            "timestamp": { "type": "string", "format": "date-time" },
+            "isRead": { "type": "boolean", "description": "Indicates if the message has been read by the recipient." }
         },
         "required": ["senderId", "text", "timestamp"]
     },

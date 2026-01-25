@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
 import { z } from 'zod';
+import { isValidCpf } from './utils';
 
 // Base User profile structure
 export interface UserProfile {
@@ -53,10 +54,12 @@ export interface Tent {
   minimumOrderForFeeWaiver?: number;
   hasAvailableKits?: boolean;
   operatingHours: OperatingHours;
-  averageRating?: number;
-  reviewCount?: number;
+  averageRating: number;
+  reviewCount: number;
   // Client-side computed value
   distance?: number;
+  bannerUrl?: string;
+  logoUrl?: string;
 }
 
 // An item on the tent's food/drink menu
@@ -93,10 +96,12 @@ export interface Reservation {
   id: string;
   userId: string;
   userName: string;
+  userPhotoURL?: string;
   tentId: string;
   tentName: string;
   tentOwnerId: string;
   tentOwnerName: string;
+  tentLogoUrl?: string;
   tentLocation?: {
     latitude: number;
     longitude: number;
@@ -123,6 +128,7 @@ export interface Review {
   id: string;
   userId: string;
   userName: string;
+  userPhotoURL?: string;
   tentId: string;
   reservationId: string;
   rating: number;
@@ -136,9 +142,11 @@ export interface Chat {
   id: string;
   userId: string;
   userName: string;
+  userPhotoURL?: string;
   tentId: string;
   tentName: string;
   tentOwnerId: string;
+  tentLogoUrl?: string;
   lastMessage?: string;
   lastMessageTimestamp: Timestamp;
   participantIds: string[];
@@ -150,6 +158,7 @@ export interface ChatMessage {
     senderId: string;
     text: string;
     timestamp: Timestamp;
+    isRead?: boolean;
 }
 
 
@@ -162,7 +171,7 @@ const operatingHoursSchema = z.object({
 export const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
   description: z.string().min(10, 'A descrição é obrigatória.'),
-  beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
+  beachName: z.string().min(3, 'O nome da praia é obrigatória.'),
   minimumOrderForFeeWaiver: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? null : parseFloat(String(val))),
     z.number({ invalid_type_error: 'O valor deve ser um número.' }).nullable()

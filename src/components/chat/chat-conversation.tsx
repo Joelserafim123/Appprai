@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, User as UserIcon } from 'lucide-react';
+import { Loader2, Send, Check, CheckCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -32,16 +32,37 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
   const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
 
   useEffect(() => {
-    // Scroll to bottom when new messages arrive
-    setTimeout(() => {
-        if (scrollAreaViewport.current) {
-            scrollAreaViewport.current.scrollTo({
-                top: scrollAreaViewport.current.scrollHeight,
-                behavior: 'smooth',
-            });
+    // Scroll to bottom on new messages
+    if (scrollAreaViewport.current) {
+      setTimeout(() => {
+          scrollAreaViewport.current?.scrollTo({
+              top: scrollAreaViewport.current.scrollHeight,
+              behavior: 'smooth',
+          });
+      }, 100);
+    }
+
+    // Mark messages as read
+    if (!db || !messages || !currentUser || messages.length === 0) return;
+
+    const unreadMessages = messages.filter(
+      (msg) => msg.senderId !== currentUser.uid && !msg.isRead
+    );
+
+    if (unreadMessages.length > 0) {
+      const batch = writeBatch(db);
+      unreadMessages.forEach((msg) => {
+        if (msg.id) { 
+          const msgRef = doc(db, 'chats', chat.id, 'messages', msg.id);
+          batch.update(msgRef, { isRead: true });
         }
-    }, 100);
-  }, [messages]);
+      });
+      
+      batch.commit().catch(err => {
+          console.error("Error marking messages as read:", err);
+      });
+    }
+  }, [messages, db, currentUser, chat.id]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +79,8 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
         batch.set(messageRef, {
             senderId: currentUser.uid,
             text: messageText,
-            timestamp: serverTimestamp()
+            timestamp: serverTimestamp(),
+            isRead: false
         });
 
         const chatRef = doc(db, 'chats', chat.id);
@@ -88,7 +110,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       <CardHeader>
         <div className="flex items-center gap-3">
              <Avatar>
-                <AvatarImage src={undefined} />
+                <AvatarImage src={currentUser.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl} />
                 <AvatarFallback>
                     {getInitials(currentUser.role === 'owner' ? chat.userName : chat.tentName)}
                 </AvatarFallback>
@@ -100,7 +122,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full" viewportRef={scrollAreaViewport}>
-          <div className="p-4 space-y-4">
+          <div className="flex flex-col gap-4 p-4">
             {messagesLoading ? (
               <div className="flex justify-center items-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -112,27 +134,37 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                   <div
                     key={message.id}
                     className={cn(
-                      'flex items-end gap-2',
-                      isCurrentUser ? 'justify-end' : 'justify-start'
+                      'flex w-full max-w-[80%] gap-2',
+                      isCurrentUser ? 'self-end flex-row-reverse' : 'self-start'
                     )}
                   >
                     {!isCurrentUser && (
-                       <Avatar className='h-8 w-8'>
-                            <AvatarImage src={undefined} />
+                       <Avatar className='h-8 w-8 self-end'>
+                            <AvatarImage src={isCurrentUser ? currentUser.photoURL : (currentUser.role === 'customer' ? chat.tentLogoUrl : chat.userPhotoURL) } />
                             <AvatarFallback>
                                 {getInitials(getSenderName(message.senderId))}
                             </AvatarFallback>
                         </Avatar>
                     )}
-                     <div
-                        className={cn(
-                          'max-w-xs md:max-w-md lg:max-w-lg rounded-xl px-4 py-2',
-                          isCurrentUser
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        )}
-                      >
-                       <p className='text-sm'>{message.text}</p>
+                     <div className={cn("flex flex-col w-full", isCurrentUser ? 'items-end' : 'items-start')}>
+                        <div
+                            className={cn(
+                                'rounded-xl px-3 py-2',
+                                isCurrentUser
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                            )}
+                        >
+                            <p className='text-sm' style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.text}</p>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">
+                                {message.timestamp?.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {isCurrentUser && (
+                                message.isRead ? <CheckCheck className="h-4 w-4 text-primary" /> : <Check className="h-4 w-4 text-muted-foreground" />
+                            )}
+                        </div>
                     </div>
                   </div>
                 );
