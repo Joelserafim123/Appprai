@@ -18,6 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
 import { isValidCpf } from '@/lib/utils';
 import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
+import { FirebaseError } from 'firebase/app';
 
 
 const profileSchema = z.object({
@@ -222,12 +223,23 @@ export default function SettingsPage() {
 
     } catch (error: any) {
         console.error("Error updating profile:", error);
-        let description = 'Não foi possível salvar as alterações. Verifique os dados e tente novamente.';
-        if (error.name === 'FirebaseError') {
-             if (error.code?.startsWith('auth/')) {
-                description = 'Houve um problema ao atualizar seu nome de exibição.';
-             } else if (error.code === 'permission-denied') {
+        let description = 'Não foi possível salvar as alterações. Tente novamente.';
+        if (error instanceof FirebaseError) {
+             if (error.code.startsWith('auth/')) {
+                description = 'Houve um problema ao atualizar seu perfil. Por favor, tente fazer login novamente.';
+             } else if (error.code === 'permission-denied') { // Firestore permission denied
                 description = 'Não foi possível salvar. O CPF pode já estar em uso ou você não tem permissão.'
+             } else if (error.code.startsWith('storage/')) {
+                switch(error.code) {
+                    case 'storage/unauthorized':
+                        description = 'Você não tem permissão para enviar imagens. Verifique as regras de segurança do Firebase Storage.';
+                        break;
+                    case 'storage/canceled':
+                        description = 'O envio da imagem foi cancelado.';
+                        break;
+                    default:
+                        description = 'Ocorreu um erro ao enviar a imagem. Tente novamente.';
+                }
              }
         }
         toast({

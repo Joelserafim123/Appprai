@@ -21,6 +21,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
 import Image from 'next/image';
+import { FirebaseError } from 'firebase/app';
 
 
 const operatingHoursSchema = z.object({
@@ -231,9 +232,26 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         toast({ title: `Barraca ${isUpdate ? 'atualizada' : 'cadastrada'} com sucesso!` });
         onFinished();
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error saving tent:", error);
-        toast({ variant: 'destructive', title: 'Erro ao Salvar', description: 'Não foi possível salvar os dados da barraca.' });
+        let description = 'Não foi possível salvar os dados da barraca. Tente novamente.';
+        if (error instanceof FirebaseError) {
+             if (error.code.startsWith('storage/')) {
+                switch(error.code) {
+                    case 'storage/unauthorized':
+                        description = 'Você não tem permissão para enviar o banner. Verifique as regras de segurança do Firebase Storage.';
+                        break;
+                    case 'storage/canceled':
+                        description = 'O envio do banner foi cancelado.';
+                        break;
+                    default:
+                        description = 'Ocorreu um erro ao enviar o banner. Tente novamente.';
+                }
+             } else if (error.code === 'permission-denied') {
+                 description = 'Você não tem permissão para salvar os dados da barraca. Verifique as regras de segurança do Firestore.';
+             }
+        }
+        toast({ variant: 'destructive', title: 'Erro ao Salvar', description });
     } finally {
         setIsSubmitting(false);
     }
