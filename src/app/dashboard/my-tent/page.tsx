@@ -205,15 +205,21 @@ const onSubmit = async (data: TentFormData) => {
         if (isUpdate) {
             // --- UPDATE LOGIC ---
             const tentDocRef = doc(firestore, "tents", existingTent.id);
-            // Type assertion to satisfy TypeScript
-            const updateData: { [key: string]: any } = { ...data };
+            
+            // Explicitly build the update object to ensure data integrity
+            const updateData: { [key: string]: any } = {
+                name: data.name,
+                description: data.description,
+                beachName: data.beachName,
+                minimumOrderForFeeWaiver: data.minimumOrderForFeeWaiver,
+                location: data.location,
+                operatingHours: data.operatingHours,
+            };
 
             if (bannerFile) {
-                // Delete old banner if it exists
                 if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
                     await deleteFileByUrl(storage, existingTent.bannerUrl);
                 }
-                // Upload new one
                 const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
                 updateData.bannerUrl = downloadURL;
             }
@@ -266,7 +272,7 @@ const onSubmit = async (data: TentFormData) => {
                         description = 'Ocorreu um erro ao enviar o banner. Tente novamente.';
                 }
              } else if (error.code === 'permission-denied') {
-                 description = 'Você não tem permissão para salvar os dados da barraca. Verifique as regras de segurança do Firestore.';
+                 description = 'Permissão negada. Você não tem autorização para salvar estes dados. Verifique as regras de segurança do Firestore.';
              }
         }
         toast({ variant: 'destructive', title: 'Erro ao Salvar', description });
