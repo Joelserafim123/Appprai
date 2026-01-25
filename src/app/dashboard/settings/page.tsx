@@ -139,25 +139,28 @@ export default function SettingsPage() {
     if (!user || !auth || !storage || !firestore || !profileImageFile) return;
 
     setIsPhotoSubmitting(true);
-    const oldPhotoURL = user.photoURL;
-
+    
     try {
         const currentUser = auth.currentUser;
         if (!currentUser) throw new Error("Usuário não autenticado.");
 
-        // 1. Upload new photo
+        // Step 1: Upload new photo
         const { downloadURL: newPhotoURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
 
-        // 2. Update Auth profile
+        // Step 2: Update Auth profile
         await updateProfile(currentUser, { photoURL: newPhotoURL });
 
-        // 3. Update Firestore
+        // Step 3: Update Firestore
         const userDocRef = doc(firestore, 'users', user.uid);
         await updateDoc(userDocRef, { photoURL: newPhotoURL });
 
-        // 4. Delete old photo
-        if (oldPhotoURL && oldPhotoURL.includes('firebasestorage.googleapis.com')) {
-            await deleteFileByUrl(storage, oldPhotoURL);
+        // Step 4: Delete old photo (non-critical)
+        if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
+            try {
+              await deleteFileByUrl(storage, user.photoURL);
+            } catch (deleteError) {
+              console.warn("Could not delete old profile photo:", deleteError);
+            }
         }
 
         toast({ title: 'Foto de perfil atualizada!' });
@@ -169,7 +172,7 @@ export default function SettingsPage() {
         toast({
             variant: 'destructive',
             title: 'Erro ao Salvar Foto',
-            description: error.message || 'Não foi possível salvar a sua foto. Tente novamente.',
+            description: `Não foi possível guardar a sua foto. Detalhe do erro: ${error.message || 'Erro desconhecido.'}`,
             duration: 9000
         });
     } finally {
@@ -188,14 +191,19 @@ const onSubmit = async (data: ProfileFormData) => {
         throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
       }
 
-      // Prepare and execute Firestore updates in a batch
+      // Update Firebase Auth display name if changed
+      if (currentUser.displayName !== data.displayName) {
+          await updateProfile(currentUser, {
+            displayName: data.displayName,
+          });
+      }
+
       const userDocRef = doc(firestore, 'users', user.uid);
       const batch = writeBatch(firestore);
       
       const firestoreUpdateData: Partial<UserProfile> = {
         displayName: data.displayName,
         profileComplete: true,
-        // photoURL is not handled here
         cep: data.cep?.replace(/\D/g, '') || null,
         street: data.street || null,
         number: data.number || null,
@@ -204,8 +212,7 @@ const onSubmit = async (data: ProfileFormData) => {
         state: data.state || null,
       };
 
-      // Handle CPF logic
-      if (!user.cpf) {
+      if (!user.cpf && data.cpf) {
         const cpfDigits = data.cpf.replace(/\D/g, '');
         const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
         const cpfDoc = await getDoc(newCpfDocRef);
@@ -218,20 +225,13 @@ const onSubmit = async (data: ProfileFormData) => {
 
       batch.update(userDocRef, firestoreUpdateData as any);
       await batch.commit();
-
-      // Update Firebase Auth display name if changed
-      if (currentUser.displayName !== data.displayName) {
-          await updateProfile(currentUser, {
-            displayName: data.displayName,
-          });
-      }
       
       toast({
         title: 'Perfil Atualizado!',
         description: 'Suas informações de texto foram salvas com sucesso.',
       });
       await refresh();
-      reset(data); // Resets the form's dirty state
+      reset(data);
 
     } catch (error: any) {
       console.error("Error updating profile:", error);
@@ -276,7 +276,7 @@ const onSubmit = async (data: ProfileFormData) => {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      
         <Card>
           <CardHeader>
             <CardTitle>Meu Perfil</CardTitle>
@@ -331,76 +331,79 @@ const onSubmit = async (data: ProfileFormData) => {
                     {user.role && <p className="text-xs font-semibold text-primary capitalize py-1 px-2 bg-primary/10 rounded-full inline-block">{user.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</p>}
                 </div>
             </div>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                    <Label htmlFor="displayName">Nome Completo</Label>
+                    <Input id="displayName" {...register('displayName')} disabled={isSubmitting || isPhotoSubmitting}/>
+                    {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Nome Completo</Label>
-              <Input id="displayName" {...register('displayName')} disabled={isSubmitting || isPhotoSubmitting}/>
-              {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
-            </div>
+                    <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" value={user.email || ''} disabled readOnly />
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={user.email || ''} disabled readOnly />
-            </div>
+                    <div className="space-y-2">
+                    <Label htmlFor="cpf">CPF</Label>
+                    <Input
+                        id="cpf"
+                        {...register('cpf')}
+                        onChange={handleCpfChange}
+                        disabled={isSubmitting || isPhotoSubmitting || !!user.cpf}
+                        readOnly={!!user.cpf}
+                        placeholder="000.000.000-00"
+                    />
+                    {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
+                    {!!user.cpf && <p className="text-xs text-muted-foreground pt-1">O CPF não pode ser alterado após definido.</p>}
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <Label htmlFor="cep">CEP</Label>
+                        <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting || isPhotoSubmitting} maxLength={9} />
+                        {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
+                    </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cpf">CPF</Label>
-               <Input
-                id="cpf"
-                {...register('cpf')}
-                onChange={handleCpfChange}
-                disabled={isSubmitting || isPhotoSubmitting || !!user.cpf}
-                readOnly={!!user.cpf}
-                placeholder="000.000.000-00"
-              />
-               {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
-               {!!user.cpf && <p className="text-xs text-muted-foreground pt-1">O CPF não pode ser alterado após definido.</p>}
-            </div>
-            
-            <div className="space-y-2">
-                <Label htmlFor="cep">CEP</Label>
-                <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting || isPhotoSubmitting} maxLength={9} />
-                {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2 space-y-2">
-                    <Label htmlFor="street">Rua</Label>
-                    <Input id="street" {...register('street')} disabled={isSubmitting || isPhotoSubmitting} />
-                    {errors.street && <p className="text-sm text-destructive">{errors.street.message}</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2 space-y-2">
+                            <Label htmlFor="street">Rua</Label>
+                            <Input id="street" {...register('street')} disabled={isSubmitting || isPhotoSubmitting} />
+                            {errors.street && <p className="text-sm text-destructive">{errors.street.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="number">Número</Label>
+                            <Input id="number" {...register('number')} disabled={isSubmitting || isPhotoSubmitting} />
+                            {errors.number && <p className="text-sm text-destructive">{errors.number.message}</p>}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="neighborhood">Bairro</Label>
+                        <Input id="neighborhood" {...register('neighborhood')} disabled={isSubmitting || isPhotoSubmitting} />
+                        {errors.neighborhood && <p className="text-sm text-destructive">{errors.neighborhood.message}</p>}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2 space-y-2">
+                            <Label htmlFor="city">Cidade</Label>
+                            <Input id="city" {...register('city')} disabled={isSubmitting || isPhotoSubmitting} />
+                            {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="state">Estado</Label>
+                            <Input id="state" {...register('state')} disabled={isSubmitting || isPhotoSubmitting} />
+                            {errors.state && <p className="text-sm text-destructive">{errors.state.message}</p>}
+                        </div>
+                    </div>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="number">Número</Label>
-                    <Input id="number" {...register('number')} disabled={isSubmitting || isPhotoSubmitting} />
-                    {errors.number && <p className="text-sm text-destructive">{errors.number.message}</p>}
-                </div>
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="neighborhood">Bairro</Label>
-                <Input id="neighborhood" {...register('neighborhood')} disabled={isSubmitting || isPhotoSubmitting} />
-                {errors.neighborhood && <p className="text-sm text-destructive">{errors.neighborhood.message}</p>}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2 space-y-2">
-                    <Label htmlFor="city">Cidade</Label>
-                    <Input id="city" {...register('city')} disabled={isSubmitting || isPhotoSubmitting} />
-                    {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="state">Estado</Label>
-                    <Input id="state" {...register('state')} disabled={isSubmitting || isPhotoSubmitting} />
-                    {errors.state && <p className="text-sm text-destructive">{errors.state.message}</p>}
-                </div>
-            </div>
+                 <CardFooter className="px-0 pt-6">
+                    <Button type="submit" disabled={isSubmitting || isPhotoSubmitting || !isDirty}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
+                    </Button>
+                </CardFooter>
+            </form>
 
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isSubmitting || isPhotoSubmitting || !isDirty}>
-              {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
-            </Button>
-          </CardFooter>
         </Card>
-      </form>
+      
     </div>
   );
 }
