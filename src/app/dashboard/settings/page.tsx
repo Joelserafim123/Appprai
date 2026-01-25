@@ -10,7 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -151,7 +151,6 @@ export default function SettingsPage() {
     const oldCpfDigits = user.cpf;
     const cpfHasChanged = cpfDigits !== oldCpfDigits;
 
-    // Pre-flight check for CPF uniqueness if it has changed
     if (cpfHasChanged && cpfDigits) {
         const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
         try {
@@ -178,19 +177,12 @@ export default function SettingsPage() {
     }
 
     try {
-        let photoURLToSave = user.photoURL;
-
-        if (profileImageFile) {
-            if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
-                await deleteFileByUrl(storage, user.photoURL);
-            }
-            const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
-            photoURLToSave = downloadURL;
-        }
+        const userDocRef = doc(firestore, 'users', user.uid);
         
-        const firestoreData: Partial<UserProfile> = {
+        // --- STAGE 1: Save text-based data ---
+        const batch = writeBatch(firestore);
+        const firestoreTextData: Partial<UserProfile> = {
           displayName: data.displayName,
-          photoURL: photoURLToSave,
           profileComplete: true,
           cpf: cpfDigits,
           cep: data.cep || null,
@@ -200,10 +192,7 @@ export default function SettingsPage() {
           city: data.city || null,
           state: data.state || null,
         };
-
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const batch = writeBatch(firestore);
-        batch.set(userDocRef, firestoreData, { merge: true });
+        batch.set(userDocRef, firestoreTextData, { merge: true });
 
         if (cpfHasChanged) {
             if (oldCpfDigits) {
@@ -216,11 +205,24 @@ export default function SettingsPage() {
             }
         }
         
-        // Run Auth and Firestore updates in parallel
         await Promise.all([
-          updateProfile(currentUser, { displayName: data.displayName, photoURL: photoURLToSave }),
+          updateProfile(currentUser, { displayName: data.displayName }),
           batch.commit()
         ]);
+
+        // --- STAGE 2: Handle file upload ---
+        if (profileImageFile) {
+            if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
+                await deleteFileByUrl(storage, user.photoURL);
+            }
+            const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
+            
+            // --- STAGE 3: Save the new photoURL ---
+            await Promise.all([
+                updateProfile(currentUser, { photoURL: downloadURL }),
+                updateDoc(userDocRef, { photoURL: downloadURL })
+            ]);
+        }
         
         toast({
           title: 'Perfil Atualizado!',
@@ -234,7 +236,7 @@ export default function SettingsPage() {
         if (error instanceof FirebaseError) {
              if (error.code.startsWith('auth/')) {
                 description = 'Houve um problema ao atualizar seu perfil. Por favor, tente fazer login novamente.';
-             } else if (error.code === 'permission-denied') { // Firestore permission denied
+             } else if (error.code === 'permission-denied') {
                 description = 'Não foi possível salvar. O CPF pode já estar em uso ou você não tem permissão.'
              } else if (error.code.startsWith('storage/')) {
                 switch(error.code) {
