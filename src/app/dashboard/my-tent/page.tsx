@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Tent, OperatingHours, TentFormData } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, limit, setDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
 import Image from 'next/image';
@@ -201,22 +201,23 @@ const onSubmit = async (data: TentFormData) => {
     setIsSubmitting(true);
 
     try {
-        const isUpdate = !!existingTent;
-        
-        if (isUpdate) {
+        if (existingTent) {
             // --- UPDATE LOGIC ---
             const tentDocRef = doc(firestore, "tents", existingTent.id);
             let newBannerUrl = existingTent.bannerUrl;
 
+            // Only upload if a new file is selected
             if (bannerFile) {
-                if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
-                    // We'll delete the old one after the new one is uploaded and confirmed
-                }
-                const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
-                newBannerUrl = downloadURL;
+                 const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
+                 newBannerUrl = downloadURL;
+                 
+                 // Non-critical: delete old file after new one is confirmed
+                 if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
+                    deleteFileByUrl(storage, existingTent.bannerUrl).catch(console.warn);
+                 }
             }
             
-            const updateData = {
+            const updateData: Partial<Tent> = {
                 name: data.name,
                 description: data.description,
                 beachName: data.beachName,
@@ -227,49 +228,45 @@ const onSubmit = async (data: TentFormData) => {
             };
 
             await updateDoc(tentDocRef, updateData);
-
-            if (bannerFile && existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
-                await deleteFileByUrl(storage, existingTent.bannerUrl);
-            }
-
             toast({ title: `Barraca atualizada com sucesso!` });
+
         } else {
             // --- CREATE LOGIC ---
             const tentDocRef = doc(collection(firestore, "tents"));
             const tentId = tentDocRef.id;
 
-            // 1. Create doc with text data first
-            const textData = {
+            // 1. Upload banner first to get the URL
+            let bannerUrl: string | null = null;
+            if (bannerFile) {
+                const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
+                bannerUrl = downloadURL;
+            }
+
+            // 2. Create the document with all data, including the banner URL
+            const newTentData = {
                 ...data,
                 ownerId: user.uid,
                 ownerName: user.displayName,
                 hasAvailableKits: false,
                 averageRating: 0,
                 reviewCount: 0,
-                bannerUrl: null, // Start with null banner
+                bannerUrl: bannerUrl,
             };
-            await setDoc(tentDocRef, textData);
-
-            // 2. Upload banner if it exists
-            if (bannerFile) {
-                const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
-                // 3. Update the doc with the banner URL
-                await updateDoc(tentDocRef, { bannerUrl: downloadURL });
-            }
+            await setDoc(tentDocRef, newTentData);
             
             toast({ title: `Barraca cadastrada com sucesso!` });
         }
-
         onFinished();
 
     } catch (error: any) {
         let description = 'Não foi possível salvar os dados da barraca. Tente novamente.';
         if (error instanceof FirestorePermissionError) {
           errorEmitter.emit('permission-error', error);
+          // Don't show a toast, global-error will handle it
           return;
         }
         if (error.code?.startsWith('storage/')) {
-            description = `Erro de armazenamento: ${error.message}`;
+            description = `Permissão negada para enviar o banner. Verifique as regras de segurança do Firebase Storage. Detalhe: ${error.message}`;
         }
         
         toast({ 
@@ -341,7 +338,7 @@ const onSubmit = async (data: TentFormData) => {
                     type="file" 
                     ref={bannerInputRef}
                     className="hidden"
-                    accept="image/png, image/jpeg, image/webp"
+                    accept="image/*"
                     onChange={handleBannerFileChange}
                     disabled={isSubmitting}
                 />
