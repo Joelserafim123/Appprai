@@ -19,10 +19,22 @@ service cloud.firestore {
 
     // Checks if a list query for chats is securely filtered.
     function isQueryingOwnChats() {
-        return 'where' in request.query &&
-               request.query.where.filter(w => 
-                   w[0] == 'participantIds' && w[1] == 'array-contains' && w[2] == request.auth.uid
-               ).size() > 0;
+      // For the main list view in /dashboard/chats
+      let isParticipantQuery = request.query.where.filter(w => 
+        w[0] == 'participantIds' && w[1] == 'array-contains' && w[2] == request.auth.uid
+      ).size() > 0;
+
+      // For a CUSTOMER finding a specific chat with a tent
+      let isCustomerFindingChat = request.query.where.filter(w => w[0] == 'userId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0
+                                && request.query.where.filter(w => w[0] == 'tentId').size() > 0;
+      
+      // For an OWNER finding a specific chat with a customer
+      let isOwnerFindingChat = request.query.where.filter(w => w[0] == 'tentOwnerId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0
+                            && request.query.where.filter(w => w[0] == 'userId').size() > 0;
+
+      return 'where' in request.query && (
+        isParticipantQuery || isCustomerFindingChat || isOwnerFindingChat
+      );
     }
 
     function isCpfUnchanged() {

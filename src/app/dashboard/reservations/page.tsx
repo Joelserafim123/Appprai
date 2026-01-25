@@ -285,9 +285,10 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         
         try {
             const chatsRef = collection(firestore, 'chats');
+            // This is the owner's view, so user.uid is the tentOwnerId
             const q = query(chatsRef, 
-                where('userId', '==', reservation.userId), 
-                where('tentId', '==', reservation.tentId)
+                where('tentOwnerId', '==', user.uid), 
+                where('userId', '==', reservation.userId)
             );
             
             const querySnapshot = await getDocs(q);
@@ -399,7 +400,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                             </Button>
                         </div>
                     )}
-                    {['confirmed', 'checked-in', 'payment-pending'].includes(reservation.status) && reservation.status !== 'cancelled' && (
+                    {['confirmed', 'checked-in'].includes(reservation.status) && reservation.status !== 'cancelled' && (
                         <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
                             {isCreatingChat === reservation.id ? <Loader2 className="animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
                             Contactar Cliente
