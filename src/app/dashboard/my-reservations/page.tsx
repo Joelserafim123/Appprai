@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, QrCode, Check } from 'lucide-react';
+import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, QrCode, Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -35,10 +35,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { collection, query, where, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, writeBatch, increment, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
 import { ReviewDialog } from '@/components/reviews/review-dialog';
 import { useTranslations } from '@/i18n';
+import { useRouter } from 'next/navigation';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -131,11 +132,13 @@ export default function MyReservationsPage() {
   const { user, isUserLoading, refresh } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
   const t_products = useTranslations('Shared.ProductNames');
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationToReview, setReservationToReview] = useState<Reservation | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isCreatingChat, setIsCreatingChat] = useState<string | null>(null);
   
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
@@ -207,6 +210,42 @@ export default function MyReservationsPage() {
     }
   }
 
+  const handleStartChat = async (reservation: Reservation) => {
+    if (!firestore || !user) return;
+    setIsCreatingChat(reservation.id);
+    
+    try {
+        const chatsRef = collection(firestore, 'chats');
+        const q = query(chatsRef, 
+            where('userId', '==', reservation.userId), 
+            where('tentId', '==', reservation.tentId)
+        );
+        
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            await addDoc(chatsRef, {
+                userId: reservation.userId,
+                userName: reservation.userName,
+                tentId: reservation.tentId,
+                tentName: reservation.tentName,
+                tentOwnerId: reservation.tentOwnerId,
+                lastMessage: `Conversa iniciada...`,
+                lastMessageTimestamp: serverTimestamp(),
+                participantIds: [reservation.userId, reservation.tentOwnerId],
+            });
+        }
+        
+        router.push('/dashboard/chats');
+
+    } catch (error) {
+        console.error("Error starting chat:", error);
+        toast({ variant: 'destructive', title: 'Erro ao iniciar conversa' });
+    } finally {
+        setIsCreatingChat(null);
+    }
+  };
+
 
   if (isUserLoading || (reservationsLoading && !rawReservations)) {
     return (
@@ -272,10 +311,10 @@ export default function MyReservationsPage() {
                 <CardContent>
                   <ul className="space-y-2 text-sm text-muted-foreground">
                       {reservation.items.map((item, index) => {
-                        const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
+                        const isRental = ['Kit Guarda-sol + 2 Cadeiras', 'Cadeira Adicional'].includes(item.name);
                         return (
                           <li key={`${item.name}-${index}`} className="flex justify-between">
-                              <span>{item.quantity}x {isRental ? t_products(item.name as any) : item.name}</span>
+                              <span>{item.quantity}x {isRental ? t_products(item.name as 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional') : item.name}</span>
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                           </li>
                         )
@@ -319,6 +358,12 @@ export default function MyReservationsPage() {
                               <a href={`https://www.google.com/maps/dir/?api=1&destination=${reservation.tentLocation.latitude},${reservation.tentLocation.longitude}`} target="_blank" rel="noopener noreferrer">
                                   <MapPin className="mr-2 h-4 w-4"/> Como Chegar
                               </a>
+                          </Button>
+                      )}
+                       {['confirmed', 'checked-in', 'payment-pending'].includes(reservation.status) && (
+                          <Button variant="outline" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
+                              {isCreatingChat === reservation.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4"/>}
+                              Contactar Barraca
                           </Button>
                       )}
                       {reservation.status === 'confirmed' && (
