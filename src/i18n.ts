@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import ptMessages from '../messages/pt.json';
 import enMessages from '../messages/en.json';
 
@@ -12,14 +12,33 @@ const messages: Record<Locale, any> = {
   'en-US': enMessages,
 };
 
-const get = (obj: any, path: string): string | undefined => {
-  const keys = path.split('.');
-  let result = obj;
-  for (const key of keys) {
-    if (result === undefined || result === null) return undefined;
-    result = result[key];
+const getTranslation = (locale: Locale, key: string): string => {
+  const keyParts = key.split('.');
+  
+  const findMessage = (source: any): string | undefined => {
+    let current = source;
+    for (const part of keyParts) {
+      if (current === undefined || typeof current !== 'object' || current === null) {
+        return undefined;
+      }
+      current = current[part];
+    }
+    return typeof current === 'string' ? current : undefined;
   }
-  return typeof result === 'string' ? result : key;
+
+  const message = findMessage(messages[locale]);
+  if (message !== undefined) {
+    return message;
+  }
+
+  if (locale !== DEFAULT_LOCALE) {
+    const defaultMessage = findMessage(messages[DEFAULT_LOCALE]);
+    if (defaultMessage !== undefined) {
+      return defaultMessage;
+    }
+  }
+
+  return key;
 };
 
 interface I18nContextType {
@@ -33,17 +52,14 @@ const I18nContext = createContext<I18nContextType | undefined>(undefined);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
 
-  const t = (key: string): string => {
-    return get(messages[locale], key) ?? get(messages[DEFAULT_LOCALE], key) ?? key;
-  };
-
+  const t = useCallback((key: string): string => {
+    return getTranslation(locale, key);
+  }, [locale]);
+  
   const value: I18nContextType = { locale, setLocale, t };
 
-  return (
-    <I18nContext.Provider value={value}>
-      {children}
-    </I18nContext.Provider>
-  );
+  // Using React.createElement to bypass JSX parsing issues
+  return React.createElement(I18nContext.Provider, { value: value }, children);
 }
 
 export function useI18n() {
@@ -55,7 +71,6 @@ export function useI18n() {
 }
 
 export function useTranslations(namespace: string) {
-  const { t: fullT } = useI18n();
-  const t = (key: string) => fullT(`${namespace}.${key}`);
-  return t;
+  const { t } = useI18n();
+  return useCallback((key: string) => t(`${namespace}.${key}`), [t, namespace]);
 }
