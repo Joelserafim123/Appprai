@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { collection, query, orderBy, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { getInitials } from '@/lib/utils';
 
 
 interface ChatConversationProps {
@@ -75,9 +76,9 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     }
   };
 
-  const getSenderAvatar = (senderId: string) => {
-    if (senderId === chat.userId) return chat.userPhotoURL;
-    if (senderId === chat.tentOwnerId) return chat.tentLogoUrl;
+  const getSenderName = (senderId: string) => {
+    if (senderId === chat.userId) return chat.userName;
+    if (senderId === chat.tentOwnerId) return chat.tentName;
     return '';
   };
 
@@ -87,9 +88,9 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       <CardHeader>
         <div className="flex items-center gap-3">
              <Avatar>
-                <AvatarImage src={currentUser.role === 'owner' ? chat.userPhotoURL || undefined : chat.tentLogoUrl || undefined} />
+                <AvatarImage src={undefined} />
                 <AvatarFallback>
-                    <UserIcon className="h-4 w-4" />
+                    {getInitials(currentUser.role === 'owner' ? chat.userName : chat.tentName)}
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -117,9 +118,9 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                   >
                     {!isCurrentUser && (
                        <Avatar className='h-8 w-8'>
-                            <AvatarImage src={getSenderAvatar(message.senderId) || undefined} />
+                            <AvatarImage src={undefined} />
                             <AvatarFallback>
-                                <UserIcon className="h-4 w-4" />
+                                {getInitials(getSenderName(message.senderId))}
                             </AvatarFallback>
                         </Avatar>
                     )}

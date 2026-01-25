@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { getInitials } from '@/lib/utils';
 
 
 export function Header() {
@@ -140,9 +141,9 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex h-auto items-center gap-2 rounded-full p-1 pr-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? ''} />
-                        <AvatarFallback className="bg-primary/20 text-primary">
-                            <UserIcon className="h-5 w-5" />
+                        <AvatarImage src={undefined} alt={user.displayName ?? ''} />
+                        <AvatarFallback className="bg-primary/20 text-primary font-bold">
+                            {getInitials(user.displayName)}
                         </AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium">Olá, {user.displayName?.split(' ')[0]}</span>

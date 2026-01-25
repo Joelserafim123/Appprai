@@ -3,7 +3,7 @@
 import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, MapPin } from "lucide-react";
+import { AlertTriangle, Loader2, MapPin, Star } from "lucide-react";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
@@ -54,7 +54,7 @@ const haversineDistance = (
 };
 
 
-export function BeachMap({ tents }: { tents: Tent[] }) {
+export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTentIds: string[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [isLocating, setIsLocating] = useState(false);
@@ -151,12 +151,17 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
   };
 
   const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
-    let color = 'hsl(0, 84.2%, 60.2%)'; // red (unavailable)
+    let color: string;
+    const isFavorite = favoriteTentIds.includes(tent.id);
 
     if (selectedTent?.id === tent.id) {
-      color = 'hsl(var(--accent))'; // yellow (selected)
+      color = 'hsl(var(--accent))'; // accent orange for selected (highest priority)
+    } else if (isFavorite) {
+      color = 'hsl(50, 100%, 50%)'; // Gold for favorite
     } else if (tent.hasAvailableKits) {
       color = 'hsl(142.1, 76.2%, 36.3%)'; // green (available)
+    } else {
+      color = 'hsl(0, 84.2%, 60.2%)'; // red (unavailable)
     }
 
     return {
@@ -246,7 +251,10 @@ export function BeachMap({ tents }: { tents: Tent[] }) {
             onCloseClick={() => setSelectedTent(null)}
           >
             <div className="p-2 max-w-xs">
-              <h3 className="font-bold">{selectedTent.name}</h3>
+              <h3 className="font-bold flex items-center gap-2">
+                {selectedTent.name}
+                {favoriteTentIds.includes(selectedTent.id) && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
+              </h3>
               <p className="text-xs text-muted-foreground">{selectedTent.beachName}</p>
               <p className={cn(
                 'text-xs font-semibold mt-1',

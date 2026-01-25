@@ -5,12 +5,13 @@ import { BeachMap } from '@/components/beach-map';
 import { Loader2, Tent as TentIcon } from 'lucide-react';
 import type { Tent as TentType } from '@/lib/types';
 import { Logo } from '@/components/icons';
-import { useCollection, useFirebase, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirebase, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 
 
 export default function HomePage() {
   const { firestore } = useFirebase();
+  const { user } = useUser();
   // Query for all tents to show on the map
   const tentsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'tents') : null), [firestore]);
   const { data: tents, isLoading: isLoading } = useCollection<TentType>(tentsQuery);
@@ -48,7 +49,7 @@ export default function HomePage() {
     <div className="flex h-screen flex-col bg-background text-foreground">
       <Header />
       <main className="flex-1 overflow-hidden">
-        <BeachMap tents={tents} />
+        <BeachMap tents={tents} favoriteTentIds={user?.favoriteTentIds || []} />
       </main>
     </div>
   );

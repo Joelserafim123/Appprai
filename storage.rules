@@ -2,18 +2,8 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Regras para fotos de perfil de utilizador
-    // Permite que um utilizador autenticado leia e escreva ficheiros na sua própria pasta.
-    match /users/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Regras para imagens de barracas (banners, etc.)
-    // Qualquer pessoa pode ler imagens de barracas (são públicas).
-    // Apenas o dono da barraca pode escrever (fazer upload/apagar) imagens.
-    match /tents/{tentId}/{allPaths=**} {
-      allow read;
-      allow write: if request.auth != null && get(/databases/(default)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

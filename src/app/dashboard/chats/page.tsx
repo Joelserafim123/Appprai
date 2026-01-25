@@ -9,6 +9,7 @@ import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
 import { collection, query, where } from 'firebase/firestore';
+import { getInitials } from '@/lib/utils';
 
 export default function ChatsPage() {
   const { user, isUserLoading } = useUser();
@@ -68,14 +69,13 @@ export default function ChatsPage() {
                     {chats && chats.length > 0 ? (
                         <div className="space-y-2">
                            {chats.map((chat) => {
-                                const photoUrl = user.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl;
                                 const displayName = user.role === 'owner' ? chat.userName : chat.tentName;
                                 return (
                                 <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
                                     <Avatar className='h-10 w-10'>
-                                        <AvatarImage src={photoUrl || ''} />
+                                        <AvatarImage src={undefined} />
                                         <AvatarFallback>
-                                            <UserIcon className="h-5 w-5" />
+                                            {getInitials(displayName)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className='flex-1 overflow-hidden'>

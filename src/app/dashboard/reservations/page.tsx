@@ -293,11 +293,9 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                 await addDoc(chatsRef, {
                     userId: reservation.userId,
                     userName: reservation.userName,
-                    userPhotoURL: reservation.userPhotoURL || null,
                     tentId: reservation.tentId,
                     tentName: reservation.tentName,
                     tentOwnerId: reservation.tentOwnerId,
-                    tentLogoUrl: reservation.tentLogoUrl || null,
                     lastMessage: `Conversa iniciada...`,
                     lastMessageTimestamp: serverTimestamp(),
                     participantIds: [reservation.userId, reservation.tentOwnerId],

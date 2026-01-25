@@ -80,7 +80,6 @@ export function ReviewDialog({ reservation, onFinished }: { reservation: Reserva
             transaction.set(reviewRef, {
                 userId: user.uid,
                 userName: user.displayName,
-                userPhotoURL: user.photoURL || null,
                 tentId: reservation.tentId,
                 reservationId: reservation.id,
                 rating,

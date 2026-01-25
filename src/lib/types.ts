@@ -7,7 +7,6 @@ export interface UserProfile {
     email: string;
     displayName: string;
     role: 'customer' | 'owner';
-    photoURL?: string | null;
     cpf?: string;
     cep?: string;
     street?: string;
@@ -46,8 +45,6 @@ export interface Tent {
   beachName: string;
   ownerId: string;
   ownerName: string;
-  logoUrl?: string;
-  bannerUrl?: string;
   location: {
     latitude: number;
     longitude: number;
@@ -95,10 +92,8 @@ export interface Reservation {
   id: string;
   userId: string;
   userName: string;
-  userPhotoURL?: string;
   tentId: string;
   tentName: string;
-  tentLogoUrl?: string;
   tentOwnerId: string;
   tentOwnerName: string;
   tentLocation?: {
@@ -127,7 +122,6 @@ export interface Review {
   id: string;
   userId: string;
   userName: string;
-  userPhotoURL?: string;
   tentId: string;
   reservationId: string;
   rating: number;
@@ -141,11 +135,9 @@ export interface Chat {
   id: string;
   userId: string;
   userName: string;
-  userPhotoURL?: string;
   tentId: string;
   tentName: string;
   tentOwnerId: string;
-  tentLogoUrl?: string;
   lastMessage?: string;
   lastMessageTimestamp: Timestamp;
   participantIds: string[];

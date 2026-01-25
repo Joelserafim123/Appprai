@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Info, User as UserIcon, Camera } from 'lucide-react';
+import { Loader2, Info, User as UserIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,13 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
-import { isValidCpf } from '@/lib/utils';
-import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
+import { getInitials, isValidCpf } from '@/lib/utils';
 import { FirebaseError } from 'firebase/app';
-
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'O nome completo é obrigatório.'),
@@ -39,14 +37,10 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading, refresh } = useUser();
-  const { auth, firestore, storage } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPhotoSubmitting, setIsPhotoSubmitting] = useState(false);
-  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
-  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
@@ -78,18 +72,9 @@ export default function SettingsPage() {
         city: user.city || '',
         state: user.state || '',
       });
-      setProfileImagePreview(user.photoURL);
     }
   }, [user, reset]);
   
-
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProfileImageFile(file);
-      setProfileImagePreview(URL.createObjectURL(file));
-    }
-  };
 
   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
@@ -135,56 +120,6 @@ export default function SettingsPage() {
     return () => clearTimeout(timeoutId);
   }, [watchedCep, setValue, toast]);
   
-const handleSavePhoto = async () => {
-    if (!user || !storage || !firestore || !auth || !profileImageFile) return;
-
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-
-    setIsPhotoSubmitting(true);
-    const oldPhotoURL = user.photoURL; // Capture old URL to delete later
-
-    try {
-      toast({ title: 'A iniciar upload...', description: 'Aguarde um momento.' });
-
-      // 1. Upload the new file first
-      const { downloadURL: newPhotoURL } = await uploadFile(
-        storage,
-        profileImageFile,
-        `users/${user.uid}/profile-pictures`
-      );
-      toast({ title: 'Upload concluído!', description: 'A atualizar a sua conta...' });
-
-      // 2. Update the Firestore document
-      const userDocRef = doc(firestore, 'users', user.uid);
-      await updateDoc(userDocRef, { photoURL: newPhotoURL });
-
-      // 3. Update the Firebase Auth user profile
-      await updateProfile(currentUser, { photoURL: newPhotoURL });
-
-      toast({ title: 'Foto de perfil atualizada com sucesso!' });
-
-      // 4. Refresh local state and UI
-      await refresh();
-      setProfileImageFile(null); // Clear the selected file from the input
-
-      // 5. As a final, non-critical step, delete the old photo
-      if (oldPhotoURL && oldPhotoURL.includes('firebasestorage.googleapis.com')) {
-          deleteFileByUrl(storage, oldPhotoURL).catch(console.warn);
-      }
-
-    } catch (error: any) {
-      console.error("Error updating profile photo:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro Crítico ao Salvar Foto',
-        description: `Ocorreu um erro: ${error.message || 'Por favor, verifique as permissões e tente novamente.'}`,
-        duration: 9000,
-      });
-    } finally {
-      setIsPhotoSubmitting(false);
-    }
-  };
   
 const onSubmit = async (data: ProfileFormData) => {
     if (!user || !firestore || !auth) return;
@@ -297,46 +232,13 @@ const onSubmit = async (data: ProfileFormData) => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
-             <div className="flex items-start gap-6">
-                 <div className="flex-shrink-0">
-                    <div className="relative group">
-                        <Avatar className="h-24 w-24 rounded-lg">
-                            <AvatarImage src={profileImagePreview || ''} alt={user.displayName || "User"} />
-                            <AvatarFallback>
-                                <UserIcon className="h-12 w-12 text-muted-foreground" />
-                            </AvatarFallback>
-                        </Avatar>
-                        <button 
-                          type="button"
-                          onClick={() => avatarInputRef.current?.click()}
-                          className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          disabled={isSubmitting || isPhotoSubmitting}
-                        >
-                          <Camera className="w-8 h-8" />
-                        </button>
-                        <Input 
-                          type="file" 
-                          ref={avatarInputRef}
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleProfileImageChange}
-                          disabled={isSubmitting || isPhotoSubmitting}
-                        />
-                    </div>
-                     {profileImageFile && (
-                        <div className="flex items-center gap-2 mt-2">
-                            <Button size="sm" type="button" onClick={handleSavePhoto} disabled={isPhotoSubmitting}>
-                                {isPhotoSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Foto'}
-                            </Button>
-                            <Button size="sm" type="button" variant="ghost" onClick={() => {
-                                setProfileImageFile(null);
-                                setProfileImagePreview(user.photoURL);
-                            }} disabled={isPhotoSubmitting}>
-                                Anular
-                            </Button>
-                        </div>
-                    )}
-                 </div>
+             <div className="flex items-center gap-6">
+                 <Avatar className="h-24 w-24 rounded-lg">
+                    <AvatarImage src={undefined} alt={user.displayName || "User"} />
+                    <AvatarFallback className="text-3xl">
+                        {getInitials(user.displayName)}
+                    </AvatarFallback>
+                </Avatar>
                 <div className="space-y-2">
                     <p className="text-lg font-semibold">{user.displayName}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -347,7 +249,7 @@ const onSubmit = async (data: ProfileFormData) => {
                 <div className="space-y-6">
                     <div className="space-y-2">
                     <Label htmlFor="displayName">Nome Completo</Label>
-                    <Input id="displayName" {...register('displayName')} disabled={isSubmitting || isPhotoSubmitting}/>
+                    <Input id="displayName" {...register('displayName')} disabled={isSubmitting}/>
                     {errors.displayName && <p className="text-sm text-destructive">{errors.displayName.message}</p>}
                     </div>
 
@@ -362,7 +264,7 @@ const onSubmit = async (data: ProfileFormData) => {
                         id="cpf"
                         {...register('cpf')}
                         onChange={handleCpfChange}
-                        disabled={isSubmitting || isPhotoSubmitting || !!user.cpf}
+                        disabled={isSubmitting || !!user.cpf}
                         readOnly={!!user.cpf}
                         placeholder="000.000.000-00"
                     />
@@ -372,42 +274,42 @@ const onSubmit = async (data: ProfileFormData) => {
                     
                     <div className="space-y-2">
                         <Label htmlFor="cep">CEP</Label>
-                        <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting || isPhotoSubmitting} maxLength={9} />
+                        <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} maxLength={9} />
                         {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="sm:col-span-2 space-y-2">
                             <Label htmlFor="street">Rua</Label>
-                            <Input id="street" {...register('street')} disabled={isSubmitting || isPhotoSubmitting} />
+                            <Input id="street" {...register('street')} disabled={isSubmitting} />
                             {errors.street && <p className="text-sm text-destructive">{errors.street.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="number">Número</Label>
-                            <Input id="number" {...register('number')} disabled={isSubmitting || isPhotoSubmitting} />
+                            <Input id="number" {...register('number')} disabled={isSubmitting} />
                             {errors.number && <p className="text-sm text-destructive">{errors.number.message}</p>}
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="neighborhood">Bairro</Label>
-                        <Input id="neighborhood" {...register('neighborhood')} disabled={isSubmitting || isPhotoSubmitting} />
+                        <Input id="neighborhood" {...register('neighborhood')} disabled={isSubmitting} />
                         {errors.neighborhood && <p className="text-sm text-destructive">{errors.neighborhood.message}</p>}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="sm:col-span-2 space-y-2">
                             <Label htmlFor="city">Cidade</Label>
-                            <Input id="city" {...register('city')} disabled={isSubmitting || isPhotoSubmitting} />
+                            <Input id="city" {...register('city')} disabled={isSubmitting} />
                             {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="state">Estado</Label>
-                            <Input id="state" {...register('state')} disabled={isSubmitting || isPhotoSubmitting} />
+                            <Input id="state" {...register('state')} disabled={isSubmitting} />
                             {errors.state && <p className="text-sm text-destructive">{errors.state.message}</p>}
                         </div>
                     </div>
                 </div>
                  <CardFooter className="px-0 pt-6">
-                    <Button type="submit" disabled={isSubmitting || isPhotoSubmitting || !isDirty}>
+                    <Button type="submit" disabled={isSubmitting || !isDirty}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
                     </Button>
                 </CardFooter>

@@ -65,7 +65,7 @@ export function SignUpForm() {
       });
       
       const userDocRef = doc(firestore, 'users', user.uid);
-      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state' | 'photoURL'> = {
+      const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
             uid: user.uid,
             email: user.email!,
             displayName: data.displayName,
