@@ -18,6 +18,16 @@ import { FirestorePermissionError } from "@/firebase/errors"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { FirebaseError } from "firebase/app"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 
 const signupSchema = z.object({
@@ -34,12 +44,12 @@ export function SignUpForm() {
   const { toast } = useToast()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [pendingData, setPendingData] = useState<SignupFormValues | null>(null);
 
   const {
     register,
     handleSubmit,
     control,
-    watch,
     formState: { errors },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -48,28 +58,30 @@ export function SignUpForm() {
     }
   })
 
-  const role = watch("role");
-
-  const onSubmit = async (data: SignupFormValues) => {
-    if (!auth || !firestore) return
+  const processForm = (data: SignupFormValues) => {
+    setPendingData(data);
+  };
+  
+  const handleConfirmSubmit = async () => {
+    if (!pendingData || !auth || !firestore) return;
     setIsLoading(true)
     
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
+      const userCredential = await createUserWithEmailAndPassword(auth, pendingData.email, pendingData.password)
       const user = userCredential.user
 
       await sendEmailVerification(user);
 
       await updateProfile(user, {
-          displayName: data.displayName,
+          displayName: pendingData.displayName,
       });
       
       const userDocRef = doc(firestore, 'users', user.uid);
       const userProfileData: Omit<UserProfile, 'cpf' | 'cep' | 'street' | 'number' | 'neighborhood' | 'city' | 'state'> = {
             uid: user.uid,
             email: user.email!,
-            displayName: data.displayName,
-            role: data.role,
+            displayName: pendingData.displayName,
+            role: pendingData.role,
             profileComplete: false,
       };
 
@@ -99,12 +111,13 @@ export function SignUpForm() {
       })
     } finally {
       setIsLoading(false)
+      setPendingData(null);
     }
   }
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(processForm)} className="space-y-4">
           <div className="space-y-2">
               <Label htmlFor="displayName">Nome Completo</Label>
               <Input id="displayName" type="text" placeholder="Seu Nome Completo" {...register("displayName")} />
@@ -152,6 +165,24 @@ export function SignUpForm() {
           Cadastrar com Email
         </Button>
       </form>
+       <AlertDialog open={!!pendingData} onOpenChange={(open) => !open && setPendingData(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Tipo de Conta</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Você selecionou o tipo de conta: <span className="font-bold">{pendingData?.role === 'owner' ? 'Dono de Barraca' : 'Cliente'}</span>.
+                    <br />
+                    Esta escolha não poderá ser alterada futuramente. Deseja continuar?
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmSubmit} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Confirmar e Criar Conta"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
