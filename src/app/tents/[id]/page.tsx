@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils, Heart, Star } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils, Heart, Star, User as UserIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { Tent, OperatingHoursDay, Reservation, Review } from '@/lib/types';
-import { cn, getInitials } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
@@ -659,7 +659,9 @@ export default function TentPage() {
                                             <div key={review.id} className="flex gap-4">
                                                 <Avatar>
                                                     <AvatarImage src={review.userPhotoURL} />
-                                                    <AvatarFallback>{getInitials(review.userName)}</AvatarFallback>
+                                                    <AvatarFallback>
+                                                        <UserIcon className="h-5 w-5" />
+                                                    </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1">
                                                     <div className="flex items-center justify-between">

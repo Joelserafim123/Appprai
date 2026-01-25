@@ -28,7 +28,13 @@ export async function uploadFile(
   const fullStoragePath = `${path}/${timestamp}-${simpleName}`;
   const fileRef = ref(storage, fullStoragePath);
 
-  await uploadBytes(fileRef, file);
+  // Adiciona metadados para especificar o tipo de conteúdo do ficheiro.
+  // Isto é uma boa prática e pode resolver problemas de upload.
+  const metadata = {
+    contentType: file.type,
+  };
+
+  await uploadBytes(fileRef, file, metadata);
   const downloadURL = await getDownloadURL(fileRef);
 
   return { downloadURL, storagePath: fullStoragePath };
