@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { getInitials } from '@/lib/utils';
 import { useTranslations } from '@/i18n';
 
@@ -24,19 +24,28 @@ export default function ChatsPage() {
         ? query(
             collection(db, 'chats'),
             where('participantIds', 'array-contains', user.uid),
-            where('status', '==', 'active'),
-            orderBy('lastMessageTimestamp', 'desc')
+            where('status', '==', 'active')
           )
         : null,
     [db, user?.uid]
   );
   const { data: chats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
 
+  const sortedChats = useMemo(() => {
+    if (!chats) return [];
+    return [...chats].sort((a, b) => {
+        if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
+            return b.lastMessageTimestamp.toMillis() - a.lastMessageTimestamp.toMillis();
+        }
+        return 0;
+    });
+  }, [chats]);
+
   useEffect(() => {
-    if (chats && chats.length > 0 && !selectedChatId) {
-      setSelectedChatId(chats[0].id);
+    if (sortedChats && sortedChats.length > 0 && !selectedChatId) {
+      setSelectedChatId(sortedChats[0].id);
     }
-  }, [chats, selectedChatId]);
+  }, [sortedChats, selectedChatId]);
 
 
   const handleSelectChat = useCallback((chatId: string) => {
@@ -55,7 +64,7 @@ export default function ChatsPage() {
     return <p>{t('pleaseLogin')}</p>;
   }
   
-  const selectedChat = chats?.find(c => c.id === selectedChatId) ?? null;
+  const selectedChat = sortedChats?.find(c => c.id === selectedChatId) ?? null;
   
   const description = user.role === 'owner' ? t('description_owner') : t('description_customer');
 
@@ -72,9 +81,9 @@ export default function ChatsPage() {
                     <CardTitle className="text-lg">{t('yourConversations')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto p-2">
-                    {chats && chats.length > 0 ? (
+                    {sortedChats && sortedChats.length > 0 ? (
                         <div className="space-y-2">
-                           {chats.map((chat) => {
+                           {sortedChats.map((chat) => {
                                 if (chat.userId === chat.tentOwnerId) return null;
                            
                                 const displayName = user.role === 'owner' ? chat.userName : chat.tentName;
@@ -83,7 +92,7 @@ export default function ChatsPage() {
                                 return (
                                 <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
                                     <Avatar className='h-10 w-10'>
-                                        <AvatarImage src={undefined} />
+                                        <AvatarImage src={user.role === 'owner' ? chat.userPhotoURL ?? undefined : chat.tentLogoUrl ?? undefined} />
                                         <AvatarFallback>
                                             {getInitials(displayName)}
                                         </AvatarFallback>
