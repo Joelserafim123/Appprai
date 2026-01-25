@@ -1,4 +1,16 @@
 {
+    "Shared": {
+        "Categories": {
+            "Bebidas": "Drinks",
+            "Petiscos": "Snacks",
+            "Pratos Principais": "Main Courses",
+            "Outros": "Others"
+        },
+        "ProductNames": {
+            "Kit Guarda-sol + 2 Cadeiras": "Sun Umbrella + 2 Chairs Kit",
+            "Cadeira Adicional": "Additional Chair"
+        }
+    },
     "Header": {
         "viewTents": "View Tents",
         "greeting": "Hello,",

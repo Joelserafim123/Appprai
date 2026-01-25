@@ -38,6 +38,7 @@ import {
 import { collection, query, where, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
 import { ReviewDialog } from '@/components/reviews/review-dialog';
+import { useTranslations } from '@/i18n';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -130,6 +131,7 @@ export default function MyReservationsPage() {
   const { user, isUserLoading, refresh } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
+  const t_products = useTranslations('Shared.ProductNames');
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationToReview, setReservationToReview] = useState<Reservation | null>(null);
@@ -271,7 +273,7 @@ export default function MyReservationsPage() {
                   <ul className="space-y-2 text-sm text-muted-foreground">
                       {reservation.items.map((item, index) => (
                           <li key={`${item.name}-${index}`} className="flex justify-between">
-                              <span>{item.quantity}x {item.name}</span>
+                              <span>{item.quantity}x {t_products(item.name)}</span>
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                           </li>
                       ))}

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from '@/i18n';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -169,6 +170,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const router = useRouter();
+    const t_products = useTranslations('Shared.ProductNames');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
     const [reservationForCheckIn, setReservationForCheckIn] = useState<Reservation | null>(null);
@@ -341,7 +343,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                             <ul className="space-y-2 text-sm text-muted-foreground">
                                 {reservation.items.map((item, index) => (
                                     <li key={index} className="flex justify-between">
-                                        <span>{item.quantity}x {item.name}</span>
+                                        <span>{item.quantity}x {t_products(item.name)}</span>
                                         <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                                     </li>
                                 ))}

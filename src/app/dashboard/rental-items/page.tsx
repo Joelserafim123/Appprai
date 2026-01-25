@@ -28,6 +28,7 @@ import { collection, query, where, limit, doc, addDoc, updateDoc, deleteDoc, get
 import type { Tent, RentalItem } from '@/lib/types';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { useTranslations } from '@/i18n';
 
 const rentalItemSchema = z.object({
   name: z.enum(['Kit Guarda-sol + 2 Cadeiras', 'Cadeira Adicional'], { required_error: 'O nome é obrigatório.' }),
@@ -41,6 +42,7 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
   const { toast } = useToast();
   const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const t_products = useTranslations('Shared.ProductNames');
   
   const { register, handleSubmit, control, formState: { errors }, reset } = useForm<RentalItemFormData>({
     resolver: zodResolver(rentalItemSchema),
@@ -116,8 +118,8 @@ function RentalItemForm({ tent, item, onFinished, hasKit, updateTentAvailability
                 <SelectValue placeholder="Selecione o tipo de item" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Kit Guarda-sol + 2 Cadeiras" disabled={hasKit && !item}>Kit Guarda-sol + 2 Cadeiras</SelectItem>
-                <SelectItem value="Cadeira Adicional">Cadeira Adicional</SelectItem>
+                <SelectItem value="Kit Guarda-sol + 2 Cadeiras" disabled={hasKit && !item}>{t_products('Kit Guarda-sol + 2 Cadeiras')}</SelectItem>
+                <SelectItem value="Cadeira Adicional">{t_products('Cadeira Adicional')}</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -148,6 +150,7 @@ export default function RentalItemsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore: db } = useFirebase();
   const { toast } = useToast();
+  const t_products = useTranslations('Shared.ProductNames');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RentalItem | undefined>(undefined);
   const [itemToDelete, setItemToDelete] = useState<RentalItem | null>(null);
@@ -286,7 +289,7 @@ export default function RentalItemsPage() {
               {rentalItems.map((item) => (
                   <Card key={item.id}>
                       <CardHeader className='flex-row justify-between items-center'>
-                          <CardTitle>{item.name}</CardTitle>
+                          <CardTitle>{t_products(item.name)}</CardTitle>
                           <div className="flex items-center gap-2">
                               <Button variant="ghost" size="icon" onClick={() => openEditForm(item)}>
                                   <Edit className='w-4 h-4'/>
@@ -330,7 +333,7 @@ export default function RentalItemsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso irá apagar permanentemente o item "{itemToDelete?.name}" dos seus itens de aluguel.
+              Esta ação não pode ser desfeita. Isso irá apagar permanentemente o item "{t_products(itemToDelete?.name || '')}" dos seus itens de aluguel.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

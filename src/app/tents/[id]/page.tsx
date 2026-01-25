@@ -32,6 +32,7 @@ import { Header } from '@/components/layout/header';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch, updateDoc, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useTranslations } from '@/i18n';
 
 
 type CartItem = { 
@@ -84,6 +85,8 @@ export default function TentPage() {
   const { user, isUserLoading, refresh } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
+  const t_categories = useTranslations('Shared.Categories');
+  const t_products = useTranslations('Shared.ProductNames');
   
   const [reservationTime, setReservationTime] = useState<string>('');
   const [activeTab, setActiveTab] = useState('reserve');
@@ -541,7 +544,7 @@ export default function TentPage() {
                                     <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
                                     {Object.entries(menuByCategory).map(([category, items]) => (
                                         <AccordionItem key={category} value={category}>
-                                        <AccordionTrigger className="text-lg font-semibold">{category}</AccordionTrigger>
+                                        <AccordionTrigger className="text-lg font-semibold">{t_categories(category)}</AccordionTrigger>
                                         <AccordionContent>
                                             <div className="space-y-4 pt-2">
                                             {items.map((item) => (
@@ -604,7 +607,7 @@ export default function TentPage() {
                                                         <div>
                                                             <h3 className="flex items-center gap-2 text-lg font-semibold">
                                                                 <Armchair className="h-5 w-5"/>
-                                                                {rentalKit.name}
+                                                                {t_products(rentalKit.name)}
                                                             </h3>
                                                             <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
                                                             <p className="text-2xl font-bold text-primary">R$ {rentalKit.price.toFixed(2)}</p>
@@ -621,7 +624,7 @@ export default function TentPage() {
                                                         <div>
                                                             <h3 className="flex items-center gap-2 text-lg font-semibold">
                                                                 <Armchair className="h-5 w-5"/>
-                                                                {additionalChair.name}
+                                                                {t_products(additionalChair.name)}
                                                             </h3>
                                                             <p className="text-sm text-muted-foreground">Disponível: {additionalChair.quantity - (cart[additionalChair.id]?.quantity || 0)}</p>
                                                             <p className="text-xl font-bold text-primary">R$ {additionalChair.price.toFixed(2)}</p>
@@ -722,7 +725,7 @@ export default function TentPage() {
                            <ul className="space-y-2 text-sm text-muted-foreground">
                                 {Object.values(cart).map(({ item, quantity, type }) => (
                                      <li key={`${item.id}-${type}`} className="flex justify-between">
-                                        <span>{quantity}x {item.name}</span>
+                                        <span>{quantity}x {t_products(item.name)}</span>
                                         <span>R$ {(item.price * quantity).toFixed(2)}</span>
                                     </li>
                                 ))}

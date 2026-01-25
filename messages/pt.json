@@ -1,4 +1,16 @@
 {
+    "Shared": {
+        "Categories": {
+            "Bebidas": "Bebidas",
+            "Petiscos": "Petiscos",
+            "Pratos Principais": "Pratos Principais",
+            "Outros": "Outros"
+        },
+        "ProductNames": {
+            "Kit Guarda-sol + 2 Cadeiras": "Kit Guarda-sol + 2 Cadeiras",
+            "Cadeira Adicional": "Cadeira Adicional"
+        }
+    },
     "Header": {
         "viewTents": "Ver Barracas",
         "greeting": "Olá,",

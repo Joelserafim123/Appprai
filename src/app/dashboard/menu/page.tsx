@@ -29,6 +29,7 @@ import type { MenuItem, Tent } from '@/lib/types';
 import { collection, query, where, limit, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { useTranslations } from '@/i18n';
 
 
 const menuItemSchema = z.object({
@@ -44,6 +45,7 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
   const { toast } = useToast();
   const { firestore: db } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const t_categories = useTranslations('Shared.Categories');
   const { register, handleSubmit, control, formState: { errors }, reset } = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
     defaultValues: {
@@ -126,9 +128,9 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
                 <SelectValue placeholder="Selecione a categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Bebidas">Bebidas</SelectItem>
-                <SelectItem value="Petiscos">Petiscos</SelectItem>
-                <SelectItem value="Pratos Principais">Pratos Principais</SelectItem>
+                <SelectItem value="Bebidas">{t_categories('Bebidas')}</SelectItem>
+                <SelectItem value="Petiscos">{t_categories('Petiscos')}</SelectItem>
+                <SelectItem value="Pratos Principais">{t_categories('Pratos Principais')}</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -149,6 +151,7 @@ export default function MenuPage() {
   const { user, isUserLoading } = useUser();
   const { firestore: db } = useFirebase();
   const { toast } = useToast();
+  const t_categories = useTranslations('Shared.Categories');
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | undefined>(undefined);
@@ -275,7 +278,7 @@ export default function MenuPage() {
                   </CardHeader>
                   <CardContent>
                       <div className="flex justify-between items-end">
-                          <p className="text-sm font-semibold text-primary/80">{item.category}</p>
+                          <p className="text-sm font-semibold text-primary/80">{t_categories(item.category)}</p>
                           <p className='font-bold text-lg'>R$ {item.price.toFixed(2)}</p>
                       </div>
                   </CardContent>
