@@ -202,13 +202,14 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
     try {
         let bannerDownloadURL = existingTent?.bannerUrl || null;
+        const uploadMetadata = { customMetadata: { ownerUid: user.uid } };
 
         if (existingTent) {
             // --- UPDATE LOGIC ---
             if (bannerImageFile && storage) {
                 toast({ title: 'A fazer upload da imagem do banner...' });
                 const fileRef = storageRef(storage, `tents/${existingTent.id}/banner.jpg`);
-                await uploadBytes(fileRef, bannerImageFile);
+                await uploadBytes(fileRef, bannerImageFile, uploadMetadata);
                 bannerDownloadURL = await getDownloadURL(fileRef);
                 toast({ title: 'Upload do banner bem-sucedido!' });
             }
@@ -232,7 +233,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             if (bannerImageFile && storage) {
                 toast({ title: 'A fazer upload da imagem do banner...' });
                 const fileRef = storageRef(storage, `tents/${tentDocRef.id}/banner.jpg`); // Use new ID
-                await uploadBytes(fileRef, bannerImageFile);
+                await uploadBytes(fileRef, bannerImageFile, uploadMetadata);
                 bannerDownloadURL = await getDownloadURL(fileRef);
                 toast({ title: 'Upload do banner bem-sucedido!' });
             }
