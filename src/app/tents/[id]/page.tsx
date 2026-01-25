@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils, Heart, Star, User as UserIcon } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, Utensils, Heart, Star, User as UserIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -93,7 +93,6 @@ export default function TentPage() {
 
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   
   // Fetch Tent by ID
@@ -387,60 +386,6 @@ export default function TentPage() {
     }
   };
   
-    const handleStartChat = async () => {
-    if (!user || user.isAnonymous) {
-      toast({
-        variant: 'destructive',
-        title: 'Login Necessário',
-        description: 'Você precisa estar logado para iniciar uma conversa.',
-      });
-      router.push(`/login?redirect=/tents/${tentId}`);
-      return;
-    }
-    if (!tent || !firestore) return;
-
-    setIsCreatingChat(true);
-
-    try {
-      const chatsRef = collection(firestore, 'chats');
-      const q = query(
-        chatsRef,
-        where('userId', '==', user.uid),
-        where('tentId', '==', tent.id)
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        router.push('/dashboard/chats');
-      } else {
-        await addDoc(chatsRef, {
-          userId: user.uid,
-          userName: user.displayName,
-          userPhotoURL: user.photoURL || null,
-          tentId: tent.id,
-          tentName: tent.name,
-          tentOwnerId: tent.ownerId,
-          tentLogoUrl: tent.logoUrl || null,
-          lastMessage: `Conversa iniciada...`,
-          lastMessageSenderId: user.uid,
-          lastMessageTimestamp: serverTimestamp(),
-          participantIds: [user.uid, tent.ownerId],
-        });
-        router.push('/dashboard/chats');
-      }
-    } catch (error) {
-      console.error('Error starting chat:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao iniciar conversa',
-        description: 'Não foi possível iniciar a conversa. Tente novamente.',
-      });
-    } finally {
-      setIsCreatingChat(false);
-    }
-  };
-  
   const handleToggleFavorite = async () => {
     if (!user || user.isAnonymous || !firestore) {
         toast({
@@ -663,7 +608,7 @@ export default function TentPage() {
                                             <div key={review.id} className="flex gap-4">
                                                 <Avatar>
                                                     <AvatarImage src={review.userPhotoURL} />
-                                                    <AvatarFallback>
+                                                    <AvatarFallback className="bg-primary/20 text-primary">
                                                         <UserIcon className="h-5 w-5" />
                                                     </AvatarFallback>
                                                 </Avatar>
@@ -695,18 +640,6 @@ export default function TentPage() {
                                      <div>
                                         <h3 className="font-semibold flex items-center gap-2"><Clock className="w-4 h-4" /> Horário de Funcionamento</h3>
                                         <OperatingHoursDisplay hours={tent.operatingHours} />
-                                    </div>
-                                    <div className="pt-4 border-t">
-                                        <Button 
-                                            className="w-full" 
-                                            onClick={handleStartChat} 
-                                            disabled={isCreatingChat || isOwnerViewingOwnTent || user?.isAnonymous}
-                                        >
-                                            {isCreatingChat ? <Loader2 className="animate-spin" /> : <MessageSquare className="mr-2" />}
-                                            Contactar Barraca
-                                        </Button>
-                                        {isOwnerViewingOwnTent && <p className="text-xs text-center text-muted-foreground mt-2">Você não pode iniciar uma conversa com a sua própria barraca.</p>}
-                                        {user?.isAnonymous && <p className="text-xs text-center text-muted-foreground mt-2">Faça <Link href={`/login?redirect=/tents/${tentId}`} className="underline font-medium">login</Link> para contactar a barraca.</p>}
                                     </div>
                                 </CardContent>
                             </Card>

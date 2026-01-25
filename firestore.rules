@@ -120,23 +120,22 @@ service cloud.firestore {
     }
     
     // Rules for Chats
-    // Only participants (customer and tent owner) can access a chat and its messages.
     match /chats/{chatId} {
-      // A user can get or update a chat document if they are a participant.
-      allow get, update: if isSignedIn() && isParticipant(resource);
+      // A user can read (get/list) or update a chat document if they are a participant.
+      // The list operation is secured by the client query, which must filter by participantId.
+      allow read, update: if isSignedIn() && isParticipant(resource);
 
       // A user can create a chat if they are a participant in the new chat document.
       allow create: if isSignedIn() && isParticipant(request.resource);
-
-      // A user can list (query) the chats collection.
-      // Security is enforced by the client-side query which MUST use an 'array-contains'
-      // filter on 'participantIds' with the user's UID. Firestore's backend then
-      // verifies the 'get' rule for each document returned by the query.
-      allow list: if request.auth != null;
       
+      // Deleting chats is not allowed for data integrity.
+      allow delete: if false;
+
       match /messages/{messageId} {
+        // Participants of the parent chat can read and create messages.
         allow read, create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/chats/$(chatId)));
-        allow update, delete: if false; // Messages are immutable
+        // Messages are immutable.
+        allow update, delete: if false;
       }
     }
   }

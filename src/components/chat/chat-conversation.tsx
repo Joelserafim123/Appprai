@@ -6,12 +6,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, Check, CheckCheck } from 'lucide-react';
+import { Loader2, Send, Check, CheckCheck, User as UserIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { collection, query, orderBy, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
-import { getInitials } from '@/lib/utils';
 
 
 interface ChatConversationProps {
@@ -112,8 +111,8 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
         <div className="flex items-center gap-3">
              <Avatar>
                 <AvatarImage src={currentUser.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl} />
-                <AvatarFallback>
-                    {getInitials(currentUser.role === 'owner' ? chat.userName : chat.tentName)}
+                <AvatarFallback className="bg-primary/20 text-primary">
+                    <UserIcon className="h-5 w-5" />
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -142,8 +141,8 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                     {!isCurrentUser && (
                        <Avatar className='h-8 w-8 self-end'>
                             <AvatarImage src={isCurrentUser ? currentUser.photoURL : (currentUser.role === 'customer' ? chat.tentLogoUrl : chat.userPhotoURL) } />
-                            <AvatarFallback>
-                                {getInitials(getSenderName(message.senderId))}
+                            <AvatarFallback className="bg-primary/20 text-primary">
+                                <UserIcon className="h-4 w-4" />
                             </AvatarFallback>
                         </Avatar>
                     )}

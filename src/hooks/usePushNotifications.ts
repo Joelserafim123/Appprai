@@ -38,7 +38,7 @@ export function usePushNotifications() {
   }, [permission, isSupportedState, firebaseApp, toast]);
 
   const subscribeToNotifications = useCallback(async () => {
-    if (!isSupportedState || !firebaseApp || !firestore || !user || user.role !== 'owner') return;
+    if (!isSupportedState || !firebaseApp || !firestore || !user) return;
 
     setIsSubscribing(true);
     try {
