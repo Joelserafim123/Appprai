@@ -167,6 +167,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
 }
 
 const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
+    const { user } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
     const router = useRouter();
@@ -279,7 +280,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     }
 
     const handleStartChat = async (reservation: Reservation) => {
-        if (!reservation.tentOwnerId || !firestore) return;
+        if (!reservation.tentOwnerId || !firestore || !user) return;
         setIsCreatingChat(reservation.id);
         
         try {
@@ -299,6 +300,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                     tentName: reservation.tentName,
                     tentOwnerId: reservation.tentOwnerId,
                     lastMessage: `Conversa iniciada...`,
+                    lastMessageSenderId: user.uid,
                     lastMessageTimestamp: serverTimestamp(),
                     participantIds: [reservation.userId, reservation.tentOwnerId],
                 });

@@ -3,12 +3,12 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, MessageSquare, User as UserIcon } from 'lucide-react';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import { getInitials } from '@/lib/utils';
 import { useTranslations } from '@/i18n';
 
@@ -21,27 +21,25 @@ export default function ChatsPage() {
   const chatsQuery = useMemoFirebase(
     () => (user && db) ? query(
         collection(db, 'chats'), 
-        where('participantIds', 'array-contains', user.uid)
+        where('participantIds', 'array-contains', user.uid),
+        orderBy('lastMessageTimestamp', 'desc')
       ) : null,
     [db, user]
   );
-  const { data: rawChats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
+  const { data: chats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
 
-  const chats = useMemo(() => {
-    if (!rawChats) return [];
-    return [...rawChats].sort((a, b) => {
-        if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
-            return b.lastMessageTimestamp.toMillis() - a.lastMessageTimestamp.toMillis();
-        }
-        return 0;
-    });
-  }, [rawChats]);
+  useEffect(() => {
+    if (chats && chats.length > 0 && !selectedChatId) {
+      setSelectedChatId(chats[0].id);
+    }
+  }, [chats, selectedChatId]);
+
 
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);
   }, []);
 
-  if (isUserLoading || (chatsLoading && !rawChats)) {
+  if (isUserLoading || (chatsLoading && !chats)) {
     return (
       <div className="flex justify-center items-center h-full">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -73,7 +71,11 @@ export default function ChatsPage() {
                     {chats && chats.length > 0 ? (
                         <div className="space-y-2">
                            {chats.map((chat) => {
+                                if (chat.userId === chat.tentOwnerId) return null;
+                           
                                 const displayName = user.role === 'owner' ? chat.userName : chat.tentName;
+                                const lastMessagePrefix = chat.lastMessageSenderId === user.uid ? 'Você: ' : '';
+
                                 return (
                                 <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
                                     <Avatar className='h-10 w-10'>
@@ -84,7 +86,7 @@ export default function ChatsPage() {
                                     </Avatar>
                                     <div className='flex-1 overflow-hidden'>
                                         <p className='font-semibold truncate'>{displayName}</p>
-                                        <p className='text-xs text-muted-foreground truncate'>{chat.lastMessage}</p>
+                                        <p className='text-xs text-muted-foreground truncate'>{lastMessagePrefix}{chat.lastMessage}</p>
                                     </div>
                                 </button>
                            )})}

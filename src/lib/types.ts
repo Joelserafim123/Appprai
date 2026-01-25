@@ -148,6 +148,7 @@ export interface Chat {
   tentOwnerId: string;
   tentLogoUrl?: string;
   lastMessage?: string;
+  lastMessageSenderId?: string;
   lastMessageTimestamp: Timestamp;
   participantIds: string[];
 }

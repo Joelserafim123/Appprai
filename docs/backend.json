@@ -142,6 +142,7 @@
             "tentName": { "type": "string" },
             "tentOwnerId": { "type": "string" },
             "lastMessage": { "type": "string" },
+            "lastMessageSenderId": { "type": "string", "description": "The UID of the user who sent the last message." },
             "lastMessageTimestamp": { "type": "string", "format": "date-time" }
         },
         "required": ["participantIds", "userId", "userName", "tentId", "tentName", "tentOwnerId", "lastMessageTimestamp"]

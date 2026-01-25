@@ -231,6 +231,7 @@ export default function MyReservationsPage() {
                 tentName: reservation.tentName,
                 tentOwnerId: reservation.tentOwnerId,
                 lastMessage: `Conversa iniciada...`,
+                lastMessageSenderId: user.uid,
                 lastMessageTimestamp: serverTimestamp(),
                 participantIds: [reservation.userId, reservation.tentOwnerId],
             });
@@ -360,7 +361,7 @@ export default function MyReservationsPage() {
                               </a>
                           </Button>
                       )}
-                       {['confirmed', 'checked-in', 'payment-pending'].includes(reservation.status) && (
+                       {['confirmed', 'checked-in', 'payment-pending'].includes(reservation.status) && reservation.status !== 'cancelled' && (
                           <Button variant="outline" onClick={() => handleStartChat(reservation)} disabled={isCreatingChat === reservation.id}>
                               {isCreatingChat === reservation.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4"/>}
                               Contactar Barraca

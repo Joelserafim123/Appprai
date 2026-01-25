@@ -423,6 +423,7 @@ export default function TentPage() {
           tentOwnerId: tent.ownerId,
           tentLogoUrl: tent.logoUrl || null,
           lastMessage: `Conversa iniciada...`,
+          lastMessageSenderId: user.uid,
           lastMessageTimestamp: serverTimestamp(),
           participantIds: [user.uid, tent.ownerId],
         });

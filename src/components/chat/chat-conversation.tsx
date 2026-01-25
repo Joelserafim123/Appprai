@@ -86,6 +86,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
         const chatRef = doc(db, 'chats', chat.id);
         batch.update(chatRef, {
             lastMessage: messageText,
+            lastMessageSenderId: currentUser.uid,
             lastMessageTimestamp: serverTimestamp()
         });
 
