@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, QrCode } from 'lucide-react';
+import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, QrCode, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/tooltip"
 import { collection, query, where, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
+import { ReviewDialog } from '@/components/reviews/review-dialog';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -131,6 +132,7 @@ export default function MyReservationsPage() {
   const { toast } = useToast();
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
   const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
+  const [reservationToReview, setReservationToReview] = useState<Reservation | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   
   const reservationsQuery = useMemoFirebase(
@@ -292,6 +294,16 @@ export default function MyReservationsPage() {
                               Pago com {paymentMethodLabels[reservation.paymentMethod]}
                           </div>
                       )}
+                      {reservation.status === 'completed' && !reservation.reviewed && (
+                          <Button variant="outline" onClick={() => setReservationToReview(reservation)} className="w-full">
+                              <Star className="mr-2 h-4 w-4" /> Avaliar Experiência
+                          </Button>
+                      )}
+                      {reservation.status === 'completed' && reservation.reviewed && (
+                          <Button variant="outline" disabled className="w-full">
+                              <Check className="mr-2 h-4 w-4" /> Avaliação Enviada
+                          </Button>
+                      )}
                       {reservation.status === 'payment-pending' && (
                         <Button onClick={() => setReservationForPayment(reservation)}>
                             <CreditCard className="mr-2 h-4 w-4"/> Pagar Agora
@@ -376,8 +388,11 @@ export default function MyReservationsPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-         <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
+        <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
             {reservationForPayment && <CustomerPaymentDialog reservation={reservationForPayment} onFinished={() => setReservationForPayment(null)} />}
+        </Dialog>
+        <Dialog open={!!reservationToReview} onOpenChange={(open) => !open && setReservationToReview(null)}>
+            {reservationToReview && <ReviewDialog reservation={reservationToReview} onFinished={() => { setReservationToReview(null); refresh(); }} />}
         </Dialog>
     </div>
   );

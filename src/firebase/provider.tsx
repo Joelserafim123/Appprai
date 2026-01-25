@@ -128,6 +128,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           city: userProfile?.city,
           state: userProfile?.state,
           outstandingBalance: userProfile?.outstandingBalance || 0,
+          favoriteTentIds: userProfile?.favoriteTentIds || [],
       };
 
       return hydratedUser;

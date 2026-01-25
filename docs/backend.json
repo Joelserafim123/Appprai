@@ -18,7 +18,8 @@
         "city": { "type": "string", "description": "The user's city." },
         "state": { "type": "string", "description": "The user's state." },
         "profileComplete": { "type": "boolean", "description": "Flag indicating if the user has completed their profile." },
-        "outstandingBalance": { "type": "number", "description": "Client's outstanding debt to the platform for late cancellation fees." }
+        "outstandingBalance": { "type": "number", "description": "Client's outstanding debt to the platform for late cancellation fees." },
+        "favoriteTentIds": { "type": "array", "items": { "type": "string" }, "description": "List of tent IDs favorited by the user." }
       },
       "required": ["uid", "email", "displayName", "role"]
     },
@@ -46,7 +47,9 @@
         "operatingHours": {
             "type": "object",
             "description": "The operating hours of the tent for each day of the week."
-        }
+        },
+        "averageRating": { "type": "number", "description": "The average rating of the tent from 0 to 5." },
+        "reviewCount": { "type": "number", "description": "The total number of reviews for the tent." }
       },
       "required": ["name", "description", "beachName", "ownerId", "ownerName", "location"]
     },
@@ -106,9 +109,26 @@
         "cancellationReason": { "type": "string", "description": "The reason for cancellation (e.g., 'client_late', 'owner_late', 'no_show')." },
         "outstandingBalancePaid": { "type": "number", "description": "Amount of outstanding balance paid with this reservation." },
         "tableNumber": { "type": "number" },
-        "participantIds": { "type": "array", "items": { "type": "string" } }
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "reviewed": { "type": "boolean", "description": "Flag indicating if the user has reviewed this reservation." }
       },
       "required": ["userId", "userName", "tentId", "tentName", "tentOwnerId", "tentOwnerName", "items", "total", "createdAt", "reservationTime", "orderNumber", "checkinCode", "status", "participantIds"]
+    },
+    "Review": {
+        "title": "Review",
+        "description": "A review of a tent by a user.",
+        "type": "object",
+        "properties": {
+            "userId": { "type": "string" },
+            "userName": { "type": "string" },
+            "userPhotoURL": { "type": "string", "format": "uri" },
+            "tentId": { "type": "string" },
+            "reservationId": { "type": "string" },
+            "rating": { "type": "number", "description": "Rating from 1 to 5." },
+            "comment": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["userId", "userName", "tentId", "reservationId", "rating", "createdAt"]
     },
     "Chat": {
         "title": "Chat",
@@ -173,6 +193,10 @@
     "/tents/{tentId}/rentalItems/{rentalItemId}": {
         "schema": { "$ref": "#/entities/RentalItem" },
         "description": "Rental items for a specific tent. Publicly readable, owner-write."
+    },
+    "/tents/{tentId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Reviews for a specific tent. Publicly readable."
     },
     "/reservations/{reservationId}": {
       "schema": { "$ref": "#/entities/Reservation" },

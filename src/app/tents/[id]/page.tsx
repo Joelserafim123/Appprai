@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, MessageSquare, Utensils, Heart, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { Tent, OperatingHoursDay, Reservation } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import type { Tent, OperatingHoursDay, Reservation, Review } from '@/lib/types';
+import { cn, getInitials } from '@/lib/utils';
 import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
@@ -30,7 +30,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch, updateDoc, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 type CartItem = { 
@@ -90,6 +91,7 @@ export default function TentPage() {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [isFavoriting, setIsFavoriting] = useState(false);
   
   // Fetch Tent by ID
   const tentRef = useMemoFirebase(() => (firestore && tentId) ? doc(firestore, 'tents', tentId) : null, [firestore, tentId]);
@@ -121,6 +123,9 @@ export default function TentPage() {
   const rentalItemsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? collection(firestore, 'tents', subQueryTentId, 'rentalItems') : null, [firestore, subQueryTentId]);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
 
+  const reviewsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? query(collection(firestore, 'tents', subQueryTentId, 'reviews'), orderBy('createdAt', 'desc')) : null, [firestore, subQueryTentId]);
+  const { data: reviews, isLoading: loadingReviews } = useCollection<Review>(reviewsQuery);
+
   // Check for active reservations
   const userReservationsQuery = useMemoFirebase(() => {
     if (firestore && user && !user.isAnonymous && user.uid) {
@@ -139,6 +144,8 @@ export default function TentPage() {
 
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
+
+  const isFavorite = useMemo(() => user?.favoriteTentIds?.includes(tentId), [user, tentId]);
 
 
   if (loadingTent || isUserLoading || loadingActiveReservation) {
@@ -428,6 +435,34 @@ export default function TentPage() {
       setIsCreatingChat(false);
     }
   };
+  
+  const handleToggleFavorite = async () => {
+    if (!user || user.isAnonymous || !firestore) {
+        toast({
+            variant: "destructive",
+            title: "Login Necessário",
+            description: "Você precisa estar logado para favoritar uma barraca.",
+        });
+        router.push(`/login?redirect=/tents/${tentId}`);
+        return;
+    }
+    setIsFavoriting(true);
+    const userRef = doc(firestore, 'users', user.uid);
+    try {
+        await updateDoc(userRef, {
+            favoriteTentIds: isFavorite ? arrayRemove(tentId) : arrayUnion(tentId)
+        });
+        await refresh(); // Refresh user data to get updated favorites
+        toast({
+            title: isFavorite ? "Removido dos Favoritos" : "Adicionado aos Favoritos!",
+        });
+    } catch (error) {
+        console.error("Error toggling favorite:", error);
+        toast({ variant: 'destructive', title: 'Ocorreu um erro' });
+    } finally {
+        setIsFavoriting(false);
+    }
+};
 
   return (
     <div className="min-h-screen bg-background">
@@ -444,8 +479,33 @@ export default function TentPage() {
             />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 text-white">
-            <h1 className="text-4xl font-extrabold drop-shadow-lg md:text-6xl">{tent.name}</h1>
-            <p className="mt-2 max-w-2xl text-lg drop-shadow-md">{tent.description}</p>
+            <div className="flex items-end gap-4">
+                <div>
+                    <h1 className="text-4xl font-extrabold drop-shadow-lg md:text-6xl">{tent.name}</h1>
+                    <p className="mt-2 max-w-2xl text-lg drop-shadow-md">{tent.description}</p>
+                    {tent.reviewCount != null && tent.reviewCount > 0 && (
+                        <div className="flex items-center gap-2 mt-4">
+                            <div className="flex items-center">
+                                {[...Array(5)].map((_, i) => (
+                                    <Star key={i} className={cn("w-5 h-5", i < Math.round(tent.averageRating || 0) ? "text-yellow-400 fill-yellow-400" : "text-yellow-400/50")} />
+                                ))}
+                            </div>
+                            <span className="text-white font-bold">{tent.averageRating.toFixed(1)}</span>
+                            <span className="text-sm text-white/80">({tent.reviewCount} avaliações)</span>
+                        </div>
+                    )}
+                </div>
+                <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="bg-transparent text-white border-white hover:bg-white/10 hover:text-white rounded-full shrink-0" 
+                    onClick={handleToggleFavorite} 
+                    disabled={isFavoriting || isOwnerViewingOwnTent || user?.isAnonymous}
+                    aria-label="Favoritar"
+                >
+                    <Heart className={cn("transition-colors", isFavorite && "fill-red-500 text-red-500")} />
+                </Button>
+            </div>
           </div>
         </div>
 
@@ -453,10 +513,11 @@ export default function TentPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="reserve">Aluguel e Horário</TabsTrigger>
                         <TabsTrigger value="menu">Cardápio</TabsTrigger>
-                         <TabsTrigger value="info">Informações</TabsTrigger>
+                        <TabsTrigger value="reviews">Avaliações</TabsTrigger>
+                        <TabsTrigger value="info">Informações</TabsTrigger>
                     </TabsList>
                      <TabsContent value="menu" className="mt-6">
                         <Card>
@@ -576,6 +637,45 @@ export default function TentPage() {
                                                 <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
                                             )}
                                     </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="reviews" className="mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Avaliações dos Clientes</CardTitle>
+                                    {tent.reviewCount != null && tent.reviewCount > 0 ? (
+                                        <CardDescription>Veja o que outros clientes estão a dizer sobre a {tent.name}.</CardDescription>
+                                    ) : (
+                                        <CardDescription>Esta barraca ainda não tem avaliações.</CardDescription>
+                                    )}
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    {loadingReviews ? (
+                                        <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
+                                    ) : reviews && reviews.length > 0 ? (
+                                        reviews.map(review => (
+                                            <div key={review.id} className="flex gap-4">
+                                                <Avatar>
+                                                    <AvatarImage src={review.userPhotoURL} />
+                                                    <AvatarFallback>{getInitials(review.userName)}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="font-semibold">{review.userName}</p>
+                                                        <div className="flex items-center">
+                                                            {[...Array(5)].map((_, i) => (
+                                                                <Star key={i} className={cn("w-4 h-4", i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/50")} />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground mt-2">{review.comment}</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-center text-muted-foreground py-8">Seja o primeiro a avaliar!</p>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>

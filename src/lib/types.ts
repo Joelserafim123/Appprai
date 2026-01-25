@@ -16,6 +16,7 @@ export interface UserProfile {
     state?: string;
     profileComplete?: boolean;
     outstandingBalance?: number;
+    favoriteTentIds?: string[];
 }
 
 // Full user data including Firebase User properties
@@ -52,6 +53,8 @@ export interface Tent {
   minimumOrderForFeeWaiver?: number;
   hasAvailableKits?: boolean;
   operatingHours: OperatingHours;
+  averageRating?: number;
+  reviewCount?: number;
   // Client-side computed value
   distance?: number;
 }
@@ -114,7 +117,22 @@ export interface Reservation {
   outstandingBalancePaid?: number;
   tableNumber?: number;
   participantIds: string[];
+  reviewed?: boolean;
 }
+
+// A review of a tent
+export interface Review {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhotoURL?: string;
+  tentId: string;
+  reservationId: string;
+  rating: number;
+  comment: string;
+  createdAt: Timestamp;
+}
+
 
 // Metadata for a chat conversation
 export interface Chat {

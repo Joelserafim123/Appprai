@@ -92,6 +92,24 @@ service cloud.firestore {
         allow get, list: if true;
         allow create, update, delete: if isSignedIn() && isTentOwner();
       }
+
+      // Reviews for a tent
+      match /reviews/{reviewId} {
+        // Anyone can read reviews
+        allow get, list: if true;
+
+        // Only a signed-in user who made the reservation can create a review for it, once.
+        allow create: if isSignedIn() &&
+                         request.resource.data.userId == request.auth.uid &&
+                         exists(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)) &&
+                         get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.userId == request.auth.uid &&
+                         get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.tentId == tentId &&
+                         get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.status == 'completed' &&
+                         get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.reviewed != true;
+
+        // Users cannot update or delete reviews for simplicity
+        allow update, delete: if false;
+      }
     }
 
     // Rules for Reservations
