@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Send, Check, CheckCheck, User as UserIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { collection, query, orderBy, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
 
 
@@ -98,25 +98,21 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     }
   };
 
-  const getSenderName = (senderId: string) => {
-    if (senderId === chat.userId) return chat.userName;
-    if (senderId === chat.tentOwnerId) return chat.tentName;
-    return '';
-  };
-
+  const otherPartyName = currentUser.role === 'owner' ? chat.userName : chat.tentName;
+  const otherPartyAvatar = currentUser.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl;
 
   return (
     <Card className="flex flex-col flex-1 h-full">
       <CardHeader>
         <div className="flex items-center gap-3">
              <Avatar>
-                <AvatarImage src={currentUser.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl} />
+                <AvatarImage src={otherPartyAvatar ?? undefined} />
                 <AvatarFallback className="bg-primary/20 text-primary">
-                    <UserIcon className="h-5 w-5" />
+                    {otherPartyName ? getInitials(otherPartyName) : <UserIcon className="h-5 w-5" />}
                 </AvatarFallback>
              </Avatar>
              <div>
-                <CardTitle className="text-lg">{currentUser.role === 'owner' ? chat.userName : chat.tentName}</CardTitle>
+                <CardTitle className="text-lg">{otherPartyName}</CardTitle>
             </div>
         </div>
       </CardHeader>
@@ -140,9 +136,9 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                   >
                     {!isCurrentUser && (
                        <Avatar className='h-8 w-8 self-end'>
-                            <AvatarImage src={isCurrentUser ? currentUser.photoURL : (currentUser.role === 'customer' ? chat.tentLogoUrl : chat.userPhotoURL) } />
-                            <AvatarFallback className="bg-primary/20 text-primary">
-                                <UserIcon className="h-4 w-4" />
+                            <AvatarImage src={otherPartyAvatar ?? undefined} />
+                            <AvatarFallback className="bg-muted text-muted-foreground">
+                                {otherPartyName ? getInitials(otherPartyName) : <UserIcon className="h-4 w-4" />}
                             </AvatarFallback>
                         </Avatar>
                     )}

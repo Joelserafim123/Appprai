@@ -10,7 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -141,9 +141,10 @@ export default function SettingsPage() {
   
   
 const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firestore || !auth) return;
+    if (!user || !firestore || !auth || !storage) return;
     
     setIsSubmitting(true);
+    toast({ title: 'A salvar as suas informações...' });
     
     try {
         const currentUser = auth.currentUser;
@@ -153,7 +154,7 @@ const onSubmit = async (data: ProfileFormData) => {
 
         let photoDownloadURL: string | null = user.photoURL || null;
 
-        if (profileImageFile && storage) {
+        if (profileImageFile) {
             toast({ title: 'A fazer upload da imagem...' });
             const fileRef = storageRef(storage, `users/${user.uid}/profile.jpg`);
             await uploadBytes(fileRef, profileImageFile);
@@ -177,7 +178,8 @@ const onSubmit = async (data: ProfileFormData) => {
         };
 
         const isNewCpf = !user.cpf && data.cpf;
-
+        
+        // Only add CPF to the update if it's being set for the first time
         if (isNewCpf) {
             const cpfDigits = data.cpf.replace(/\D/g, '');
             const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
@@ -190,7 +192,7 @@ const onSubmit = async (data: ProfileFormData) => {
             batch.set(newCpfDocRef, { userId: user.uid });
         }
         
-        batch.update(userDocRef, firestoreUpdateData as any);
+        batch.update(userDocRef, firestoreUpdateData);
 
         await batch.commit();
 
@@ -220,7 +222,7 @@ const onSubmit = async (data: ProfileFormData) => {
              switch(error.code) {
                 case 'storage/unauthorized':
                     title = "Erro de Permissão no Upload";
-                    description = "Você não tem permissão para carregar a sua foto de perfil.";
+                    description = "Você não tem permissão para carregar a sua foto de perfil. Verifique as regras de segurança.";
                     break;
                 case 'storage/canceled':
                     title = "Upload Cancelado";
@@ -231,7 +233,7 @@ const onSubmit = async (data: ProfileFormData) => {
                     description = 'Este CPF já pode estar em uso por outra conta ou você não tem permissão para salvar estes dados.';
                     break;
                 default:
-                    description = error.message || 'Ocorreu um erro desconhecido.';
+                    description = error.message || 'Ocorreu um erro desconhecido no Firebase.';
             }
         } else if (error.message) {
             description = error.message;

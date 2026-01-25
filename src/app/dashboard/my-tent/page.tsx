@@ -17,8 +17,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
@@ -197,17 +195,17 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   }
 
   const onSubmit = async (data: TentFormData) => {
-    if (!firestore || !user) return;
+    if (!firestore || !user || !storage) return;
     setIsSubmitting(true);
     toast({ title: "A guardar alterações..." });
 
     try {
-      let bannerDownloadURL = existingTent?.bannerUrl || null;
+      let bannerDownloadURL: string | null = existingTent?.bannerUrl || null;
       
       const tentId = existingTent ? existingTent.id : doc(collection(firestore, "tents")).id;
       const tentDocRef = doc(firestore, "tents", tentId);
 
-      if (bannerImageFile && storage) {
+      if (bannerImageFile) {
         toast({ title: 'A fazer upload da imagem do banner...' });
         const fileRef = storageRef(storage, `tents/${tentId}/banner.jpg`);
         const uploadMetadata = { customMetadata: { ownerUid: user.uid } };
@@ -258,11 +256,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                 case 'permission-denied':
                     title = "Erro de Permissão no Banco de Dados";
                     description = "Você não tem permissão para salvar os dados da barraca. Verifique as regras de segurança do Firestore.";
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({
-                        path: existingTent ? doc(firestore, "tents", existingTent.id).path : "tents",
-                        operation: existingTent ? 'update' : 'create',
-                        requestResourceData: data,
-                    }));
                     break;
                 default:
                     description = error.message || description;
@@ -441,7 +434,7 @@ export default function MyTentPage() {
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
     [firestore, user]
   );
-  const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
+  const { data: tents, isLoading: loadingTent, refresh: refreshTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;
   
 
@@ -455,6 +448,12 @@ export default function MyTentPage() {
 
   if (!user || user.role !== 'owner') {
     return <p>Acesso negado.</p>;
+  }
+
+  const handleFinished = () => {
+    if (refreshTent) {
+      refreshTent();
+    }
   }
 
   return (
@@ -475,11 +474,10 @@ export default function MyTentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TentForm user={user} existingTent={tent} onFinished={() => {}} />
+          <TentForm user={user} existingTent={tent} onFinished={handleFinished} />
         </CardContent>
       </Card>
       
     </div>
   );
-
 }

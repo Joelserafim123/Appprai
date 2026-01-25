@@ -9,10 +9,10 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Is the user a participant in a document (e.g., reservation, chat)?
+    // Checks if the user is a participant in a document (e.g., reservation, chat).
     // This is robust: checks for key existence, list type, and membership.
     function isParticipant(doc) {
       return 'participantIds' in doc.data &&
@@ -36,7 +36,6 @@ service cloud.firestore {
     }
 
     // Rules for User Profiles
-    // Users can read and write their own profile, but cannot list all users.
     match /users/{userId} {
       allow read, delete: if isOwner(userId);
       allow create: if isSignedIn() && request.resource.data.uid == userId;
@@ -48,92 +47,69 @@ service cloud.firestore {
 
     // Rules for CPFs (to enforce uniqueness)
     match /cpfs/{cpf} {
-      // Allow any signed-in user to check if a CPF exists for client-side validation.
       allow get: if isSignedIn();
       allow list: if false; // Do not allow listing all CPFs.
       // Allow creation only if the document doesn't exist (implicit in create)
       // and the creator is the one associated with the CPF being written in the user profile document as part of a batch write.
-      allow create: if isSignedIn() && 
-                     request.resource.data.userId == request.auth.uid &&
-                     getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.cpf == cpf;
-      // Allow deletion only by the owner of the CPF record.
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      // Updates are not allowed. Must delete and create.
-      allow update: if false;
+      allow create: if isOwner(get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.uid);
+      allow delete: if isOwner(resource.data.userId);
+      allow update: if false; // Updates are not allowed. Must delete and create.
     }
 
     // Rules for Tents and their subcollections
-    // Anyone can read tent data, but only the owner can write.
     match /tents/{tentId} {
       allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      // Owners can update or delete their own tent document
-      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
+      allow update, delete: if isOwner(resource.data.ownerId);
       
-      // Helper function to check if the current user owns the parent tent.
       function isTentOwner() {
-        return exists(/databases/$(database)/documents/tents/$(tentId)) &&
-               get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+        return get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
       }
 
-      // Menu items inherit permissions from the parent tent.
       match /menuItems/{menuItemId} {
-        allow get, list: if true;
-        allow create, update, delete: if isSignedIn() && isTentOwner();
+        allow read: if true;
+        allow write: if isSignedIn() && isTentOwner();
       }
       
-      // Rental items inherit permissions from the parent tent.
       match /rentalItems/{rentalItemId} {
-        allow get, list: if true;
-        allow create, update, delete: if isSignedIn() && isTentOwner();
+        allow read: if true;
+        allow write: if isSignedIn() && isTentOwner();
       }
 
-      // Reviews for a tent
       match /reviews/{reviewId} {
-        // Anyone can read reviews
-        allow get, list: if true;
-
-        // Only a signed-in user who made the reservation can create a review for it, once.
+        allow read: if true;
         allow create: if isSignedIn() &&
                          request.resource.data.userId == request.auth.uid &&
-                         exists(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)) &&
                          get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.userId == request.auth.uid &&
                          get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.tentId == tentId &&
                          get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.status == 'completed' &&
                          get(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.reviewed != true;
-
-        // Users cannot update or delete reviews for simplicity
         allow update, delete: if false;
       }
     }
 
     // Rules for Reservations
-    // Only participants (customer and tent owner) can access a reservation.
     match /reservations/{reservationId} {
       allow get, update: if isSignedIn() && isParticipant(resource);
-      allow list: if isSignedIn() &&
-                     (request.query.get('userId') == request.auth.uid ||
-                      request.query.get('tentOwnerId') == request.auth.uid);
       allow create: if isSignedIn() && isParticipant(request.resource);
-      // For simplicity, we are allowing any participant to update. Deletion is disabled.
-      allow delete: if false; // Prevent accidental deletion. Status should be updated to 'cancelled'.
+      allow list: if isSignedIn() && 
+                     (request.query.get('userId') == request.auth.uid || 
+                      request.query.get('tentOwnerId') == request.auth.uid);
+      allow delete: if false; // Prevent accidental deletion.
     }
     
-    // Rules for Chats
+    // Rules for Chats and Messages
     match /chats/{chatId} {
       // Allow a user to LIST chats if they are authenticated.
-      // The client-side query MUST use an array-contains filter on participantIds
+      // The client-side query MUST use an `array-contains` filter on `participantIds`
       // to ensure they only see their own chats. Firestore enforces this linkage.
       allow list: if isSignedIn();
 
-      // Allow a user to GET or UPDATE a chat document if they are a participant.
+      // Allow a user to GET, CREATE, or UPDATE a chat document if they are a participant.
       allow get, update: if isSignedIn() && isParticipant(resource);
-      
-      // Allow a user to CREATE a chat document if they are a participant in the new document.
       allow create: if isSignedIn() && isParticipant(request.resource);
-
-      // Deleting chats is not allowed for data integrity.
-      allow delete: if false;
+      
+      allow delete: if false; // Deleting chats is not allowed.
 
       match /messages/{messageId} {
         // Participants of the parent chat can read and create messages.

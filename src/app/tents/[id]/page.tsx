@@ -13,7 +13,7 @@ import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import type { Tent, OperatingHoursDay, Reservation, Review } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
@@ -334,7 +334,7 @@ export default function TentPage() {
         const userRef = doc(firestore, 'users', user.uid);
         const outstandingBalance = user.outstandingBalance || 0;
 
-        const reservationData = {
+        const reservationData: Omit<Reservation, 'id'> = {
             userId: user.uid,
             userName: user.displayName,
             userPhotoURL: user.photoURL || null,
@@ -352,7 +352,7 @@ export default function TentPage() {
             })),
             total: finalTotal,
             outstandingBalancePaid: outstandingBalance,
-            createdAt: serverTimestamp(),
+            createdAt: serverTimestamp() as any, // Cast to any to satisfy type temporarily
             reservationTime,
             orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
             checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
@@ -607,9 +607,9 @@ export default function TentPage() {
                                         reviews.map(review => (
                                             <div key={review.id} className="flex gap-4">
                                                 <Avatar>
-                                                    <AvatarImage src={review.userPhotoURL} />
+                                                    <AvatarImage src={review.userPhotoURL ?? undefined} />
                                                     <AvatarFallback className="bg-primary/20 text-primary">
-                                                        <UserIcon className="h-5 w-5" />
+                                                        {review.userName ? getInitials(review.userName) : <UserIcon className="h-5 w-5" />}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1">

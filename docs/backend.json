@@ -8,6 +8,7 @@
         "uid": { "type": "string", "description": "The unique ID of the user." },
         "email": { "type": "string", "format": "email", "description": "The user's email address." },
         "displayName": { "type": "string", "description": "The user's full name." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL to the user's profile picture." },
         "role": { "type": "string", "enum": ["customer", "owner"], "description": "The user's role in the application." },
         "cpf": { "type": "string", "description": "The user's Brazilian individual taxpayer registry number (CPF)." },
         "cep": { "type": "string", "description": "The user's Brazilian postal code (CEP)." },
@@ -37,6 +38,8 @@
         "beachName": { "type": "string", "description": "The name of the beach where the tent is located." },
         "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
         "ownerName": { "type": "string", "description": "The name of the user who owns the tent." },
+        "bannerUrl": { "type": "string", "format": "uri", "description": "URL of the tent's banner image." },
+        "logoUrl": { "type": "string", "format": "uri", "description": "URL of the tent's logo image." },
         "location": {
           "type": "object",
           "properties": {
@@ -86,10 +89,12 @@
       "properties": {
         "userId": { "type": "string" },
         "userName": { "type": "string" },
+        "userPhotoURL": { "type": "string", "format": "uri" },
         "tentId": { "type": "string" },
         "tentName": { "type": "string" },
         "tentOwnerId": { "type": "string" },
         "tentOwnerName": { "type": "string" },
+        "tentLogoUrl": { "type": "string", "format": "uri" },
         "tentLocation": {
             "type": "object",
             "properties": {
@@ -122,6 +127,7 @@
         "properties": {
             "userId": { "type": "string" },
             "userName": { "type": "string" },
+            "userPhotoURL": { "type": "string", "format": "uri" },
             "tentId": { "type": "string" },
             "reservationId": { "type": "string" },
             "rating": { "type": "number", "description": "Rating from 1 to 5." },
@@ -138,9 +144,11 @@
             "participantIds": { "type": "array", "items": { "type": "string" } },
             "userId": { "type": "string" },
             "userName": { "type": "string" },
+            "userPhotoURL": { "type": "string", "format": "uri" },
             "tentId": { "type": "string" },
             "tentName": { "type": "string" },
             "tentOwnerId": { "type": "string" },
+            "tentLogoUrl": { "type": "string", "format": "uri" },
             "lastMessage": { "type": "string" },
             "lastMessageSenderId": { "type": "string", "description": "The UID of the user who sent the last message." },
             "lastMessageTimestamp": { "type": "string", "format": "date-time" }

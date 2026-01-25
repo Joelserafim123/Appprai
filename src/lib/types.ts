@@ -7,7 +7,7 @@ export interface UserProfile {
     uid: string;
     email: string;
     displayName: string;
-    photoURL?: string;
+    photoURL?: string | null;
     role: 'customer' | 'owner';
     cpf?: string;
     cep?: string;
@@ -59,8 +59,8 @@ export interface Tent {
   reviewCount: number;
   // Client-side computed value
   distance?: number;
-  bannerUrl?: string;
-  logoUrl?: string;
+  bannerUrl?: string | null;
+  logoUrl?: string | null;
 }
 
 // An item on the tent's food/drink menu
@@ -97,12 +97,12 @@ export interface Reservation {
   id: string;
   userId: string;
   userName: string;
-  userPhotoURL?: string;
+  userPhotoURL?: string | null;
   tentId: string;
   tentName: string;
   tentOwnerId: string;
   tentOwnerName: string;
-  tentLogoUrl?: string;
+  tentLogoUrl?: string | null;
   tentLocation?: {
     latitude: number;
     longitude: number;
@@ -129,7 +129,7 @@ export interface Review {
   id: string;
   userId: string;
   userName: string;
-  userPhotoURL?: string;
+  userPhotoURL?: string | null;
   tentId: string;
   reservationId: string;
   rating: number;
@@ -143,11 +143,11 @@ export interface Chat {
   id: string;
   userId: string;
   userName: string;
-  userPhotoURL?: string;
+  userPhotoURL?: string | null;
   tentId: string;
   tentName: string;
   tentOwnerId: string;
-  tentLogoUrl?: string;
+  tentLogoUrl?: string | null;
   lastMessage?: string;
   lastMessageSenderId?: string;
   lastMessageTimestamp: Timestamp;
@@ -173,7 +173,7 @@ const operatingHoursSchema = z.object({
 export const tentSchema = z.object({
   name: z.string().min(3, 'O nome da barraca é obrigatório.'),
   description: z.string().min(10, 'A descrição é obrigatória.'),
-  beachName: z.string().min(3, 'O nome da praia é obrigatória.'),
+  beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? null : parseFloat(String(val))),
     z.number({ invalid_type_error: 'O valor deve ser um número.' }).nullable()
