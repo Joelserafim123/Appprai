@@ -271,12 +271,15 @@ export default function MyReservationsPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                      {reservation.items.map((item, index) => (
+                      {reservation.items.map((item, index) => {
+                        const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
+                        return (
                           <li key={`${item.name}-${index}`} className="flex justify-between">
-                              <span>{item.quantity}x {t_products(item.name)}</span>
+                              <span>{item.quantity}x {isRental ? t_products(item.name) : item.name}</span>
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                           </li>
-                      ))}
+                        )
+                      })}
                       {reservation.outstandingBalancePaid && reservation.outstandingBalancePaid > 0 && (
                         <li className="flex justify-between font-semibold text-destructive">
                             <span>Taxa de cancelamento anterior</span>

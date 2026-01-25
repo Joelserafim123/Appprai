@@ -341,12 +341,15 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                         <>
                             <h4 className="flex items-center gap-2 text-sm font-semibold mb-2"><History className="w-4 h-4"/> Itens do Pedido</h4>
                             <ul className="space-y-2 text-sm text-muted-foreground">
-                                {reservation.items.map((item, index) => (
+                                {reservation.items.map((item, index) => {
+                                  const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
+                                  return (
                                     <li key={index} className="flex justify-between">
-                                        <span>{item.quantity}x {t_products(item.name)}</span>
+                                        <span>{item.quantity}x {isRental ? t_products(item.name) : item.name}</span>
                                         <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                                     </li>
-                                ))}
+                                  )
+                                })}
                             </ul>
                             <div className="mt-4 pt-4 border-t text-right">
                                 <p className="text-sm font-medium text-muted-foreground">Total</p>
