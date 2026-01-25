@@ -13,8 +13,11 @@ service cloud.firestore {
     }
 
     // Is the user a participant in a document (e.g., reservation, chat)?
+    // This is robust: checks for key existence, list type, and membership.
     function isParticipant(doc) {
-      return 'participantIds' in doc.data && request.auth.uid in doc.data.participantIds;
+      return 'participantIds' in doc.data &&
+             doc.data.participantIds is list &&
+             request.auth.uid in doc.data.participantIds;
     }
 
     function isCpfUnchanged() {
