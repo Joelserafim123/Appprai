@@ -517,7 +517,7 @@ export default function TentPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-4">
+                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
                         <TabsTrigger value="reserve">Aluguel e Horário</TabsTrigger>
                         <TabsTrigger value="menu">Cardápio</TabsTrigger>
                         <TabsTrigger value="reviews">Avaliações</TabsTrigger>

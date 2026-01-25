@@ -318,7 +318,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         <>
             <Card className="flex flex-col transition-all hover:shadow-md">
                 <CardHeader>
-                    <div className='flex justify-between items-start'>
+                    <div className='flex flex-col gap-2 sm:flex-row justify-between items-start'>
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <UserIcon className="w-5 h-5"/>
                             Reserva de {reservation.userName}
@@ -345,7 +345,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                                   const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
                                   return (
                                     <li key={index} className="flex justify-between">
-                                        <span>{item.quantity}x {isRental ? t_products(item.name) : item.name}</span>
+                                        <span>{item.quantity}x {isRental ? t_products(item.name as any) : item.name}</span>
                                         <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                                     </li>
                                   )

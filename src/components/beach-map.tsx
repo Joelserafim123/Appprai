@@ -8,8 +8,6 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-map
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/i18n";
-
 
 const containerStyle = {
   width: '100%',
@@ -60,7 +58,6 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [isLocating, setIsLocating] = useState(false);
   const { toast } = useToast();
-  const { locale } = useI18n();
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -68,7 +65,6 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
     id: 'google-map-script',
     googleMapsApiKey: googleMapsApiKey,
     libraries: ['marker'],
-    language: locale.split('-')[0] // 'pt-BR' -> 'pt'
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);

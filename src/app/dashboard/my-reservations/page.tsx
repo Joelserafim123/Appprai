@@ -232,7 +232,7 @@ export default function MyReservationsPage() {
           <div className="space-y-6">
             {reservations.map((reservation) => (
               <Card key={reservation.id} className="transition-all hover:shadow-md">
-                <CardHeader className='flex-row justify-between items-start'>
+                <CardHeader className="flex flex-col sm:flex-row justify-between items-start gap-4">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Tent className="w-5 h-5"/>
@@ -249,12 +249,12 @@ export default function MyReservationsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className='text-right space-y-2'>
+                  <div className='flex flex-col items-start sm:items-end gap-2'>
                       <Badge variant={statusConfig[reservation.status].variant}>
                           {statusConfig[reservation.status].text}
                       </Badge>
                       {['confirmed', 'checked-in'].includes(reservation.status) && (
-                          <div className="flex items-center gap-2 justify-end">
+                          <div className="flex items-center gap-2 justify-start sm:justify-end flex-wrap">
                               <div className="text-sm text-center font-mono tracking-widest bg-muted p-2 rounded-lg">
                                   <p className="text-xs text-muted-foreground">Nº do Pedido</p>
                                   <p className="font-bold text-lg">{reservation.orderNumber}</p>
@@ -275,7 +275,7 @@ export default function MyReservationsPage() {
                         const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
                         return (
                           <li key={`${item.name}-${index}`} className="flex justify-between">
-                              <span>{item.quantity}x {isRental ? t_products(item.name) : item.name}</span>
+                              <span>{item.quantity}x {isRental ? t_products(item.name as any) : item.name}</span>
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                           </li>
                         )
