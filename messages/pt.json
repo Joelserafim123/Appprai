@@ -1,7 +1,7 @@
 {
     "Header": {
         "viewTents": "Ver Barracas",
-        "greeting": "Olá, {name}",
+        "greeting": "Olá,",
         "dashboard": "Painel",
         "myReservations": "Minhas Reservas",
         "favorites": "Favoritos",
@@ -44,7 +44,8 @@
     "VerifyEmailNoticePage": {
         "title": "Verifique o seu E-mail",
         "description": "Enviámos um link de verificação para o seu endereço de e-mail. Por favor, clique no link para ativar a sua conta.",
-        "afterVerification": "Depois de verificar seu e-mail, {loginLink} para continuar.",
+        "afterVerification_prefix": "Depois de verificar seu e-mail, ",
+        "afterVerification_suffix": " para continuar.",
         "loginLink": "faça login",
         "resendButton": "Reenviar email de verificação",
         "logoutButton": "Fazer logout",
@@ -63,7 +64,7 @@
         "noTentDescription": "Você precisa ter uma barraca para ver suas análises.",
         "goToMyTent": "Ir para Minha Barraca",
         "totalRevenue": "Receita Total",
-        "fromReservations": "de {count} reservas completas",
+        "fromReservations": "de",
         "amountToForward": "Valor a Repassar",
         "clickForInstructions": "Clique para ver instruções",
         "forwardingInstructionsTitle": "Instruções para Repasse",
@@ -118,4 +119,4 @@
         "analytics": "Análises",
         "backToSite": "Voltar ao site"
     }
-}]}
+}

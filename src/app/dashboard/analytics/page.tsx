@@ -150,7 +150,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">R$ {analyticsData.totalRevenue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">{t('fromReservations', { count: analyticsData.totalReservations })}</p>
+                <p className="text-xs text-muted-foreground">{t('fromReservations')} {analyticsData.totalReservations}</p>
               </CardContent>
             </Card>
             <Dialog>

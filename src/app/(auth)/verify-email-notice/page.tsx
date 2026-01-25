@@ -69,9 +69,11 @@ export default function VerifyEmailNoticePage() {
       </CardHeader>
       <CardContent className="grid gap-4">
          <p className="px-8 text-center text-sm text-muted-foreground">
-           {t('afterVerification', {
-             loginLink: <Link href="/login" className="underline text-primary font-medium">{t('loginLink')}</Link>
-           })}
+            {t('afterVerification_prefix')}
+            <Link href="/login" className="underline text-primary font-medium">
+                {t('loginLink')}
+            </Link>
+            {t('afterVerification_suffix')}
         </p>
         <Button onClick={handleResendVerification} disabled={isSending} variant="outline">
           {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

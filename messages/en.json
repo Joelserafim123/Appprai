@@ -1,7 +1,7 @@
 {
     "Header": {
         "viewTents": "View Tents",
-        "greeting": "Hello, {name}",
+        "greeting": "Hello,",
         "dashboard": "Dashboard",
         "myReservations": "My Reservations",
         "favorites": "Favorites",
@@ -44,7 +44,8 @@
     "VerifyEmailNoticePage": {
         "title": "Verify Your Email",
         "description": "We sent a verification link to your email address. Please click the link to activate your account.",
-        "afterVerification": "After verifying your email, {loginLink} to continue.",
+        "afterVerification_prefix": "After verifying your email, ",
+        "afterVerification_suffix": " to continue.",
         "loginLink": "log in",
         "resendButton": "Resend verification email",
         "logoutButton": "Logout",
@@ -63,7 +64,7 @@
         "noTentDescription": "You need to have a tent to see its analytics.",
         "goToMyTent": "Go to My Tent",
         "totalRevenue": "Total Revenue",
-        "fromReservations": "from {count} completed reservations",
+        "fromReservations": "from",
         "amountToForward": "Amount to Forward",
         "clickForInstructions": "Click for instructions",
         "forwardingInstructionsTitle": "Forwarding Instructions",
@@ -118,4 +119,4 @@
         "analytics": "Analytics",
         "backToSite": "Back to site"
     }
-}]}
+}

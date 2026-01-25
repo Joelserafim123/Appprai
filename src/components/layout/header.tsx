@@ -149,7 +149,7 @@ export function Header() {
                             {getInitials(user.displayName)}
                         </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium">{t('greeting', { name: user.displayName?.split(' ')[0] })}</span>
+                    <span className="text-sm font-medium">{t('greeting')} {user.displayName?.split(' ')[0]}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
