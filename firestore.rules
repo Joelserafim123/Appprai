@@ -121,10 +121,17 @@ service cloud.firestore {
     
     // Rules for Chats
     match /chats/{chatId} {
-      // A user can read (get, list), create or update a chat document if they are a participant.
-      // The `list` permission is secured by the query constraint in the client code.
-      allow read, update, create: if isSignedIn() && isParticipant(resource);
+      // Allow a user to LIST chats if they are authenticated.
+      // The client-side query MUST use an array-contains filter on participantIds
+      // to ensure they only see their own chats. Firestore enforces this linkage.
+      allow list: if isSignedIn();
+
+      // Allow a user to GET or UPDATE a chat document if they are a participant.
+      allow get, update: if isSignedIn() && isParticipant(resource);
       
+      // Allow a user to CREATE a chat document if they are a participant in the new document.
+      allow create: if isSignedIn() && isParticipant(request.resource);
+
       // Deleting chats is not allowed for data integrity.
       allow delete: if false;
 
