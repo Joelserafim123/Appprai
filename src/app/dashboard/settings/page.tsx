@@ -26,7 +26,7 @@ const profileSchema = z.object({
   cpf: z.string()
     .min(1, "O CPF é obrigatório.")
     .refine(isValidCpf, { message: "O número do CPF informado é inválido." }),
-  cep: z.string().refine(value => !value || /^\d{5}-\d{3}$/.test(value), { message: 'CEP inválido. Deve conter 8 números.' }).optional(),
+  cep: z.string().refine(value => !value || /^\d{8}$/.test(value), { message: 'CEP inválido. Deve conter 8 números.' }).optional(),
   street: z.string().optional().or(z.literal('')),
   number: z.string().optional().or(z.literal('')),
   neighborhood: z.string().optional().or(z.literal('')),
@@ -47,12 +47,12 @@ export default function SettingsPage() {
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
-  const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue } = useForm<ProfileFormData>({
+  const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
           displayName: user?.displayName || '',
           cpf: user?.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '',
-          cep: user?.cep ? user.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : '',
+          cep: user?.cep || '',
           street: user?.street || '',
           number: user?.number || '',
           neighborhood: user?.neighborhood || '',
@@ -60,6 +60,8 @@ export default function SettingsPage() {
           state: user?.state || '',
       }
   });
+  
+  const watchedCep = watch('cep');
 
   const profileIncomplete = user && !user.profileComplete;
 
@@ -68,7 +70,7 @@ export default function SettingsPage() {
       reset({
         displayName: user.displayName || '',
         cpf: user.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '',
-        cep: user.cep ? user.cep.replace(/(\d{5})(\d{3})/, '$1-$2') : '',
+        cep: user.cep || '',
         street: user.street || '',
         number: user.number || '',
         neighborhood: user.neighborhood || '',
@@ -98,35 +100,40 @@ export default function SettingsPage() {
   }, [setValue]);
 
 
-   const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+   const handleCepChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/\D/g, '');
-    const limitedRawValue = rawValue.slice(0, 8);
-    const formatted = limitedRawValue.replace(/^(\d{5})(\d)/, '$1-$2');
-    
-    setValue('cep', formatted, { shouldValidate: true, shouldDirty: true });
-
-    if (limitedRawValue.length === 8) {
-      try {
-        const res = await fetch(`https://viacep.com.br/ws/${limitedRawValue}/json/`);
-        const data = await res.json();
-        if (!data.erro) {
-          setValue('street', data.logradouro, { shouldTouch: true, shouldDirty: true });
-          setValue('neighborhood', data.bairro, { shouldTouch: true, shouldDirty: true });
-          setValue('city', data.localidade, { shouldTouch: true, shouldDirty: true });
-          setValue('state', data.uf, { shouldTouch: true, shouldDirty: true });
-          toast({ title: "Endereço encontrado!" });
-        } else {
-          toast({ variant: 'destructive', title: "CEP não encontrado." });
+    setValue('cep', rawValue, { shouldValidate: true, shouldDirty: true });
+  }, [setValue]);
+  
+  useEffect(() => {
+    const fetchAddress = async () => {
+        if (watchedCep && watchedCep.length === 8) {
+             try {
+                const res = await fetch(`https://viacep.com.br/ws/${watchedCep}/json/`);
+                const data = await res.json();
+                if (!data.erro) {
+                setValue('street', data.logradouro, { shouldTouch: true, shouldDirty: true });
+                setValue('neighborhood', data.bairro, { shouldTouch: true, shouldDirty: true });
+                setValue('city', data.localidade, { shouldTouch: true, shouldDirty: true });
+                setValue('state', data.uf, { shouldTouch: true, shouldDirty: true });
+                toast({ title: "Endereço encontrado!" });
+                } else {
+                toast({ variant: 'destructive', title: "CEP não encontrado." });
+                }
+            } catch (error) {
+                toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
+            }
         }
-      } catch (error) {
-        toast({ variant: 'destructive', title: "Erro ao buscar CEP." });
-      }
-    }
-  }, [setValue, toast]);
+    };
+    const timeoutId = setTimeout(() => {
+        fetchAddress();
+    }, 500); // Debounce API call
+    return () => clearTimeout(timeoutId);
+  }, [watchedCep, setValue, toast]);
   
   
   const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firestore || !auth) return;
+    if (!user || !firestore || !auth || !storage) return;
     setIsSubmitting(true);
 
     const currentUser = auth.currentUser;
@@ -186,7 +193,7 @@ export default function SettingsPage() {
           photoURL: photoURLToSave,
           profileComplete: true,
           cpf: cpfDigits,
-          cep: data.cep?.replace(/\D/g, '') || null,
+          cep: data.cep || null,
           street: data.street || null,
           number: data.number || null,
           neighborhood: data.neighborhood || null,
@@ -347,7 +354,7 @@ export default function SettingsPage() {
             
             <div className="space-y-2">
                 <Label htmlFor="cep">CEP</Label>
-                <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} />
+                <Input {...register('cep')} onChange={handleCepChange} placeholder="00000000" disabled={isSubmitting} maxLength={8} />
                 {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
             </div>
 
