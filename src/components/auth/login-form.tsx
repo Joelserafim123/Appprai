@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
 import { FirebaseError } from "firebase/app"
+import Link from "next/link"
 
 const loginSchema = z.object({
   email: z.string().email("Por favor, insira um email válido."),
@@ -94,7 +95,15 @@ export function LoginForm() {
         {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Senha</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Senha</Label>
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Esqueceu a senha?
+          </Link>
+        </div>
         <Input id="password" type="password" {...register("password")} autoComplete="current-password"/>
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
       </div>

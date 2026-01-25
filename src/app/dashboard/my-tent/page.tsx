@@ -440,7 +440,7 @@ export default function MyTentPage() {
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
     [firestore, user]
   );
-  const { data: tents, isLoading: loadingTent, forceRefresh } = useCollection<Tent>(tentQuery);
+  const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;
   
 
@@ -474,7 +474,7 @@ export default function MyTentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TentForm user={user} existingTent={tent} onFinished={forceRefresh} />
+          <TentForm user={user} existingTent={tent} onFinished={() => {}} />
         </CardContent>
       </Card>
       
