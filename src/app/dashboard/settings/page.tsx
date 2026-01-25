@@ -140,116 +140,99 @@ export default function SettingsPage() {
     setIsSubmitting(true);
 
     try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro de Autenticação',
-                description: 'Usuário não encontrado. Por favor, faça login novamente.',
-            });
-            return;
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
+      }
+
+      // 1. Handle file upload first
+      let newPhotoURL: string | null = user.photoURL; // Start with existing URL
+      if (profileImageFile) {
+        if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
+          await deleteFileByUrl(storage, user.photoURL);
         }
+        const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
+        newPhotoURL = downloadURL;
+      }
 
-        const cpfDigits = data.cpf.replace(/\D/g, '');
-        const oldCpfDigits = user.cpf;
-        const cpfHasChanged = cpfDigits !== oldCpfDigits;
+      // 2. Handle database updates in a batch
+      const cpfDigits = data.cpf.replace(/\D/g, '');
+      const oldCpfDigits = user.cpf;
+      const cpfHasChanged = cpfDigits !== oldCpfDigits;
 
-        if (cpfHasChanged && cpfDigits) {
-            const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
-            const cpfDoc = await getDoc(newCpfDocRef);
-            if (cpfDoc.exists()) {
-                toast({
-                    variant: 'destructive',
-                    title: 'CPF já em uso',
-                    description: 'Este CPF já está associado a outra conta.',
-                });
-                return;
-            }
+      if (cpfHasChanged && cpfDigits) {
+        const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
+        const cpfDoc = await getDoc(newCpfDocRef);
+        if (cpfDoc.exists()) {
+          throw new Error('Este CPF já está associado a outra conta.');
         }
+      }
 
-        let newPhotoURL: string | null = null;
-        if (profileImageFile) {
-            if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
-                await deleteFileByUrl(storage, user.photoURL);
-            }
-            const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
-            newPhotoURL = downloadURL;
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const batch = writeBatch(firestore);
+
+      const firestoreUpdateData: Partial<UserProfile> = {
+        displayName: data.displayName,
+        profileComplete: true,
+        photoURL: newPhotoURL,
+        cpf: cpfDigits,
+        cep: data.cep?.replace(/\D/g, '') || null,
+        street: data.street || null,
+        number: data.number || null,
+        neighborhood: data.neighborhood || null,
+        city: data.city || null,
+        state: data.state || null,
+      };
+
+      batch.update(userDocRef, firestoreUpdateData);
+
+      if (cpfHasChanged) {
+        if (oldCpfDigits) {
+          const oldCpfDocRef = doc(firestore, 'cpfs', oldCpfDigits);
+          batch.delete(oldCpfDocRef);
         }
-
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const batch = writeBatch(firestore);
-        
-        const firestoreUpdateData: Partial<UserProfile> = {
-          displayName: data.displayName,
-          profileComplete: true,
-          cpf: cpfDigits,
-          cep: data.cep?.replace(/\D/g, '') || null,
-          street: data.street || null,
-          number: data.number || null,
-          neighborhood: data.neighborhood || null,
-          city: data.city || null,
-          state: data.state || null,
-        };
-
-        if (newPhotoURL) {
-            firestoreUpdateData.photoURL = newPhotoURL;
+        if (cpfDigits) {
+          const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
+          batch.set(newCpfDocRef, { userId: user.uid });
         }
-        
-        batch.set(userDocRef, firestoreUpdateData, { merge: true });
+      }
 
-        if (cpfHasChanged) {
-            if (oldCpfDigits) {
-                const oldCpfDocRef = doc(firestore, 'cpfs', oldCpfDigits);
-                batch.delete(oldCpfDocRef);
-            }
-            if (cpfDigits) {
-                const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
-                batch.set(newCpfDocRef, { userId: user.uid });
-            }
-        }
-        
-        await batch.commit();
+      await batch.commit();
 
-        if (currentUser.displayName !== data.displayName) {
-            await updateProfile(currentUser, { displayName: data.displayName });
-        }
-        
-        toast({
-          title: 'Perfil Atualizado!',
-          description: 'Suas informações foram salvas com sucesso.',
-        });
-        await refresh();
+      // 3. Update Auth profile
+      const authProfileUpdateData: { displayName?: string; photoURL?: string | null } = {};
+      let authProfileNeedsUpdate = false;
+      
+      if (currentUser.displayName !== data.displayName) {
+        authProfileUpdateData.displayName = data.displayName;
+        authProfileNeedsUpdate = true;
+      }
+      if (currentUser.photoURL !== newPhotoURL) {
+        authProfileUpdateData.photoURL = newPhotoURL;
+        authProfileNeedsUpdate = true;
+      }
+
+      if (authProfileNeedsUpdate) {
+        await updateProfile(currentUser, authProfileUpdateData);
+      }
+      
+      toast({
+        title: 'Perfil Atualizado!',
+        description: 'Suas informações foram salvas com sucesso.',
+      });
+      await refresh();
 
     } catch (error: any) {
-        console.error("Error updating profile:", error);
-        let description = 'Não foi possível salvar as alterações. Tente novamente.';
-        
-        if (error instanceof FirebaseError) {
-             if (error.code === 'permission-denied') {
-                description = 'Não foi possível salvar. Verifique se o CPF já está em uso ou se você tem permissão.';
-             } else if (error.code.startsWith('auth/')) {
-                description = 'Houve um problema ao atualizar seu perfil. Por favor, tente fazer login novamente.';
-             } else if (error.code.startsWith('storage/')) {
-                switch(error.code) {
-                    case 'storage/unauthorized':
-                        description = 'Você não tem permissão para enviar imagens. Verifique as regras de segurança do Firebase Storage.';
-                        break;
-                    case 'storage/canceled':
-                        description = 'O envio da imagem foi cancelado.';
-                        break;
-                    default:
-                        description = 'Ocorreu um erro ao enviar a imagem. Tente novamente.';
-                }
-             }
-        }
-        
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao Salvar',
-            description,
-        });
+      console.error("Error updating profile:", error);
+      const description = error.message || 'Não foi possível salvar as alterações. Tente novamente.';
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao Salvar',
+        description: `Detalhe: ${description}`,
+        duration: 9000,
+      });
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -393,3 +376,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

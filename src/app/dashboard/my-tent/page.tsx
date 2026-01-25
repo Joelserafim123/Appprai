@@ -205,25 +205,27 @@ const onSubmit = async (data: TentFormData) => {
         if (isUpdate) {
             // --- UPDATE LOGIC ---
             const tentDocRef = doc(firestore, "tents", existingTent.id);
-            // Explicitly build the update object
-            const updateData: any = {
-                'name': data.name,
-                'description': data.description,
-                'beachName': data.beachName,
-                'minimumOrderForFeeWaiver': data.minimumOrderForFeeWaiver,
-                'location': data.location,
-                'operatingHours': data.operatingHours
-            };
+            let newBannerUrl = existingTent.bannerUrl;
 
             if (bannerFile) {
                 if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
                     await deleteFileByUrl(storage, existingTent.bannerUrl);
                 }
                 const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
-                updateData.bannerUrl = downloadURL;
+                newBannerUrl = downloadURL;
             }
             
-            await updateDoc(tentDocRef, updateData);
+            const updateData: Partial<Tent> = {
+                name: data.name,
+                description: data.description,
+                beachName: data.beachName,
+                minimumOrderForFeeWaiver: data.minimumOrderForFeeWaiver,
+                location: data.location,
+                operatingHours: data.operatingHours,
+                bannerUrl: newBannerUrl,
+            };
+
+            await updateDoc(tentDocRef, updateData as any); // Use as any to bypass strict type check for update
             toast({ title: `Barraca atualizada com sucesso!` });
         } else {
             // --- CREATE LOGIC ---
@@ -256,25 +258,13 @@ const onSubmit = async (data: TentFormData) => {
 
     } catch (error: any) {
         console.error("Error saving tent:", error);
-        
-        let description = 'Não foi possível salvar os dados da barraca. Tente novamente.';
-        if (error instanceof FirebaseError) {
-             if (error.code === 'permission-denied') {
-                description = 'Permissão negada. Verifique as regras de segurança do Firestore.';
-             } else if (error.code.startsWith('storage/')) {
-                switch(error.code) {
-                    case 'storage/unauthorized':
-                        description = 'Permissão negada para enviar o banner. Verifique as regras de segurança do Firebase Storage.';
-                        break;
-                    case 'storage/canceled':
-                        description = 'O envio do banner foi cancelado.';
-                        break;
-                    default:
-                        description = 'Ocorreu um erro ao enviar o banner. Tente novamente.';
-                }
-             }
-        }
-        toast({ variant: 'destructive', title: 'Erro ao Salvar', description });
+        const description = error.message || 'Não foi possível salvar os dados da barraca. Tente novamente.';
+        toast({ 
+            variant: 'destructive', 
+            title: 'Erro ao Salvar', 
+            description: `Detalhe: ${description}`,
+            duration: 9000
+        });
     } finally {
         setIsSubmitting(false);
     }
@@ -495,3 +485,5 @@ export default function MyTentPage() {
   );
 
 }
+
+    
