@@ -143,12 +143,12 @@ const onSubmit = async (data: ProfileFormData) => {
         const firestoreUpdateData: Partial<UserProfile> = {
             displayName: data.displayName,
             profileComplete: true,
-            cep: data.cep?.replace(/\D/g, '') || undefined,
-            street: data.street || undefined,
-            number: data.number || undefined,
-            neighborhood: data.neighborhood || undefined,
-            city: data.city || undefined,
-            state: data.state || undefined,
+            cep: data.cep?.replace(/\D/g, '') || '',
+            street: data.street || '',
+            number: data.number || '',
+            neighborhood: data.neighborhood || '',
+            city: data.city || '',
+            state: data.state || '',
         };
 
         const isNewCpf = !user.cpf && data.cpf;
