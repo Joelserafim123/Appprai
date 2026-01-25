@@ -12,14 +12,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Checks if the user is a participant in a document (e.g., reservation, chat).
-    // This is robust: checks for key existence, list type, and membership.
-    function isParticipant(doc) {
-      return 'participantIds' in doc.data &&
-             doc.data.participantIds is list &&
-             request.auth.uid in doc.data.participantIds;
-    }
-
     function isCpfUnchanged() {
       // If cpf is not in the incoming data, it's not being changed.
       if (!('cpf' in request.resource.data)) {
@@ -90,8 +82,8 @@ service cloud.firestore {
 
     // Rules for Reservations
     match /reservations/{reservationId} {
-      allow get, update: if isSignedIn() && isParticipant(resource);
-      allow create: if isSignedIn() && isParticipant(request.resource);
+      allow get, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
       allow list: if isSignedIn() && 
                      (request.query.get('userId') == request.auth.uid || 
                       request.query.get('tentOwnerId') == request.auth.uid);
@@ -103,17 +95,17 @@ service cloud.firestore {
       // Allow a user to LIST chats if they are authenticated.
       // The client-side query MUST use an `array-contains` filter on `participantIds`
       // to ensure they only see their own chats. Firestore enforces this linkage.
-      allow list: if isSignedIn();
+      allow list: if request.auth != null;
 
       // Allow a user to GET, CREATE, or UPDATE a chat document if they are a participant.
-      allow get, update: if isSignedIn() && isParticipant(resource);
-      allow create: if isSignedIn() && isParticipant(request.resource);
+      allow get, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
       
       allow delete: if false; // Deleting chats is not allowed.
 
       match /messages/{messageId} {
         // Participants of the parent chat can read and create messages.
-        allow read, create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/chats/$(chatId)));
+        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
         // Messages are immutable.
         allow update, delete: if false;
       }
