@@ -33,6 +33,8 @@ export default function ChatsPage() {
 
   const sortedChats = useMemo(() => {
     if (!chats) return [];
+    // Firestore does not support orderBy on a different field than the one used in the where clause with array-contains.
+    // So we sort client-side.
     return [...chats].sort((a, b) => {
         if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
             return b.lastMessageTimestamp.toMillis() - a.lastMessageTimestamp.toMillis();
@@ -93,8 +95,8 @@ export default function ChatsPage() {
                                 <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
                                     <Avatar className='h-10 w-10'>
                                         <AvatarImage src={user.role === 'owner' ? chat.userPhotoURL ?? undefined : chat.tentLogoUrl ?? undefined} />
-                                        <AvatarFallback>
-                                            {getInitials(displayName)}
+                                        <AvatarFallback className="bg-primary/20 text-primary">
+                                            {user.role === 'owner' ? <UserIcon className="h-6 w-6" /> : getInitials(displayName)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className='flex-1 overflow-hidden'>

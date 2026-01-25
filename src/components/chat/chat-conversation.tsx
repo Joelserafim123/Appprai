@@ -108,7 +108,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
              <Avatar>
                 <AvatarImage src={otherPartyAvatar ?? undefined} />
                 <AvatarFallback className="bg-primary/20 text-primary">
-                    {otherPartyName ? getInitials(otherPartyName) : <UserIcon className="h-5 w-5" />}
+                    {currentUser.role === 'owner' ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -138,7 +138,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                        <Avatar className='h-8 w-8 self-end'>
                             <AvatarImage src={otherPartyAvatar ?? undefined} />
                             <AvatarFallback className="bg-muted text-muted-foreground">
-                                {otherPartyName ? getInitials(otherPartyName) : <UserIcon className="h-4 w-4" />}
+                                {currentUser.role === 'owner' ? <UserIcon className="h-4 w-4" /> : getInitials(otherPartyName)}
                             </AvatarFallback>
                         </Avatar>
                     )}
