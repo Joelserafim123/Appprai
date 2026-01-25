@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Heart, Tent as TentIcon } from 'lucide-react';
 import Link from 'next/link';
 import type { Tent } from '@/lib/types';
+import { useTranslations } from '@/i18n';
 
 export default function FavoritesPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
+  const t = useTranslations('FavoritesPage');
 
   const favoriteTentsQuery = useMemoFirebase(() => {
     if (!firestore || !user?.favoriteTentIds || user.favoriteTentIds.length === 0) {
@@ -33,14 +35,14 @@ export default function FavoritesPage() {
   }
 
   if (!user || user.role !== 'customer') {
-    return <p>Acesso negado. Esta página é apenas para clientes.</p>;
+    return <p>{t('accessDenied')}</p>;
   }
 
   return (
     <div className="w-full max-w-4xl">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Minhas Barracas Favoritas</h1>
-        <p className="text-muted-foreground">Acesse rapidamente as barracas que você mais gosta.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+        <p className="text-muted-foreground">{t('description')}</p>
       </header>
 
       {favoriteTents && favoriteTents.length > 0 ? (
@@ -57,7 +59,7 @@ export default function FavoritesPage() {
               <div className="p-6 bg-muted/50">
                 <Button asChild className="w-full">
                   <Link href={`/tents/${tent.id}`}>
-                    Ver Cardápio e Alugar
+                    {t('viewMenuAndRent')}
                   </Link>
                 </Button>
               </div>
@@ -67,12 +69,12 @@ export default function FavoritesPage() {
       ) : (
         <div className="text-center py-16 border-2 border-dashed rounded-lg">
           <Heart className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-medium">Nenhuma barraca favorita</h3>
+          <h3 className="mt-4 text-lg font-medium">{t('noFavoritesTitle')}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Clique no ícone de coração na página de uma barraca para adicioná-la aqui.
+            {t('noFavoritesDescription')}
           </p>
           <Button asChild className="mt-6">
-            <Link href="/">Encontrar uma barraca</Link>
+            <Link href="/">{t('findATent')}</Link>
           </Button>
         </div>
       )}

@@ -1,0 +1,121 @@
+{
+    "Header": {
+        "viewTents": "Ver Barracas",
+        "greeting": "Olá, {name}",
+        "dashboard": "Painel",
+        "myReservations": "Minhas Reservas",
+        "favorites": "Favoritos",
+        "settings": "Configurações",
+        "reservations": "Reservas",
+        "myTent": "Minha Barraca",
+        "menu": "Cardápio",
+        "rentals": "Aluguéis",
+        "analytics": "Análises",
+        "chats": "Conversas",
+        "logout": "Sair",
+        "login": "Entrar",
+        "signUp": "Cadastrar",
+        "logoutSuccessTitle": "Logout bem-sucedido",
+        "logoutSuccessDescription": "Você foi desconectado com sucesso.",
+        "logoutErrorTitle": "Erro no Logout",
+        "logoutErrorDescription": "Não foi possível desconectá-lo. Por favor, tente novamente."
+    },
+    "AuthLayout": {
+        "homeLink": "BeachPal Home"
+    },
+    "ForgotPasswordPage": {
+        "title": "Recuperar Senha",
+        "description": "Insira seu e-mail para receber um link de recuperação.",
+        "backToLogin": "Lembrou da senha?",
+        "loginLink": "Faça login"
+    },
+    "LoginPage": {
+        "title": "Acesse Sua Conta",
+        "description": "Use seu email e senha para acessar a plataforma.",
+        "noAccount": "Não tem uma conta?",
+        "signUpLink": "Cadastre-se"
+    },
+    "SignUpPage": {
+        "title": "Crie sua Conta",
+        "description": "Preencha os campos abaixo para criar sua conta.",
+        "hasAccount": "Já tem uma conta?",
+        "loginLink": "Faça login"
+    },
+    "VerifyEmailNoticePage": {
+        "title": "Verifique o seu E-mail",
+        "description": "Enviámos um link de verificação para o seu endereço de e-mail. Por favor, clique no link para ativar a sua conta.",
+        "afterVerification": "Depois de verificar seu e-mail, {loginLink} para continuar.",
+        "loginLink": "faça login",
+        "resendButton": "Reenviar email de verificação",
+        "logoutButton": "Fazer logout",
+        "resendSuccessTitle": "Email de verificação reenviado",
+        "resendSuccessDescription": "Por favor, verifique a sua caixa de entrada (e a pasta de spam).",
+        "resendErrorTitle": "Erro ao reenviar",
+        "resendErrorDescription": "Ocorreu um erro ao reenviar o email. Tente novamente mais tarde.",
+        "notAuthenticatedTitle": "Não está autenticado",
+        "notAuthenticatedDescription": "Faça login novamente para reenviar o email de verificação."
+    },
+    "AnalyticsPage": {
+        "title": "Análise de Vendas",
+        "description": "Veja o desempenho da sua barraca.",
+        "accessDenied": "Acesso negado. Esta página é apenas para donos de barracas.",
+        "noTentTitle": "Cadastre sua barraca primeiro",
+        "noTentDescription": "Você precisa ter uma barraca para ver suas análises.",
+        "goToMyTent": "Ir para Minha Barraca",
+        "totalRevenue": "Receita Total",
+        "fromReservations": "de {count} reservas completas",
+        "amountToForward": "Valor a Repassar",
+        "clickForInstructions": "Clique para ver instruções",
+        "forwardingInstructionsTitle": "Instruções para Repasse",
+        "forwardingInstructionsDescription": "O valor a repassar deve ser transferido manualmente para a conta da plataforma toda segunda-feira.",
+        "totalAmountToForward": "Valor total a ser repassado:",
+        "bankDetailsTitle": "Dados Bancários para Transferência",
+        "pixKey": "PIX (CNPJ):",
+        "bank": "Banco:",
+        "agency": "Agência:",
+        "account": "Conta Corrente:",
+        "name": "Nome:",
+        "afterTransferNotice": "Após efetuar a transferência, não é necessário realizar nenhuma ação adicional na plataforma. O nosso sistema financeiro conciliará o pagamento.",
+        "close": "Fechar",
+        "completedReservations": "Reservas Completas",
+        "totalCompletedReservations": "Total de reservas finalizadas",
+        "averageTicket": "Ticket Médio",
+        "averageValuePerReservation": "Valor médio por reserva",
+        "revenueByDay": "Receita por Dia",
+        "revenueByDayDescription": "Acompanhe a evolução de suas vendas diárias. Apenas reservas com status \"Completa\" são contabilizadas.",
+        "noChartData": "Ainda não há dados de receita para exibir no gráfico.",
+        "noAnalyticsTitle": "Nenhuma análise para mostrar",
+        "noAnalyticsDescription": "Conclua algumas reservas para começar a ver suas análises de vendas."
+    },
+    "ChatsPage": {
+        "title": "Conversas",
+        "description_owner": "Comunicação direta com seus clientes.",
+        "description_customer": "Comunicação direta com as barracas.",
+        "pleaseLogin": "Por favor, faça login para ver suas conversas.",
+        "yourConversations": "Suas Conversas",
+        "noConversations": "Nenhuma conversa encontrada.",
+        "selectConversation": "Selecione uma conversa para começar"
+    },
+    "FavoritesPage": {
+        "title": "Minhas Barracas Favoritas",
+        "description": "Acesse rapidamente as barracas que você mais gosta.",
+        "accessDenied": "Acesso negado. Esta página é apenas para clientes.",
+        "viewMenuAndRent": "Ver Cardápio e Alugar",
+        "noFavoritesTitle": "Nenhuma barraca favorita",
+        "noFavoritesDescription": "Clique no ícone de coração na página de uma barraca para adicioná-la aqui.",
+        "findATent": "Encontrar uma barraca"
+    },
+    "DashboardLayout": {
+        "home": "Início",
+        "myReservations": "Minhas Reservas",
+        "favorites": "Favoritos",
+        "chats": "Conversas",
+        "settings": "Configurações",
+        "reservations": "Reservas",
+        "myTent": "Minha Barraca",
+        "menu": "Cardápio",
+        "rentals": "Aluguéis",
+        "analytics": "Análises",
+        "backToSite": "Voltar ao site"
+    }
+}]}

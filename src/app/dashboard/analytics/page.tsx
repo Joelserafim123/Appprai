@@ -29,18 +29,20 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import { useTranslations } from '@/i18n';
 
-
-const chartConfig = {
-  revenue: {
-    label: 'Receita',
-    color: 'hsl(var(--primary))',
-  },
-} satisfies ChartConfig;
 
 export default function AnalyticsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
+  const t = useTranslations('AnalyticsPage');
+
+  const chartConfig = useMemo(() => ({
+    revenue: {
+      label: t('totalRevenue'),
+      color: 'hsl(var(--primary))',
+    },
+  }), [t]) satisfies ChartConfig;
   
   const tentQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid)) : null,
@@ -107,17 +109,17 @@ export default function AnalyticsPage() {
   }
 
   if (!user || user.role !== 'owner') {
-    return <p>Acesso negado. Esta página é apenas para donos de barracas.</p>;
+    return <p>{t('accessDenied')}</p>;
   }
 
   if (hasTent === false) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
               <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-medium">Cadastre sua barraca primeiro</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Você precisa ter uma barraca para ver suas análises.</p>
+              <h3 className="mt-4 text-lg font-medium">{t('noTentTitle')}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{t('noTentDescription')}</p>
               <Button asChild className="mt-6">
-                  <Link href="/dashboard/my-tent">Ir para Minha Barraca</Link>
+                  <Link href="/dashboard/my-tent">{t('goToMyTent')}</Link>
               </Button>
           </div>
       )
@@ -134,8 +136,8 @@ export default function AnalyticsPage() {
   return (
     <div className="w-full max-w-6xl">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Análise de Vendas</h1>
-        <p className="text-muted-foreground">Veja o desempenho da sua barraca.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+        <p className="text-muted-foreground">{t('description')}</p>
       </header>
 
       {analyticsData && reservations && reservations.length > 0 ? (
@@ -143,83 +145,83 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('totalRevenue')}</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">R$ {analyticsData.totalRevenue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">de {analyticsData.totalReservations} reservas completas</p>
+                <p className="text-xs text-muted-foreground">{t('fromReservations', { count: analyticsData.totalReservations })}</p>
               </CardContent>
             </Card>
             <Dialog>
               <DialogTrigger asChild>
                 <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Valor a Repassar</CardTitle>
+                    <CardTitle className="text-sm font-medium">{t('amountToForward')}</CardTitle>
                     <Landmark className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-destructive">R$ {analyticsData.totalPlatformFee.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Clique para ver instruções</p>
+                    <p className="text-xs text-muted-foreground">{t('clickForInstructions')}</p>
                   </CardContent>
                 </Card>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Instruções para Repasse</DialogTitle>
+                  <DialogTitle>{t('forwardingInstructionsTitle')}</DialogTitle>
                   <DialogDescription>
-                    O valor a repassar deve ser transferido manualmente para a conta da plataforma toda segunda-feira.
+                    {t('forwardingInstructionsDescription')}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className='text-center'>
-                    <p className='text-sm text-muted-foreground'>Valor total a ser repassado:</p>
+                    <p className='text-sm text-muted-foreground'>{t('totalAmountToForward')}</p>
                     <p className="text-3xl font-bold text-destructive">R$ {analyticsData.totalPlatformFee.toFixed(2)}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                    <h4 className="font-semibold">Dados Bancários para Transferência</h4>
-                    <p className="text-sm"><strong>PIX (CNPJ):</strong> 99.999.999/0001-99</p>
-                    <p className="text-sm"><strong>Banco:</strong> 999 - Banco da Praia</p>
-                    <p className="text-sm"><strong>Agência:</strong> 0001</p>
-                    <p className="text-sm"><strong>Conta Corrente:</strong> 123456-7</p>
-                    <p className="text-sm"><strong>Nome:</strong> BeachPal Plataforma Ltda.</p>
+                    <h4 className="font-semibold">{t('bankDetailsTitle')}</h4>
+                    <p className="text-sm"><strong>{t('pixKey')}</strong> 99.999.999/0001-99</p>
+                    <p className="text-sm"><strong>{t('bank')}</strong> 999 - Banco da Praia</p>
+                    <p className="text-sm"><strong>{t('agency')}</strong> 0001</p>
+                    <p className="text-sm"><strong>{t('account')}</strong> 123456-7</p>
+                    <p className="text-sm"><strong>{t('name')}</strong> BeachPal Plataforma Ltda.</p>
                   </div>
-                  <p className="text-xs text-muted-foreground text-center">Após efetuar a transferência, não é necessário realizar nenhuma ação adicional na plataforma. O nosso sistema financeiro conciliará o pagamento.</p>
+                  <p className="text-xs text-muted-foreground text-center">{t('afterTransferNotice')}</p>
                 </div>
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button variant="outline">Fechar</Button>
+                    <Button variant="outline">{t('close')}</Button>
                   </DialogClose>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Reservas Completas</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('completedReservations')}</CardTitle>
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{analyticsData.totalReservations}</div>
-                <p className="text-xs text-muted-foreground">Total de reservas finalizadas</p>
+                <p className="text-xs text-muted-foreground">{t('totalCompletedReservations')}</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('averageTicket')}</CardTitle>
                 <BarChart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">R$ {analyticsData.averageOrderValue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">Valor médio por reserva</p>
+                <p className="text-xs text-muted-foreground">{t('averageValuePerReservation')}</p>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Receita por Dia</CardTitle>
+              <CardTitle>{t('revenueByDay')}</CardTitle>
               <CardDescription>
-                Acompanhe a evolução de suas vendas diárias. Apenas reservas com status "Completa" são contabilizadas.
+                {t('revenueByDayDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -250,7 +252,7 @@ export default function AnalyticsPage() {
                     </ChartContainer>
                 ) : (
                     <div className="flex h-[250px] w-full items-center justify-center text-center">
-                        <p className="text-muted-foreground">Ainda não há dados de receita para exibir no gráfico.</p>
+                        <p className="text-muted-foreground">{t('noChartData')}</p>
                     </div>
                 )}
             </CardContent>
@@ -259,9 +261,9 @@ export default function AnalyticsPage() {
       ) : (
         <div className="rounded-lg border-2 border-dashed py-16 text-center">
           <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-medium">Nenhuma análise para mostrar</h3>
+          <h3 className="mt-4 text-lg font-medium">{t('noAnalyticsTitle')}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Conclua algumas reservas para começar a ver suas análises de vendas.
+            {t('noAnalyticsDescription')}
           </p>
         </div>
       )}

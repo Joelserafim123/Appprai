@@ -10,11 +10,13 @@ import { cn } from '@/lib/utils';
 import type { Chat } from '@/lib/types';
 import { collection, query, where } from 'firebase/firestore';
 import { getInitials } from '@/lib/utils';
+import { useTranslations } from '@/i18n';
 
 export default function ChatsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore: db } = useFirebase();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const t = useTranslations('ChatsPage');
 
   const chatsQuery = useMemoFirebase(
     () => (user && db) ? query(
@@ -48,22 +50,24 @@ export default function ChatsPage() {
   }
 
   if (!user) {
-    return <p>Por favor, faça login para ver suas conversas.</p>;
+    return <p>{t('pleaseLogin')}</p>;
   }
   
   const selectedChat = chats?.find(c => c.id === selectedChatId) ?? null;
+  
+  const description = user.role === 'owner' ? t('description_owner') : t('description_customer');
 
   return (
     <div className="w-full h-[calc(100vh-120px)] flex flex-col">
         <header className="mb-4">
-            <h1 className="text-3xl font-bold tracking-tight">Conversas</h1>
-            <p className="text-muted-foreground">Comunicação direta com {user.role === 'owner' ? 'seus clientes' : 'as barracas'}.</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+            <p className="text-muted-foreground">{description}</p>
         </header>
         
         <div className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 overflow-hidden">
             <Card className="flex flex-col">
                 <CardHeader>
-                    <CardTitle className="text-lg">Suas Conversas</CardTitle>
+                    <CardTitle className="text-lg">{t('yourConversations')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto p-2">
                     {chats && chats.length > 0 ? (
@@ -88,7 +92,7 @@ export default function ChatsPage() {
                     ) : (
                         <div className="text-center py-8 text-sm text-muted-foreground">
                              <MessageSquare className="mx-auto h-8 w-8 mb-2"/>
-                            Nenhuma conversa encontrada.
+                            {t('noConversations')}
                         </div>
                     )}
                 </CardContent>
@@ -101,7 +105,7 @@ export default function ChatsPage() {
                     <Card className="flex-1 flex items-center justify-center">
                         <div className="text-center text-muted-foreground">
                             <MessageSquare className="mx-auto h-12 w-12 mb-4"/>
-                            <p>Selecione uma conversa para começar</p>
+                            <p>{t('selectConversation')}</p>
                         </div>
                     </Card>
                 )}

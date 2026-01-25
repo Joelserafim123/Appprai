@@ -1,3 +1,5 @@
+'use client';
+
 import Link from "next/link"
 import {
   Card,
@@ -7,14 +9,16 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { LoginForm } from "@/components/auth/login-form"
+import { useTranslations } from "@/i18n";
 
 export default function LoginPage() {
+  const t = useTranslations('LoginPage');
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Acesse Sua Conta</CardTitle>
+        <CardTitle className="text-2xl">{t('title')}</CardTitle>
         <CardDescription>
-          Use seu email e senha para acessar a plataforma.
+          {t('description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -22,9 +26,9 @@ export default function LoginPage() {
           <LoginForm />
         </div>
         <div className="mt-4 text-center text-sm">
-          Não tem uma conta?{" "}
+          {t('noAccount')}{" "}
           <Link href="/signup" className="underline text-primary font-medium">
-            Cadastre-se
+            {t('signUpLink')}
           </Link>
         </div>
       </CardContent>

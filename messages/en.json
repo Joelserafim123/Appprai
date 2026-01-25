@@ -1,0 +1,121 @@
+{
+    "Header": {
+        "viewTents": "View Tents",
+        "greeting": "Hello, {name}",
+        "dashboard": "Dashboard",
+        "myReservations": "My Reservations",
+        "favorites": "Favorites",
+        "settings": "Settings",
+        "reservations": "Reservations",
+        "myTent": "My Tent",
+        "menu": "Menu",
+        "rentals": "Rentals",
+        "analytics": "Analytics",
+        "chats": "Chats",
+        "logout": "Logout",
+        "login": "Login",
+        "signUp": "Sign Up",
+        "logoutSuccessTitle": "Logout successful",
+        "logoutSuccessDescription": "You have been successfully logged out.",
+        "logoutErrorTitle": "Error on Logout",
+        "logoutErrorDescription": "Could not log you out. Please try again."
+    },
+    "AuthLayout": {
+        "homeLink": "BeachPal Home"
+    },
+    "ForgotPasswordPage": {
+        "title": "Recover Password",
+        "description": "Enter your email to receive a recovery link.",
+        "backToLogin": "Remembered your password?",
+        "loginLink": "Log in"
+    },
+    "LoginPage": {
+        "title": "Access Your Account",
+        "description": "Use your email and password to access the platform.",
+        "noAccount": "Don't have an account?",
+        "signUpLink": "Sign up"
+    },
+    "SignUpPage": {
+        "title": "Create Your Account",
+        "description": "Fill in the fields below to create your account.",
+        "hasAccount": "Already have an account?",
+        "loginLink": "Log in"
+    },
+    "VerifyEmailNoticePage": {
+        "title": "Verify Your Email",
+        "description": "We sent a verification link to your email address. Please click the link to activate your account.",
+        "afterVerification": "After verifying your email, {loginLink} to continue.",
+        "loginLink": "log in",
+        "resendButton": "Resend verification email",
+        "logoutButton": "Logout",
+        "resendSuccessTitle": "Verification email resent",
+        "resendSuccessDescription": "Please check your inbox (and spam folder).",
+        "resendErrorTitle": "Error resending",
+        "resendErrorDescription": "An error occurred while resending the email. Please try again later.",
+        "notAuthenticatedTitle": "Not authenticated",
+        "notAuthenticatedDescription": "Please log in again to resend the verification email."
+    },
+    "AnalyticsPage": {
+        "title": "Sales Analytics",
+        "description": "See your tent's performance.",
+        "accessDenied": "Access denied. This page is for tent owners only.",
+        "noTentTitle": "Register your tent first",
+        "noTentDescription": "You need to have a tent to see its analytics.",
+        "goToMyTent": "Go to My Tent",
+        "totalRevenue": "Total Revenue",
+        "fromReservations": "from {count} completed reservations",
+        "amountToForward": "Amount to Forward",
+        "clickForInstructions": "Click for instructions",
+        "forwardingInstructionsTitle": "Forwarding Instructions",
+        "forwardingInstructionsDescription": "The amount to be forwarded must be manually transferred to the platform's account every Monday.",
+        "totalAmountToForward": "Total amount to be forwarded:",
+        "bankDetailsTitle": "Bank Details for Transfer",
+        "pixKey": "PIX (CNPJ):",
+        "bank": "Bank:",
+        "agency": "Agency:",
+        "account": "Current Account:",
+        "name": "Name:",
+        "afterTransferNotice": "After making the transfer, no additional action is required on the platform. Our financial system will reconcile the payment.",
+        "close": "Close",
+        "completedReservations": "Completed Reservations",
+        "totalCompletedReservations": "Total completed reservations",
+        "averageTicket": "Average Ticket",
+        "averageValuePerReservation": "Average value per reservation",
+        "revenueByDay": "Revenue by Day",
+        "revenueByDayDescription": "Track the evolution of your daily sales. Only reservations with \"Completed\" status are counted.",
+        "noChartData": "No revenue data to display in the chart yet.",
+        "noAnalyticsTitle": "No analytics to show",
+        "noAnalyticsDescription": "Complete some reservations to start seeing your sales analytics."
+    },
+    "ChatsPage": {
+        "title": "Conversations",
+        "description_owner": "Direct communication with your customers.",
+        "description_customer": "Direct communication with the tents.",
+        "pleaseLogin": "Please log in to see your conversations.",
+        "yourConversations": "Your Conversations",
+        "noConversations": "No conversations found.",
+        "selectConversation": "Select a conversation to start"
+    },
+    "FavoritesPage": {
+        "title": "My Favorite Tents",
+        "description": "Quickly access the tents you like the most.",
+        "accessDenied": "Access denied. This page is for customers only.",
+        "viewMenuAndRent": "View Menu and Rent",
+        "noFavoritesTitle": "No favorite tents",
+        "noFavoritesDescription": "Click the heart icon on a tent's page to add it here.",
+        "findATent": "Find a Tent"
+    },
+    "DashboardLayout": {
+        "home": "Home",
+        "myReservations": "My Reservations",
+        "favorites": "Favorites",
+        "chats": "Conversations",
+        "settings": "Settings",
+        "reservations": "Reservations",
+        "myTent": "My Tent",
+        "menu": "Menu",
+        "rentals": "Rentals",
+        "analytics": "Analytics",
+        "backToSite": "Back to site"
+    }
+}]}

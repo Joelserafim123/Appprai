@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { getInitials } from '@/lib/utils';
+import { LanguageSwitcher } from '../language-switcher';
+import { useTranslations } from '@/i18n';
 
 
 export function Header() {
@@ -25,6 +27,7 @@ export function Header() {
   const { firebaseApp } = useFirebase();
   const { toast } = useToast();
   const router = useRouter();
+  const t = useTranslations('Header');
 
   const handleLogout = async () => {
     if (!firebaseApp) return;
@@ -32,16 +35,16 @@ export function Header() {
     try {
       await signOut(auth);
       toast({
-        title: 'Logout bem-sucedido',
-        description: 'Você foi desconectado com sucesso.',
+        title: t('logoutSuccessTitle'),
+        description: t('logoutSuccessDescription'),
       });
       router.push('/');
     } catch (error) {
       console.error("Error signing out:", error);
       toast({
         variant: 'destructive',
-        title: 'Erro no Logout',
-        description: 'Não foi possível desconectá-lo. Por favor, tente novamente.',
+        title: t('logoutErrorTitle'),
+        description: t('logoutErrorDescription'),
       });
     }
   };
@@ -51,25 +54,25 @@ export function Header() {
       <DropdownMenuItem asChild>
         <Link href="/dashboard">
           <LayoutGrid className="mr-2 h-4 w-4" />
-          <span>Painel</span>
+          <span>{t('dashboard')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/my-reservations">
           <Star className="mr-2 h-4 w-4" />
-          <span>Minhas Reservas</span>
+          <span>{t('myReservations')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/favorites">
             <Heart className="mr-2 h-4 w-4" />
-            <span>Favoritos</span>
+            <span>{t('favorites')}</span>
         </Link>
       </DropdownMenuItem>
        <DropdownMenuItem asChild>
         <Link href="/dashboard/settings">
             <Settings className="mr-2 h-4 w-4" />
-            <span>Configurações</span>
+            <span>{t('settings')}</span>
         </Link>
       </DropdownMenuItem>
     </>
@@ -80,43 +83,43 @@ export function Header() {
       <DropdownMenuItem asChild>
         <Link href="/dashboard/reservations">
           <Star className="mr-2 h-4 w-4" />
-          <span>Reservas</span>
+          <span>{t('reservations')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/my-tent">
           <Building className="mr-2 h-4 w-4" />
-          <span>Minha Barraca</span>
+          <span>{t('myTent')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/menu">
           <Utensils className="mr-2 h-4 w-4" />
-          <span>Cardápio</span>
+          <span>{t('menu')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/rental-items">
           <Armchair className="mr-2 h-4 w-4" />
-          <span>Aluguéis</span>
+          <span>{t('rentals')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/analytics">
           <BarChart className="mr-2 h-4 w-4" />
-          <span>Análises</span>
+          <span>{t('analytics')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/chats">
           <MessageSquare className="mr-2 h-4 w-4" />
-          <span>Conversas</span>
+          <span>{t('chats')}</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <Link href="/dashboard/settings">
           <Settings className="mr-2 h-4 w-4" />
-          <span>Configurações</span>
+          <span>{t('settings')}</span>
         </Link>
       </DropdownMenuItem>
     </>
@@ -128,11 +131,11 @@ export function Header() {
         <Link href="/" className="flex items-center space-x-2">
           <Logo />
         </Link>
-        <nav className="flex items-center space-x-4">
+        <nav className="flex items-center space-x-2 sm:space-x-4">
            <Button asChild variant="outline">
                 <Link href="/list">
                     <List className="mr-2 h-4 w-4"/>
-                    <span>Ver Barracas</span>
+                    <span>{t('viewTents')}</span>
                 </Link>
             </Button>
           {user && !user.isAnonymous ? (
@@ -146,7 +149,7 @@ export function Header() {
                             {getInitials(user.displayName)}
                         </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium">Olá, {user.displayName?.split(' ')[0]}</span>
+                    <span className="text-sm font-medium">{t('greeting', { name: user.displayName?.split(' ')[0] })}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -165,7 +168,7 @@ export function Header() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sair</span>
+                    <span>{t('logout')}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -173,13 +176,14 @@ export function Header() {
           ) : (
             <>
               <Button asChild variant="ghost">
-                <Link href="/login">Entrar</Link>
+                <Link href="/login">{t('login')}</Link>
               </Button>
               <Button asChild>
-                <Link href="/signup">Cadastrar</Link>
+                <Link href="/signup">{t('signUp')}</Link>
               </Button>
             </>
           )}
+          <LanguageSwitcher />
         </nav>
       </div>
     </header>
