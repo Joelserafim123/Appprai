@@ -20,8 +20,6 @@ import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const operatingHoursSchema = z.object({
@@ -201,20 +199,20 @@ const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user || !storage) return;
     setIsSubmitting(true);
 
-    const isUpdate = !!existingTent;
-    // Define refs and paths outside the try block to be accessible in catch
-    const tentDocRef = isUpdate ? doc(firestore, "tents", existingTent.id) : doc(collection(firestore, "tents"));
-
     try {
+        const isUpdate = !!existingTent;
+        
         if (isUpdate) {
             // --- UPDATE LOGIC ---
-            const updateData: { [key: string]: any } = {
-                name: data.name,
-                description: data.description,
-                beachName: data.beachName,
-                minimumOrderForFeeWaiver: data.minimumOrderForFeeWaiver,
-                location: data.location,
-                operatingHours: data.operatingHours,
+            const tentDocRef = doc(firestore, "tents", existingTent.id);
+            // Explicitly build the update object
+            const updateData: any = {
+                'name': data.name,
+                'description': data.description,
+                'beachName': data.beachName,
+                'minimumOrderForFeeWaiver': data.minimumOrderForFeeWaiver,
+                'location': data.location,
+                'operatingHours': data.operatingHours
             };
 
             if (bannerFile) {
@@ -229,7 +227,10 @@ const onSubmit = async (data: TentFormData) => {
             toast({ title: `Barraca atualizada com sucesso!` });
         } else {
             // --- CREATE LOGIC ---
+            const tentDocRef = doc(collection(firestore, "tents"));
             const tentId = tentDocRef.id;
+
+            // 1. Create doc with text data first
             const textData = {
                 ...data,
                 ownerId: user.uid,
@@ -237,12 +238,14 @@ const onSubmit = async (data: TentFormData) => {
                 hasAvailableKits: false,
                 averageRating: 0,
                 reviewCount: 0,
-                bannerUrl: null,
+                bannerUrl: null, // Start with null banner
             };
             await setDoc(tentDocRef, textData);
 
+            // 2. Upload banner if it exists
             if (bannerFile) {
                 const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
+                // 3. Update the doc with the banner URL
                 await updateDoc(tentDocRef, { bannerUrl: downloadURL });
             }
             
@@ -253,24 +256,15 @@ const onSubmit = async (data: TentFormData) => {
 
     } catch (error: any) {
         console.error("Error saving tent:", error);
-
-        if (error instanceof FirebaseError && error.code === 'permission-denied') {
-             const permissionError = new FirestorePermissionError({
-                path: tentDocRef.path,
-                operation: isUpdate ? 'update' : 'create',
-                requestResourceData: data,
-             });
-             errorEmitter.emit('permission-error', permissionError);
-             setIsSubmitting(false);
-             return;
-        }
         
         let description = 'Não foi possível salvar os dados da barraca. Tente novamente.';
         if (error instanceof FirebaseError) {
-             if (error.code.startsWith('storage/')) {
+             if (error.code === 'permission-denied') {
+                description = 'Permissão negada. Verifique as regras de segurança do Firestore.';
+             } else if (error.code.startsWith('storage/')) {
                 switch(error.code) {
                     case 'storage/unauthorized':
-                        description = 'Você não tem permissão para enviar o banner. Verifique as regras de segurança do Firebase Storage.';
+                        description = 'Permissão negada para enviar o banner. Verifique as regras de segurança do Firebase Storage.';
                         break;
                     case 'storage/canceled':
                         description = 'O envio do banner foi cancelado.';

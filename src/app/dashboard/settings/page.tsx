@@ -139,24 +139,23 @@ export default function SettingsPage() {
     if (!user || !firestore || !auth || !storage) return;
     setIsSubmitting(true);
 
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro de Autenticação',
-        description: 'Usuário não encontrado. Por favor, faça login novamente.',
-      });
-      setIsSubmitting(false);
-      return;
-    }
+    try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro de Autenticação',
+                description: 'Usuário não encontrado. Por favor, faça login novamente.',
+            });
+            return;
+        }
 
-    const cpfDigits = data.cpf.replace(/\D/g, '');
-    const oldCpfDigits = user.cpf;
-    const cpfHasChanged = cpfDigits !== oldCpfDigits;
+        const cpfDigits = data.cpf.replace(/\D/g, '');
+        const oldCpfDigits = user.cpf;
+        const cpfHasChanged = cpfDigits !== oldCpfDigits;
 
-    if (cpfHasChanged && cpfDigits) {
-        const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
-        try {
+        if (cpfHasChanged && cpfDigits) {
+            const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
             const cpfDoc = await getDoc(newCpfDocRef);
             if (cpfDoc.exists()) {
                 toast({
@@ -164,25 +163,12 @@ export default function SettingsPage() {
                     title: 'CPF já em uso',
                     description: 'Este CPF já está associado a outra conta.',
                 });
-                setIsSubmitting(false);
                 return;
             }
-        } catch (e) {
-            console.error("Error checking CPF uniqueness:", e);
-            toast({
-                variant: 'destructive',
-                title: 'Erro de verificação',
-                description: 'Não foi possível verificar a disponibilidade do CPF. Tente novamente.',
-            });
-            setIsSubmitting(false);
-            return;
         }
-    }
 
-    try {
         const userDocRef = doc(firestore, 'users', user.uid);
         
-        // --- STAGE 1: Save text-based data ---
         const batch = writeBatch(firestore);
         const firestoreTextData: Partial<UserProfile> = {
           displayName: data.displayName,
@@ -208,25 +194,24 @@ export default function SettingsPage() {
             }
         }
         
-        await Promise.all([
-          updateProfile(currentUser, { displayName: data.displayName }),
-          batch.commit()
-        ]);
+        // Save text data and update auth display name
+        await updateProfile(currentUser, { displayName: data.displayName });
+        await batch.commit();
 
-        // --- STAGE 2: Handle file upload ---
+        let finalPhotoURL = user.photoURL;
+
         if (profileImageFile) {
             if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
                 await deleteFileByUrl(storage, user.photoURL);
             }
             const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
-            
-            // --- STAGE 3: Save the new photoURL to Firestore (Primary source of truth) ---
-            await updateDoc(userDocRef, { photoURL: downloadURL });
-            
-            // Update auth profile as well, but don't block on it or Promise.all with firestore write
-            updateProfile(currentUser, { photoURL: downloadURL }).catch(authError => {
-                console.warn("Could not update auth profile photoURL, but Firestore was updated.", authError);
-            });
+            finalPhotoURL = downloadURL;
+        }
+
+        // Update photoURL in both Firestore and Auth Profile
+        if (finalPhotoURL !== user.photoURL) {
+            await updateDoc(userDocRef, { photoURL: finalPhotoURL });
+            await updateProfile(currentUser, { photoURL: finalPhotoURL });
         }
         
         toast({
@@ -238,11 +223,12 @@ export default function SettingsPage() {
     } catch (error: any) {
         console.error("Error updating profile:", error);
         let description = 'Não foi possível salvar as alterações. Tente novamente.';
+        
         if (error instanceof FirebaseError) {
-             if (error.code.startsWith('auth/')) {
+             if (error.code === 'permission-denied') {
+                description = 'Não foi possível salvar. Verifique se o CPF já está em uso ou se você tem permissão.';
+             } else if (error.code.startsWith('auth/')) {
                 description = 'Houve um problema ao atualizar seu perfil. Por favor, tente fazer login novamente.';
-             } else if (error.code === 'permission-denied') {
-                description = 'Não foi possível salvar. O CPF pode já estar em uso ou você não tem permissão.'
              } else if (error.code.startsWith('storage/')) {
                 switch(error.code) {
                     case 'storage/unauthorized':
@@ -256,6 +242,7 @@ export default function SettingsPage() {
                 }
              }
         }
+        
         toast({
             variant: 'destructive',
             title: 'Erro ao Salvar',
