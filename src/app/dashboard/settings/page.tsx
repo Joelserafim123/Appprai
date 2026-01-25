@@ -167,10 +167,19 @@ export default function SettingsPage() {
             }
         }
 
+        let newPhotoURL: string | null = null;
+        if (profileImageFile) {
+            if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
+                await deleteFileByUrl(storage, user.photoURL);
+            }
+            const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
+            newPhotoURL = downloadURL;
+        }
+
         const userDocRef = doc(firestore, 'users', user.uid);
-        
         const batch = writeBatch(firestore);
-        const firestoreTextData: Partial<UserProfile> = {
+        
+        const firestoreUpdateData: Partial<UserProfile> = {
           displayName: data.displayName,
           profileComplete: true,
           cpf: cpfDigits,
@@ -181,7 +190,12 @@ export default function SettingsPage() {
           city: data.city || null,
           state: data.state || null,
         };
-        batch.set(userDocRef, firestoreTextData, { merge: true });
+
+        if (newPhotoURL) {
+            firestoreUpdateData.photoURL = newPhotoURL;
+        }
+        
+        batch.set(userDocRef, firestoreUpdateData, { merge: true });
 
         if (cpfHasChanged) {
             if (oldCpfDigits) {
@@ -194,24 +208,10 @@ export default function SettingsPage() {
             }
         }
         
-        // Save text data and update auth display name
-        await updateProfile(currentUser, { displayName: data.displayName });
         await batch.commit();
 
-        let finalPhotoURL = user.photoURL;
-
-        if (profileImageFile) {
-            if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
-                await deleteFileByUrl(storage, user.photoURL);
-            }
-            const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
-            finalPhotoURL = downloadURL;
-        }
-
-        // Update photoURL in both Firestore and Auth Profile
-        if (finalPhotoURL !== user.photoURL) {
-            await updateDoc(userDocRef, { photoURL: finalPhotoURL });
-            await updateProfile(currentUser, { photoURL: finalPhotoURL });
+        if (currentUser.displayName !== data.displayName) {
+            await updateProfile(currentUser, { displayName: data.displayName });
         }
         
         toast({
