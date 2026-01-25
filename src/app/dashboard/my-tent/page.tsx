@@ -12,13 +12,11 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import type { Tent, OperatingHours } from '@/lib/types';
+import type { Tent, OperatingHours, TentFormData } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
@@ -53,7 +51,6 @@ const tentSchema = z.object({
   }),
 });
 
-type TentFormData = z.infer<typeof tentSchema>;
 
 const defaultHours = {
   isOpen: true,
@@ -198,48 +195,59 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     }
   };
 
-
- const onSubmit = async (data: TentFormData) => {
+const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user || !storage) return;
     setIsSubmitting(true);
 
     try {
         const isUpdate = !!existingTent;
-        const tentId = isUpdate ? existingTent.id : doc(collection(firestore, "tents")).id;
-        const tentDocRef = doc(firestore, "tents", tentId);
+        
+        if (isUpdate) {
+            // --- UPDATE LOGIC ---
+            const tentDocRef = doc(firestore, "tents", existingTent.id);
+            // Type assertion to satisfy TypeScript
+            const updateData: { [key: string]: any } = { ...data };
 
-        // 1. Save all textual data first.
-        // For updates, this will update existing fields. For creates, it will create the doc.
-        const textData = {
-            ...data,
-            ownerId: user.uid,
-            ownerName: user.displayName,
-            ...(isUpdate ? {} : { // Fields to initialize on create only
+            if (bannerFile) {
+                // Delete old banner if it exists
+                if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
+                    await deleteFileByUrl(storage, existingTent.bannerUrl);
+                }
+                // Upload new one
+                const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
+                updateData.bannerUrl = downloadURL;
+            }
+            
+            await updateDoc(tentDocRef, updateData);
+            toast({ title: `Barraca atualizada com sucesso!` });
+
+        } else {
+            // --- CREATE LOGIC ---
+            const tentId = doc(collection(firestore, "tents")).id;
+            const tentDocRef = doc(firestore, "tents", tentId);
+
+            // 1. Save text data first (without banner)
+            const textData = {
+                ...data,
+                ownerId: user.uid,
+                ownerName: user.displayName,
                 hasAvailableKits: false,
                 averageRating: 0,
                 reviewCount: 0,
-                bannerUrl: null, // Initialize bannerUrl
-            })
-        };
-        
-        // Use set with merge to handle both create and update of text fields
-        await setDoc(tentDocRef, textData, { merge: true });
+                bannerUrl: null,
+            };
+            await setDoc(tentDocRef, textData);
 
-        // 2. Handle file upload if a new banner was provided
-        if (bannerFile) {
-            // Delete old banner if it's an update and an old banner exists
-            if (isUpdate && existingTent?.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
-                await deleteFileByUrl(storage, existingTent.bannerUrl);
+            // 2. Upload banner if it exists
+            if (bannerFile) {
+                const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
+                // 3. Update doc with banner URL
+                await updateDoc(tentDocRef, { bannerUrl: downloadURL });
             }
             
-            // Upload the new file. The Firestore doc now exists, so security rules will pass.
-            const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
-            
-            // 3. Update the document with the new banner URL
-            await updateDoc(tentDocRef, { bannerUrl: downloadURL });
+            toast({ title: `Barraca cadastrada com sucesso!` });
         }
-        
-        toast({ title: `Barraca ${isUpdate ? 'atualizada' : 'cadastrada'} com sucesso!` });
+
         onFinished();
 
     } catch (error: any) {

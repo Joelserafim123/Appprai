@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore';
+import { z } from 'zod';
 
 // Base User profile structure
 export interface UserProfile {
@@ -157,3 +158,35 @@ export interface ChatMessage {
     text: string;
     timestamp: Timestamp;
 }
+
+
+const operatingHoursSchema = z.object({
+  isOpen: z.boolean(),
+  open: z.string(),
+  close: z.string(),
+});
+
+export const tentSchema = z.object({
+  name: z.string().min(3, 'O nome da barraca é obrigatório.'),
+  description: z.string().min(10, 'A descrição é obrigatória.'),
+  beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
+  minimumOrderForFeeWaiver: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : parseFloat(String(val))),
+    z.number({ invalid_type_error: 'O valor deve ser um número.' }).nullable()
+  ),
+  location: z.object({
+    latitude: z.number({ required_error: 'A localização no mapa é obrigatória.'}),
+    longitude: z.number({ required_error: 'A localização no mapa é obrigatória.'}),
+  }),
+  operatingHours: z.object({
+    monday: operatingHoursSchema,
+    tuesday: operatingHoursSchema,
+    wednesday: operatingHoursSchema,
+    thursday: operatingHoursSchema,
+    friday: operatingHoursSchema,
+    saturday: operatingHoursSchema,
+    sunday: operatingHoursSchema,
+  }),
+});
+
+export type TentFormData = z.infer<typeof tentSchema>;
