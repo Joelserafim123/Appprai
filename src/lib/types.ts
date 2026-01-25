@@ -7,6 +7,7 @@ export interface UserProfile {
     uid: string;
     email: string;
     displayName: string;
+    photoURL?: string;
     role: 'customer' | 'owner';
     cpf?: string;
     cep?: string;
