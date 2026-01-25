@@ -179,11 +179,7 @@ export default function SettingsPage() {
             const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
             photoURLToSave = downloadURL;
         }
-
-        await updateProfile(currentUser, { displayName: data.displayName, photoURL: photoURLToSave });
-
-        const batch = writeBatch(firestore);
-
+        
         const firestoreData: Partial<UserProfile> = {
           displayName: data.displayName,
           photoURL: photoURLToSave,
@@ -198,6 +194,7 @@ export default function SettingsPage() {
         };
 
         const userDocRef = doc(firestore, 'users', user.uid);
+        const batch = writeBatch(firestore);
         batch.set(userDocRef, firestoreData, { merge: true });
 
         if (cpfHasChanged) {
@@ -210,8 +207,12 @@ export default function SettingsPage() {
                 batch.set(newCpfDocRef, { userId: user.uid });
             }
         }
-
-        await batch.commit();
+        
+        // Run Auth and Firestore updates in parallel
+        await Promise.all([
+          updateProfile(currentUser, { displayName: data.displayName, photoURL: photoURLToSave }),
+          batch.commit()
+        ]);
         
         toast({
           title: 'Perfil Atualizado!',

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
-import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List, MessageSquare, User as UserIcon } from 'lucide-react';
+import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List, MessageSquare, User as UserIcon, Heart } from 'lucide-react';
 import { useUser, useFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +57,12 @@ export function Header() {
         <Link href="/dashboard/my-reservations">
           <Star className="mr-2 h-4 w-4" />
           <span>Minhas Reservas</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/dashboard/favorites">
+            <Heart className="mr-2 h-4 w-4" />
+            <span>Favoritos</span>
         </Link>
       </DropdownMenuItem>
        <DropdownMenuItem asChild>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
-import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair, MessageSquare, Loader2 } from 'lucide-react';
+import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair, MessageSquare, Loader2, Heart } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { useUser } from '@/firebase';
 import {
@@ -61,6 +61,14 @@ export default function DashboardLayout({
           <Link href="/dashboard/my-reservations">
             <Star />
             <span>Minhas Reservas</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={{ children: 'Favoritos', side: 'right' }}>
+          <Link href="/dashboard/favorites">
+            <Heart />
+            <span>Favoritos</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
