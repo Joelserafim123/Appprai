@@ -144,7 +144,7 @@ export function SignUpForm() {
                 onValueChange={field.onChange}
                 defaultValue={field.value}
                 className="flex space-x-4 pt-2"
-                disabled={isLoading}
+                disabled={isLoading || !!pendingData}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="customer" id="customer" />
