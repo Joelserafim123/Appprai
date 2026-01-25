@@ -628,7 +628,7 @@ export default function TentPage() {
                                                 <Avatar>
                                                     <AvatarImage src={review.userPhotoURL ?? undefined} />
                                                     <AvatarFallback className="bg-primary/20 text-primary">
-                                                        {review.userName ? getInitials(review.userName) : <UserIcon className="h-5 w-5" />}
+                                                        <UserIcon className="h-5 w-5" />
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1">
