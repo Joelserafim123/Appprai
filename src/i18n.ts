@@ -72,8 +72,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [locale]
   );
   
+  // Explicitly type the provider value to help the compiler.
+  const providerValue: I18nContextType = {
+    locale,
+    setLocale,
+    t,
+  };
+
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t }}>
+    <I18nContext.Provider value={providerValue}>
       {children}
     </I18nContext.Provider>
   );
