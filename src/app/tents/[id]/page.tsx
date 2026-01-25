@@ -162,6 +162,7 @@ export default function TentPage() {
   }
 
   const isOwnerViewingOwnTent = user && user.uid === tent.ownerId;
+  const bannerSrc = tent.bannerUrl || tentBannerUrl;
 
   const menuByCategory = (menuItems || []).reduce((acc, item) => {
     const category = item.category || 'Outros';
@@ -470,7 +471,7 @@ export default function TentPage() {
       <main>
         <div className="relative h-64 w-full md:h-96">
             <Image
-                src={tentBannerUrl}
+                src={bannerSrc}
                 alt={tent.name}
                 className="object-cover"
                 data-ai-hint="ocean"

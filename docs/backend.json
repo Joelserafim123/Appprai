@@ -34,6 +34,7 @@
         "ownerId": { "type": "string", "description": "The UID of the user who owns the tent." },
         "ownerName": { "type": "string", "description": "The name of the user who owns the tent." },
         "logoUrl": { "type": "string", "format": "uri", "description": "URL for the tent's logo." },
+        "bannerUrl": { "type": "string", "format": "uri", "description": "URL for the tent's banner image." },
         "location": {
           "type": "object",
           "properties": {

@@ -2,8 +2,8 @@
 
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, Clock } from 'lucide-react';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Loader2, Building, MapPin, Clock, Camera } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,10 +15,12 @@ import { useToast } from '@/hooks/use-toast';
 import type { Tent, OperatingHours } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { collection, query, where, limit, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, query, where, limit, setDoc, doc } from 'firebase/firestore';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
+import Image from 'next/image';
 
 
 const operatingHoursSchema = z.object({
@@ -32,7 +34,7 @@ const tentSchema = z.object({
   description: z.string().min(10, 'A descrição é obrigatória.'),
   beachName: z.string().min(3, 'O nome da praia é obrigatório.'),
   minimumOrderForFeeWaiver: z.preprocess(
-    (val) => (val === '' || val === null ? null : parseFloat(String(val))),
+    (val) => (val === '' || val === null || val === undefined ? null : parseFloat(String(val))),
     z.number({ invalid_type_error: 'O valor deve ser um número.' }).nullable()
   ),
   location: z.object({
@@ -81,10 +83,14 @@ const defaultCenter = {
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
-  const { firestore } = useFirebase();
+  const { firestore, storage } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
+  
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(existingTent?.bannerUrl || null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, control, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
@@ -145,6 +151,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       } else {
         handleGetCurrentLocation(true);
       }
+      setBannerPreview(existingTent.bannerUrl || null);
     } else {
         reset({
             name: '',
@@ -181,47 +188,57 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   }, [setValue]);
 
 
-  const onSubmit = (data: TentFormData) => {
+  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setBannerFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setBannerPreview(previewUrl);
+    }
+  };
+
+
+ const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user) return;
     setIsSubmitting(true);
 
-    const isUpdate = !!existingTent;
-    const dataToSave = isUpdate
-      ? { ...data }
-      : {
-          ...data,
-          ownerId: user.uid,
-          ownerName: user.displayName,
-          hasAvailableKits: false,
+    try {
+        const isUpdate = !!existingTent;
+        const tentId = isUpdate ? existingTent.id : doc(collection(firestore, "tents")).id;
+        let bannerUrlToSave = existingTent?.bannerUrl || null;
+        
+        if (bannerFile) {
+            if (isUpdate && existingTent?.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
+                await deleteFileByUrl(storage, existingTent.bannerUrl);
+            }
+            const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
+            bannerUrlToSave = downloadURL;
+        }
+
+        const dataToSave = {
+            ...data,
+            ownerId: user.uid,
+            ownerName: user.displayName,
+            bannerUrl: bannerUrlToSave,
+            // Keep existing values if not creating
+            hasAvailableKits: isUpdate ? existingTent.hasAvailableKits : false,
+            averageRating: isUpdate ? existingTent.averageRating : 0,
+            reviewCount: isUpdate ? existingTent.reviewCount : 0,
         };
 
-    const promise = isUpdate
-      ? updateDoc(doc(firestore, 'tents', existingTent!.id), dataToSave)
-      : addDoc(collection(firestore, 'tents'), dataToSave);
-
-    promise
-      .then(() => {
+        await setDoc(doc(firestore, "tents", tentId), dataToSave, { merge: isUpdate });
+        
         toast({ title: `Barraca ${isUpdate ? 'atualizada' : 'cadastrada'} com sucesso!` });
         onFinished();
-      })
-      .catch((error) => {
-        let path;
-        if (isUpdate) {
-          path = doc(firestore, 'tents', existingTent!.id).path;
-        } else {
-          path = collection(firestore, 'tents').path;
-        }
-        const permissionError = new FirestorePermissionError({
-          path,
-          operation: isUpdate ? 'update' : 'create',
-          requestResourceData: dataToSave,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
+
+    } catch (error) {
+        console.error("Error saving tent:", error);
+        toast({ variant: 'destructive', title: 'Erro ao Salvar', description: 'Não foi possível salvar os dados da barraca.' });
+    } finally {
         setIsSubmitting(false);
-      });
-  };
+    }
+};
+
   
     const renderMap = () => {
         if (loadError) {
@@ -257,6 +274,37 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+       <div className="space-y-2">
+            <Label>Banner da Barraca</Label>
+            <div className="relative w-full aspect-[3/1] rounded-lg bg-muted overflow-hidden group">
+                {bannerPreview ? (
+                    <Image src={bannerPreview} alt="Banner da barraca" layout="fill" objectFit="cover" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <Camera className="w-10 h-10" />
+                    </div>
+                )}
+                <div 
+                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                    onClick={() => bannerInputRef.current?.click()}
+                >
+                    <div className="text-white text-center">
+                        <Camera className="w-8 h-8 mx-auto" />
+                        <p className="text-sm font-semibold">Alterar Banner</p>
+                    </div>
+                </div>
+                 <Input 
+                    type="file" 
+                    ref={bannerInputRef}
+                    className="hidden"
+                    accept="image/png, image/jpeg, image/webp"
+                    onChange={handleBannerFileChange}
+                    disabled={isSubmitting}
+                />
+            </div>
+             <p className="text-xs text-muted-foreground">Recomendado: 1200x400 pixels.</p>
+        </div>
+
       <div className="space-y-2">
         <Label htmlFor="name">Nome da Barraca</Label>
         <Input id="name" {...register('name')} disabled={isSubmitting} />
@@ -364,7 +412,7 @@ export default function MyTentPage() {
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
     [firestore, user]
   );
-  const { data: tents, isLoading: loadingTent } = useCollection<Tent>(tentQuery);
+  const { data: tents, isLoading: loadingTent, forceRefresh } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;
   
 
@@ -398,7 +446,7 @@ export default function MyTentPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TentForm user={user} existingTent={tent} onFinished={() => {}} />
+          <TentForm user={user} existingTent={tent} onFinished={forceRefresh} />
         </CardContent>
       </Card>
       

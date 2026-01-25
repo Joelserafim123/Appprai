@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Info, User as UserIcon } from 'lucide-react';
+import { Loader2, Info, User as UserIcon, Camera } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,10 +13,11 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
 import { isValidCpf } from '@/lib/utils';
+import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
 
 
 const profileSchema = z.object({
@@ -37,10 +38,13 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading, refresh } = useUser();
-  const { auth, firestore } = useFirebase();
+  const { auth, firestore, storage } = useFirebase();
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
@@ -71,8 +75,18 @@ export default function SettingsPage() {
         city: user.city || '',
         state: user.state || '',
       });
+      setProfileImagePreview(user.photoURL);
     }
   }, [user, reset]);
+  
+
+  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfileImageFile(file);
+      setProfileImagePreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleCpfChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
@@ -161,10 +175,23 @@ export default function SettingsPage() {
     }
 
     try {
+        let photoURLToSave = user.photoURL;
+
+        if (profileImageFile) {
+            if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
+                await deleteFileByUrl(storage, user.photoURL);
+            }
+            const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
+            photoURLToSave = downloadURL;
+        }
+
+        await updateProfile(currentUser, { displayName: data.displayName, photoURL: photoURLToSave });
+
         const batch = writeBatch(firestore);
 
         const firestoreData: Partial<UserProfile> = {
           displayName: data.displayName,
+          photoURL: photoURLToSave,
           profileComplete: true,
           cpf: cpfDigits,
           cep: data.cep?.replace(/\D/g, '') || null,
@@ -178,7 +205,6 @@ export default function SettingsPage() {
         const userDocRef = doc(firestore, 'users', user.uid);
         batch.set(userDocRef, firestoreData, { merge: true });
 
-        // Handle CPF registry changes
         if (cpfHasChanged) {
             if (oldCpfDigits) {
                 const oldCpfDocRef = doc(firestore, 'cpfs', oldCpfDigits);
@@ -191,7 +217,6 @@ export default function SettingsPage() {
         }
 
         await batch.commit();
-        await updateProfile(currentUser, { displayName: data.displayName });
         
         toast({
           title: 'Perfil Atualizado!',
@@ -258,13 +283,29 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24 rounded-lg">
-                    <AvatarImage src={user.photoURL || ''} alt={user.displayName || "User"} />
-                    <AvatarFallback>
-                        <UserIcon className="h-12 w-12 text-muted-foreground" />
-                    </AvatarFallback>
-                </Avatar>
-
+                 <div className="relative group">
+                    <Avatar className="h-24 w-24 rounded-lg">
+                        <AvatarImage src={profileImagePreview || ''} alt={user.displayName || "User"} />
+                        <AvatarFallback>
+                            <UserIcon className="h-12 w-12 text-muted-foreground" />
+                        </AvatarFallback>
+                    </Avatar>
+                    <button 
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Camera className="w-8 h-8" />
+                    </button>
+                    <Input 
+                      type="file" 
+                      ref={avatarInputRef}
+                      className="hidden"
+                      accept="image/png, image/jpeg, image/webp"
+                      onChange={handleProfileImageChange}
+                      disabled={isSubmitting}
+                    />
+                 </div>
                 <div className="space-y-2">
                     <p className="text-lg font-semibold">{user.displayName}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -334,7 +375,7 @@ export default function SettingsPage() {
 
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={isSubmitting || !isDirty}>
+            <Button type="submit" disabled={isSubmitting || (!isDirty && !profileImageFile)}>
               {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
             </Button>
           </CardFooter>

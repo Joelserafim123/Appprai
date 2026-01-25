@@ -6,7 +6,7 @@ export interface UserProfile {
     email: string;
     displayName: string;
     role: 'customer' | 'owner';
-    photoURL?: string;
+    photoURL?: string | null;
     cpf?: string;
     cep?: string;
     street?: string;
@@ -46,6 +46,7 @@ export interface Tent {
   ownerId: string;
   ownerName: string;
   logoUrl?: string;
+  bannerUrl?: string;
   location: {
     latitude: number;
     longitude: number;
