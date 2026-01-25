@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, MapPin, Clock, Camera } from 'lucide-react';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,8 @@ import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebas
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
 import Image from 'next/image';
-import { FirebaseError } from 'firebase/app';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const operatingHoursSchema = z.object({
@@ -209,13 +210,13 @@ const onSubmit = async (data: TentFormData) => {
 
             if (bannerFile) {
                 if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
-                    await deleteFileByUrl(storage, existingTent.bannerUrl);
+                    // We'll delete the old one after the new one is uploaded and confirmed
                 }
                 const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
                 newBannerUrl = downloadURL;
             }
             
-            const updateData: Partial<Tent> = {
+            const updateData = {
                 name: data.name,
                 description: data.description,
                 beachName: data.beachName,
@@ -225,7 +226,12 @@ const onSubmit = async (data: TentFormData) => {
                 bannerUrl: newBannerUrl,
             };
 
-            await updateDoc(tentDocRef, updateData as any); // Use as any to bypass strict type check for update
+            await updateDoc(tentDocRef, updateData);
+
+            if (bannerFile && existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
+                await deleteFileByUrl(storage, existingTent.bannerUrl);
+            }
+
             toast({ title: `Barraca atualizada com sucesso!` });
         } else {
             // --- CREATE LOGIC ---
@@ -257,12 +263,19 @@ const onSubmit = async (data: TentFormData) => {
         onFinished();
 
     } catch (error: any) {
-        console.error("Error saving tent:", error);
-        const description = error.message || 'Não foi possível salvar os dados da barraca. Tente novamente.';
+        let description = 'Não foi possível salvar os dados da barraca. Tente novamente.';
+        if (error instanceof FirestorePermissionError) {
+          errorEmitter.emit('permission-error', error);
+          return;
+        }
+        if (error.code?.startsWith('storage/')) {
+            description = `Erro de armazenamento: ${error.message}`;
+        }
+        
         toast({ 
             variant: 'destructive', 
             title: 'Erro ao Salvar', 
-            description: `Detalhe: ${description}`,
+            description,
             duration: 9000
         });
     } finally {
@@ -485,5 +498,3 @@ export default function MyTentPage() {
   );
 
 }
-
-    

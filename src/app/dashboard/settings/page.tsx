@@ -10,10 +10,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
-import { getAuth, updateProfile } from 'firebase/auth';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
 import { isValidCpf } from '@/lib/utils';
@@ -50,14 +50,14 @@ export default function SettingsPage() {
   const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
       defaultValues: {
-          displayName: user?.displayName || '',
-          cpf: user?.cpf ? user.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '',
-          cep: user?.cep || '',
-          street: user?.street || '',
-          number: user?.number || '',
-          neighborhood: user?.neighborhood || '',
-          city: user?.city || '',
-          state: user?.state || '',
+          displayName: '',
+          cpf: '',
+          cep: '',
+          street: '',
+          number: '',
+          neighborhood: '',
+          city: '',
+          state: '',
       }
   });
   
@@ -135,9 +135,12 @@ export default function SettingsPage() {
   }, [watchedCep, setValue, toast]);
   
   
-  const onSubmit = async (data: ProfileFormData) => {
+const onSubmit = async (data: ProfileFormData) => {
     if (!user || !firestore || !auth || !storage) return;
+    
     setIsSubmitting(true);
+    let newPhotoURL: string | null = user.photoURL;
+    const oldPhotoURL = user.photoURL;
 
     try {
       const currentUser = auth.currentUser;
@@ -145,29 +148,13 @@ export default function SettingsPage() {
         throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
       }
 
-      // 1. Handle file upload first
-      let newPhotoURL: string | null = user.photoURL; // Start with existing URL
+      // Passo 1: Upload da nova imagem (se houver)
       if (profileImageFile) {
-        if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
-          await deleteFileByUrl(storage, user.photoURL);
-        }
         const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
         newPhotoURL = downloadURL;
       }
 
-      // 2. Handle database updates in a batch
-      const cpfDigits = data.cpf.replace(/\D/g, '');
-      const oldCpfDigits = user.cpf;
-      const cpfHasChanged = cpfDigits !== oldCpfDigits;
-
-      if (cpfHasChanged && cpfDigits) {
-        const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
-        const cpfDoc = await getDoc(newCpfDocRef);
-        if (cpfDoc.exists()) {
-          throw new Error('Este CPF já está associado a outra conta.');
-        }
-      }
-
+      // Passo 2: Preparar e executar atualizações no banco de dados
       const userDocRef = doc(firestore, 'users', user.uid);
       const batch = writeBatch(firestore);
 
@@ -175,7 +162,6 @@ export default function SettingsPage() {
         displayName: data.displayName,
         profileComplete: true,
         photoURL: newPhotoURL,
-        cpf: cpfDigits,
         cep: data.cep?.replace(/\D/g, '') || null,
         street: data.street || null,
         number: data.number || null,
@@ -184,36 +170,32 @@ export default function SettingsPage() {
         state: data.state || null,
       };
 
-      batch.update(userDocRef, firestoreUpdateData);
-
-      if (cpfHasChanged) {
-        if (oldCpfDigits) {
-          const oldCpfDocRef = doc(firestore, 'cpfs', oldCpfDigits);
-          batch.delete(oldCpfDocRef);
+      // Lógica do CPF (só pode ser definido uma vez)
+      if (!user.cpf) {
+        const cpfDigits = data.cpf.replace(/\D/g, '');
+        const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
+        const cpfDoc = await getDoc(newCpfDocRef);
+        if (cpfDoc.exists()) {
+          throw new Error('Este CPF já está associado a outra conta.');
         }
-        if (cpfDigits) {
-          const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
-          batch.set(newCpfDocRef, { userId: user.uid });
-        }
+        firestoreUpdateData.cpf = cpfDigits;
+        batch.set(newCpfDocRef, { userId: user.uid });
       }
 
+      batch.update(userDocRef, firestoreUpdateData as any);
       await batch.commit();
 
-      // 3. Update Auth profile
-      const authProfileUpdateData: { displayName?: string; photoURL?: string | null } = {};
-      let authProfileNeedsUpdate = false;
-      
-      if (currentUser.displayName !== data.displayName) {
-        authProfileUpdateData.displayName = data.displayName;
-        authProfileNeedsUpdate = true;
-      }
-      if (currentUser.photoURL !== newPhotoURL) {
-        authProfileUpdateData.photoURL = newPhotoURL;
-        authProfileNeedsUpdate = true;
+      // Passo 3: Atualizar o perfil de autenticação do Firebase
+      if (currentUser.displayName !== data.displayName || currentUser.photoURL !== newPhotoURL) {
+        await updateProfile(currentUser, {
+          displayName: data.displayName,
+          photoURL: newPhotoURL,
+        });
       }
 
-      if (authProfileNeedsUpdate) {
-        await updateProfile(currentUser, authProfileUpdateData);
+      // Passo 4: Apagar a foto antiga (apenas se tudo deu certo e uma nova foi enviada)
+      if (profileImageFile && oldPhotoURL && oldPhotoURL.includes('firebasestorage.googleapis.com')) {
+        await deleteFileByUrl(storage, oldPhotoURL);
       }
       
       toast({
@@ -229,7 +211,7 @@ export default function SettingsPage() {
         variant: 'destructive',
         title: 'Erro ao Salvar',
         description: `Detalhe: ${description}`,
-        duration: 9000,
+        duration: 9000
       });
     } finally {
       setIsSubmitting(false);
@@ -327,6 +309,7 @@ export default function SettingsPage() {
                 placeholder="000.000.000-00"
               />
                {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
+               {!!user.cpf && <p className="text-xs text-muted-foreground pt-1">O CPF não pode ser alterado após definido.</p>}
             </div>
             
             <div className="space-y-2">
@@ -376,5 +359,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
