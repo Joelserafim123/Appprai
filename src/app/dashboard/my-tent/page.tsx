@@ -20,6 +20,8 @@ import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { uploadFile, deleteFileByUrl } from '@/firebase/storage';
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const operatingHoursSchema = z.object({
@@ -199,14 +201,13 @@ const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user || !storage) return;
     setIsSubmitting(true);
 
+    const isUpdate = !!existingTent;
+    // Define refs and paths outside the try block to be accessible in catch
+    const tentDocRef = isUpdate ? doc(firestore, "tents", existingTent.id) : doc(collection(firestore, "tents"));
+
     try {
-        const isUpdate = !!existingTent;
-        
         if (isUpdate) {
             // --- UPDATE LOGIC ---
-            const tentDocRef = doc(firestore, "tents", existingTent.id);
-            
-            // Explicitly build the update object to ensure data integrity
             const updateData: { [key: string]: any } = {
                 name: data.name,
                 description: data.description,
@@ -226,13 +227,9 @@ const onSubmit = async (data: TentFormData) => {
             
             await updateDoc(tentDocRef, updateData);
             toast({ title: `Barraca atualizada com sucesso!` });
-
         } else {
             // --- CREATE LOGIC ---
-            const tentId = doc(collection(firestore, "tents")).id;
-            const tentDocRef = doc(firestore, "tents", tentId);
-
-            // 1. Save text data first (without banner)
+            const tentId = tentDocRef.id;
             const textData = {
                 ...data,
                 ownerId: user.uid,
@@ -244,10 +241,8 @@ const onSubmit = async (data: TentFormData) => {
             };
             await setDoc(tentDocRef, textData);
 
-            // 2. Upload banner if it exists
             if (bannerFile) {
                 const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
-                // 3. Update doc with banner URL
                 await updateDoc(tentDocRef, { bannerUrl: downloadURL });
             }
             
@@ -258,6 +253,18 @@ const onSubmit = async (data: TentFormData) => {
 
     } catch (error: any) {
         console.error("Error saving tent:", error);
+
+        if (error instanceof FirebaseError && error.code === 'permission-denied') {
+             const permissionError = new FirestorePermissionError({
+                path: tentDocRef.path,
+                operation: isUpdate ? 'update' : 'create',
+                requestResourceData: data,
+             });
+             errorEmitter.emit('permission-error', permissionError);
+             setIsSubmitting(false);
+             return;
+        }
+        
         let description = 'Não foi possível salvar os dados da barraca. Tente novamente.';
         if (error instanceof FirebaseError) {
              if (error.code.startsWith('storage/')) {
@@ -271,8 +278,6 @@ const onSubmit = async (data: TentFormData) => {
                     default:
                         description = 'Ocorreu um erro ao enviar o banner. Tente novamente.';
                 }
-             } else if (error.code === 'permission-denied') {
-                 description = 'Permissão negada. Você não tem autorização para salvar estes dados. Verifique as regras de segurança do Firestore.';
              }
         }
         toast({ variant: 'destructive', title: 'Erro ao Salvar', description });
