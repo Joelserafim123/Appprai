@@ -151,7 +151,7 @@ const onSubmit = async (data: ProfileFormData) => {
             throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
         }
 
-        let photoDownloadURL = user.photoURL;
+        let photoDownloadURL: string | null = user.photoURL || null;
 
         if (profileImageFile && storage) {
             toast({ title: 'A fazer upload da imagem...' });
@@ -278,7 +278,7 @@ const onSubmit = async (data: ProfileFormData) => {
                             <UserIcon className="h-10 w-10" />
                         </AvatarFallback>
                     </Avatar>
-                    <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
                         <Upload className='h-8 w-8'/>
                     </button>
                 </div>

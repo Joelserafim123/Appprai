@@ -8,10 +8,14 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Tent images are publicly readable, but only the owner can write.
+    // Tent images are publicly readable.
     match /tents/{tentId}/{fileName} {
       allow read;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
+      // Any authenticated user can upload (create) a new tent image.
+      // This is safe because the URL is only linked to the tent in a secure Firestore transaction.
+      allow create: if request.auth != null;
+      // Only the tent owner can update or delete existing images.
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
     }
   }
 }

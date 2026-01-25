@@ -2,8 +2,8 @@
 
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, Clock } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { Loader2, Building, MapPin, Clock, Upload, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,8 @@ import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebas
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import Image from 'next/image';
 
 const operatingHoursSchema = z.object({
   isOpen: z.boolean(),
@@ -79,11 +81,14 @@ const defaultCenter = {
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
-  const { firestore } = useFirebase();
+  const { firestore, storage } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
   
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(existingTent?.bannerUrl || null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch, control, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
@@ -144,6 +149,9 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       } else {
         handleGetCurrentLocation(true);
       }
+      if (existingTent.bannerUrl) {
+          setBannerPreview(existingTent.bannerUrl);
+      }
     } else {
         reset({
             name: '',
@@ -179,14 +187,32 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       }
   }, [setValue]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        setBannerImageFile(file);
+        setBannerPreview(URL.createObjectURL(file));
+    }
+  }
+
   const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user) return;
     setIsSubmitting(true);
     toast({ title: "A guardar alterações..." });
 
     try {
+        let bannerDownloadURL = existingTent?.bannerUrl || null;
+
         if (existingTent) {
             // --- UPDATE LOGIC ---
+            if (bannerImageFile && storage) {
+                toast({ title: 'A fazer upload da imagem do banner...' });
+                const fileRef = storageRef(storage, `tents/${existingTent.id}/banner.jpg`);
+                await uploadBytes(fileRef, bannerImageFile);
+                bannerDownloadURL = await getDownloadURL(fileRef);
+                toast({ title: 'Upload do banner bem-sucedido!' });
+            }
+
             const tentDocRef = doc(firestore, "tents", existingTent.id);
             const updateData: Partial<Tent> = {
                 name: data.name,
@@ -195,19 +221,30 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                 minimumOrderForFeeWaiver: data.minimumOrderForFeeWaiver,
                 location: data.location,
                 operatingHours: data.operatingHours,
+                bannerUrl: bannerDownloadURL,
             };
             await updateDoc(tentDocRef, updateData as any);
             toast({ title: `Barraca atualizada com sucesso!` });
         } else {
             // --- CREATE LOGIC ---
-            const tentDocRef = doc(collection(firestore, "tents"));
-            const newTentData = {
+            const tentDocRef = doc(collection(firestore, "tents")); // Generate ID first
+
+            if (bannerImageFile && storage) {
+                toast({ title: 'A fazer upload da imagem do banner...' });
+                const fileRef = storageRef(storage, `tents/${tentDocRef.id}/banner.jpg`); // Use new ID
+                await uploadBytes(fileRef, bannerImageFile);
+                bannerDownloadURL = await getDownloadURL(fileRef);
+                toast({ title: 'Upload do banner bem-sucedido!' });
+            }
+
+            const newTentData: Omit<Tent, 'id'> = {
                 ...data,
                 ownerId: user.uid,
                 ownerName: user.displayName,
                 hasAvailableKits: false,
                 averageRating: 0,
                 reviewCount: 0,
+                bannerUrl: bannerDownloadURL,
             };
             await setDoc(tentDocRef, newTentData);
             toast({ title: `Barraca cadastrada com sucesso!` });
@@ -260,6 +297,25 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <input type="file" ref={bannerFileInputRef} onChange={handleFileChange} hidden accept="image/png, image/jpeg, image/webp" />
+      
+      <div className="space-y-2">
+        <Label>Imagem do Banner</Label>
+        <div className="relative aspect-video w-full rounded-md border bg-muted group overflow-hidden">
+            {bannerPreview ? (
+                <Image src={bannerPreview} alt="Banner da barraca" layout="fill" objectFit="cover" />
+            ) : (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <ImageIcon className="h-10 w-10" />
+                    <p className="mt-2 text-sm">Sem imagem de banner</p>
+                </div>
+            )}
+            <button type="button" onClick={() => bannerFileInputRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
+                <Upload className='h-8 w-8'/>
+            </button>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="name">Nome da Barraca</Label>
         <Input id="name" {...register('name')} disabled={isSubmitting} />

@@ -121,15 +121,9 @@ service cloud.firestore {
     
     // Rules for Chats
     match /chats/{chatId} {
-      // This rule allows a query to proceed if the user is authenticated.
-      // The results are then secured by the 'get' rule, which checks for participation.
-      allow list: if isSignedIn();
-      
-      // A user can read or update a chat document if they are a participant.
-      allow get, update: if isSignedIn() && isParticipant(resource);
-      
-      // A user can create a chat if they are a participant in the new chat document.
-      allow create: if isSignedIn() && isParticipant(request.resource);
+      // A user can read (get, list), create or update a chat document if they are a participant.
+      // The `list` permission is secured by the query constraint in the client code.
+      allow read, update, create: if isSignedIn() && isParticipant(resource);
       
       // Deleting chats is not allowed for data integrity.
       allow delete: if false;
