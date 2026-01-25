@@ -136,45 +136,38 @@ export default function SettingsPage() {
   }, [watchedCep, setValue, toast]);
   
   const handleSavePhoto = async () => {
-    if (!user || !auth || !storage || !firestore || !profileImageFile) return;
+    if (!user || !storage || !firestore || !profileImageFile) return;
 
     setIsPhotoSubmitting(true);
-    
     try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) throw new Error("Usuário não autenticado.");
+      toast({ title: 'A iniciar upload...', description: 'Aguarde um momento.' });
+      
+      const { downloadURL: newPhotoURL } = await uploadFile(
+        storage,
+        profileImageFile,
+        `users/${user.uid}/profile-pictures`
+      );
 
-        // 1. Upload new photo and get URL
-        const { downloadURL: newPhotoURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
+      toast({ title: 'Upload concluído!', description: 'A atualizar o seu perfil...' });
 
-        // 2. Update Firestore document with the new photo URL
-        const userDocRef = doc(firestore, 'users', user.uid);
-        await updateDoc(userDocRef, { photoURL: newPhotoURL });
+      const userDocRef = doc(firestore, 'users', user.uid);
+      await updateDoc(userDocRef, { photoURL: newPhotoURL });
 
-        // 3. Update Firebase Auth profile
-        await updateProfile(currentUser, { photoURL: newPhotoURL });
-
-        // 4. (Non-critical) Delete old photo after everything is successful
-        if (user.photoURL && user.photoURL.includes('firebasestorage.googleapis.com')) {
-            deleteFileByUrl(storage, user.photoURL).catch(deleteError => {
-              console.warn("Could not delete old profile photo:", deleteError);
-            });
-        }
-
-        toast({ title: 'Foto de perfil atualizada!' });
-        setProfileImageFile(null);
-        await refresh();
+      toast({ title: 'Foto de perfil atualizada com sucesso!' });
+      
+      setProfileImageFile(null);
+      await refresh();
 
     } catch (error: any) {
-        console.error("Error updating profile photo:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Erro ao Salvar Foto',
-            description: `Não foi possível guardar a sua foto. Detalhe: ${error.message || 'Erro desconhecido.'}`,
-            duration: 9000
-        });
+      console.error("Error updating profile photo:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro Crítico ao Salvar Foto',
+        description: `Ocorreu um erro: ${error.message || 'Por favor, verifique as permissões e tente novamente.'}`,
+        duration: 9000,
+      });
     } finally {
-        setIsPhotoSubmitting(false);
+      setIsPhotoSubmitting(false);
     }
   };
   
@@ -192,7 +185,6 @@ const onSubmit = async (data: ProfileFormData) => {
         const batch = writeBatch(firestore);
         const userDocRef = doc(firestore, 'users', user.uid);
         
-        // Prepare Firestore update data
         const firestoreUpdateData: Partial<UserProfile> = {
             displayName: data.displayName,
             profileComplete: true,
@@ -204,26 +196,27 @@ const onSubmit = async (data: ProfileFormData) => {
             state: data.state || undefined,
         };
 
-        // Handle CPF only if it's being set for the first time
-        if (!user.cpf && data.cpf) {
+        if (user.cpf !== data.cpf.replace(/\D/g, '') && data.cpf) {
             const cpfDigits = data.cpf.replace(/\D/g, '');
             const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
-            const cpfDocSnap = await getDoc(newCpfDocRef);
-
-            if (cpfDocSnap.exists()) {
-                throw new Error('Este CPF já está associado a outra conta.');
+            
+            // Only check for uniqueness if it's a new CPF or the user had no CPF
+            if(!user.cpf) {
+                const cpfDocSnap = await getDoc(newCpfDocRef);
+                if (cpfDocSnap.exists()) {
+                    throw new Error('Este CPF já está associado a outra conta.');
+                }
+                firestoreUpdateData.cpf = cpfDigits;
+                batch.set(newCpfDocRef, { userId: user.uid });
+            } else {
+                 throw new Error('Não é possível alterar o CPF após ter sido definido.');
             }
-            firestoreUpdateData.cpf = cpfDigits;
-            batch.set(newCpfDocRef, { userId: user.uid });
         }
         
-        // Add the update operation to the batch
         batch.update(userDocRef, firestoreUpdateData as any);
 
-        // Commit all batched writes
         await batch.commit();
 
-        // Update Firebase Auth display name if changed
         if (currentUser.displayName !== data.displayName) {
             await updateProfile(currentUser, {
                 displayName: data.displayName,
@@ -232,10 +225,10 @@ const onSubmit = async (data: ProfileFormData) => {
         
         toast({
             title: 'Perfil Atualizado!',
-            description: 'Suas informações de texto foram salvas com sucesso.',
+            description: 'As suas informações foram salvas com sucesso.',
         });
         await refresh();
-        reset(data); // Resets the form's dirty state
+        reset(data);
 
     } catch (error: any) {
         console.error("Error updating profile:", error);

@@ -203,15 +203,18 @@ const onSubmit = async (data: TentFormData) => {
     try {
         if (existingTent) {
             // --- UPDATE LOGIC ---
+            toast({ title: "A guardar alterações..." });
             const tentDocRef = doc(firestore, "tents", existingTent.id);
             let newBannerUrl = existingTent.bannerUrl;
 
             // Only upload if a new file is selected
             if (bannerFile) {
+                 toast({ title: "A fazer upload do novo banner..." });
                  const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
                  newBannerUrl = downloadURL;
+                 toast({ title: "Upload do banner concluído!" });
                  
-                 // Non-critical: delete old file after new one is confirmed
+                 // Non-critical: delete old file after new one is confirmed. Don't await this.
                  if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
                     deleteFileByUrl(storage, existingTent.bannerUrl).catch(console.warn);
                  }
@@ -227,22 +230,23 @@ const onSubmit = async (data: TentFormData) => {
                 bannerUrl: newBannerUrl,
             };
 
-            await updateDoc(tentDocRef, updateData);
+            await updateDoc(tentDocRef, updateData as any);
             toast({ title: `Barraca atualizada com sucesso!` });
 
         } else {
             // --- CREATE LOGIC ---
+            toast({ title: "A criar nova barraca..." });
             const tentDocRef = doc(collection(firestore, "tents"));
             const tentId = tentDocRef.id;
 
-            // 1. Upload banner first to get the URL
             let bannerUrl: string | null = null;
             if (bannerFile) {
+                toast({ title: "A fazer upload do banner..." });
                 const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${tentId}/banner`);
                 bannerUrl = downloadURL;
+                toast({ title: "Upload do banner concluído!" });
             }
 
-            // 2. Create the document with all data, including the banner URL
             const newTentData = {
                 ...data,
                 ownerId: user.uid,
@@ -259,19 +263,15 @@ const onSubmit = async (data: TentFormData) => {
         onFinished();
 
     } catch (error: any) {
+        console.error("Error saving tent data:", error);
         let description = 'Não foi possível salvar os dados da barraca. Tente novamente.';
-        if (error instanceof FirestorePermissionError) {
-          errorEmitter.emit('permission-error', error);
-          // Don't show a toast, global-error will handle it
-          return;
-        }
         if (error.code?.startsWith('storage/')) {
-            description = `Permissão negada para enviar o banner. Verifique as regras de segurança do Firebase Storage. Detalhe: ${error.message}`;
+            description = `Permissão negada para enviar a imagem. Verifique as regras de segurança. Detalhe: ${error.message}`;
         }
         
         toast({ 
             variant: 'destructive', 
-            title: 'Erro ao Salvar', 
+            title: 'Erro Crítico ao Salvar', 
             description,
             duration: 9000
         });
