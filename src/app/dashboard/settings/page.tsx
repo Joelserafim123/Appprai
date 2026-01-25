@@ -213,16 +213,33 @@ const onSubmit = async (data: ProfileFormData) => {
     } catch (error: any) {
         console.error("Error updating profile:", error);
         
+        let title = 'Erro ao Salvar';
         let description = 'Não foi possível salvar as alterações. Tente novamente.';
-        if (error instanceof FirebaseError && error.code === 'permission-denied' && !user.cpf) {
-            description = 'Este CPF já pode estar em uso por outra conta. Verifique os dados e tente novamente.'
+        
+        if (error instanceof FirebaseError) {
+             switch(error.code) {
+                case 'storage/unauthorized':
+                    title = "Erro de Permissão no Upload";
+                    description = "Você não tem permissão para carregar a sua foto de perfil.";
+                    break;
+                case 'storage/canceled':
+                    title = "Upload Cancelado";
+                    description = "O upload da imagem foi cancelado.";
+                    break;
+                case 'permission-denied':
+                    title = "Erro de Permissão";
+                    description = 'Este CPF já pode estar em uso por outra conta ou você não tem permissão para salvar estes dados.';
+                    break;
+                default:
+                    description = error.message || 'Ocorreu um erro desconhecido.';
+            }
         } else if (error.message) {
             description = error.message;
         }
 
         toast({
             variant: 'destructive',
-            title: 'Erro ao Salvar',
+            title: title,
             description: description,
             duration: 9000
         });

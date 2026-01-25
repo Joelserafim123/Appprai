@@ -21,6 +21,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
+import { FirebaseError } from 'firebase/app';
 
 const operatingHoursSchema = z.object({
   isOpen: z.boolean(),
@@ -201,64 +202,80 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     toast({ title: "A guardar alterações..." });
 
     try {
-        let bannerDownloadURL = existingTent?.bannerUrl || null;
+      let bannerDownloadURL = existingTent?.bannerUrl || null;
+      
+      const tentId = existingTent ? existingTent.id : doc(collection(firestore, "tents")).id;
+      const tentDocRef = doc(firestore, "tents", tentId);
+
+      if (bannerImageFile && storage) {
+        toast({ title: 'A fazer upload da imagem do banner...' });
+        const fileRef = storageRef(storage, `tents/${tentId}/banner.jpg`);
         const uploadMetadata = { customMetadata: { ownerUid: user.uid } };
+        
+        await uploadBytes(fileRef, bannerImageFile, uploadMetadata);
+        bannerDownloadURL = await getDownloadURL(fileRef);
+        
+        toast({ title: 'Upload do banner bem-sucedido!' });
+      }
 
-        if (existingTent) {
-            // --- UPDATE LOGIC ---
-            if (bannerImageFile && storage) {
-                toast({ title: 'A fazer upload da imagem do banner...' });
-                const fileRef = storageRef(storage, `tents/${existingTent.id}/banner.jpg`);
-                await uploadBytes(fileRef, bannerImageFile, uploadMetadata);
-                bannerDownloadURL = await getDownloadURL(fileRef);
-                toast({ title: 'Upload do banner bem-sucedido!' });
-            }
+      const tentDataForFirestore = {
+        ...data,
+        ownerId: user.uid,
+        ownerName: user.displayName,
+        bannerUrl: bannerDownloadURL,
+      };
 
-            const tentDocRef = doc(firestore, "tents", existingTent.id);
-            const updateData: Partial<Tent> = {
-                name: data.name,
-                description: data.description,
-                beachName: data.beachName,
-                minimumOrderForFeeWaiver: data.minimumOrderForFeeWaiver,
-                location: data.location,
-                operatingHours: data.operatingHours,
-                bannerUrl: bannerDownloadURL,
-            };
-            await updateDoc(tentDocRef, updateData as any);
-            toast({ title: `Barraca atualizada com sucesso!` });
-        } else {
-            // --- CREATE LOGIC ---
-            const tentDocRef = doc(collection(firestore, "tents")); // Generate ID first
+      if (existingTent) {
+        await updateDoc(tentDocRef, tentDataForFirestore as any);
+        toast({ title: `Barraca atualizada com sucesso!` });
+      } else {
+        const newTentData = {
+          ...tentDataForFirestore,
+          hasAvailableKits: false,
+          averageRating: 0,
+          reviewCount: 0,
+        };
+        await setDoc(tentDocRef, newTentData);
+        toast({ title: `Barraca cadastrada com sucesso!` });
+      }
 
-            if (bannerImageFile && storage) {
-                toast({ title: 'A fazer upload da imagem do banner...' });
-                const fileRef = storageRef(storage, `tents/${tentDocRef.id}/banner.jpg`); // Use new ID
-                await uploadBytes(fileRef, bannerImageFile, uploadMetadata);
-                bannerDownloadURL = await getDownloadURL(fileRef);
-                toast({ title: 'Upload do banner bem-sucedido!' });
-            }
-
-            const newTentData: Omit<Tent, 'id'> = {
-                ...data,
-                ownerId: user.uid,
-                ownerName: user.displayName,
-                hasAvailableKits: false,
-                averageRating: 0,
-                reviewCount: 0,
-                bannerUrl: bannerDownloadURL,
-            };
-            await setDoc(tentDocRef, newTentData);
-            toast({ title: `Barraca cadastrada com sucesso!` });
-        }
-        onFinished();
+      onFinished();
     } catch (error: any) {
         console.error("Error saving tent data:", error);
-        const permissionError = new FirestorePermissionError({
-            path: existingTent ? doc(firestore, "tents", existingTent.id).path : "tents",
-            operation: existingTent ? 'update' : 'create',
-            requestResourceData: data,
+        let title = "Erro ao Salvar";
+        let description = "Ocorreu um erro ao salvar as informações da barraca. Por favor, tente novamente.";
+
+        if (error instanceof FirebaseError) {
+            switch(error.code) {
+                case 'storage/unauthorized':
+                    title = "Erro de Permissão no Upload";
+                    description = "Você não tem permissão para carregar esta imagem. Verifique as regras de segurança do armazenamento.";
+                    break;
+                case 'storage/canceled':
+                    title = "Upload Cancelado";
+                    description = "O upload da imagem foi cancelado.";
+                    break;
+                case 'permission-denied':
+                    title = "Erro de Permissão no Banco de Dados";
+                    description = "Você não tem permissão para salvar os dados da barraca. Verifique as regras de segurança do Firestore.";
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                        path: existingTent ? doc(firestore, "tents", existingTent.id).path : "tents",
+                        operation: existingTent ? 'update' : 'create',
+                        requestResourceData: data,
+                    }));
+                    break;
+                default:
+                    description = error.message || description;
+            }
+        }
+        
+        toast({
+            variant: "destructive",
+            title: title,
+            description: description,
+            duration: 9000,
         });
-        errorEmitter.emit('permission-error', permissionError);
+
     } finally {
         setIsSubmitting(false);
     }
