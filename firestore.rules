@@ -132,7 +132,7 @@ service cloud.firestore {
       // Security is enforced by the client-side query which MUST use an 'array-contains'
       // filter on 'participantIds' with the user's UID. Firestore's backend then
       // verifies the 'get' rule for each document returned by the query.
-      allow list: if isSignedIn();
+      allow list: if request.auth != null;
       
       match /messages/{messageId} {
         allow read, create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/chats/$(chatId)));
