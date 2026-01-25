@@ -17,26 +17,6 @@ service cloud.firestore {
       return request.auth.uid in doc.data.participantIds;
     }
 
-    // Checks if a list query for chats is securely filtered.
-    function isQueryingOwnChats() {
-      // For the main list view in /dashboard/chats
-      let isParticipantQuery = request.query.where.filter(w => 
-        w[0] == 'participantIds' && w[1] == 'array-contains' && w[2] == request.auth.uid
-      ).size() > 0;
-
-      // For a CUSTOMER finding a specific chat with a tent
-      let isCustomerFindingChat = request.query.where.filter(w => w[0] == 'userId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0
-                                && request.query.where.filter(w => w[0] == 'tentId').size() > 0;
-      
-      // For an OWNER finding a specific chat with a customer
-      let isOwnerFindingChat = request.query.where.filter(w => w[0] == 'tentOwnerId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0
-                            && request.query.where.filter(w => w[0] == 'userId').size() > 0;
-
-      return 'where' in request.query && (
-        isParticipantQuery || isCustomerFindingChat || isOwnerFindingChat
-      );
-    }
-
     function isCpfUnchanged() {
       // If cpf is not in the incoming data, it's not being changed.
       if (!('cpf' in request.resource.data)) {
@@ -129,10 +109,8 @@ service cloud.firestore {
     match /reservations/{reservationId} {
       allow get, update: if isSignedIn() && isParticipant(resource);
       allow list: if isSignedIn() &&
-                     'where' in request.query && (
-                       request.query.where.filter(w => w[0] == 'userId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0 ||
-                       request.query.where.filter(w => w[0] == 'tentOwnerId' && w[1] == '==' && w[2] == request.auth.uid).size() > 0
-                     );
+                     (request.query.get('userId') == request.auth.uid ||
+                      request.query.get('tentOwnerId') == request.auth.uid);
       allow create: if isSignedIn() && isParticipant(request.resource);
       // For simplicity, we are allowing any participant to update. Deletion is disabled.
       allow delete: if false; // Prevent accidental deletion. Status should be updated to 'cancelled'.
@@ -143,7 +121,7 @@ service cloud.firestore {
     match /chats/{chatId} {
       allow read, update: if isSignedIn() && isParticipant(resource);
       allow create: if isSignedIn() && isParticipant(request.resource);
-      allow list: if isSignedIn() && isQueryingOwnChats();
+      allow list: if isSignedIn() && request.query.get('participantIds').hasAny([request.auth.uid]);
       
       match /messages/{messageId} {
         allow read, create: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/chats/$(chatId)));

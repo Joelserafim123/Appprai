@@ -19,12 +19,15 @@ export default function ChatsPage() {
   const t = useTranslations('ChatsPage');
 
   const chatsQuery = useMemoFirebase(
-    () => (user && user.uid && db) ? query(
-        collection(db, 'chats'), 
-        where('participantIds', 'array-contains', user.uid),
-        orderBy('lastMessageTimestamp', 'desc')
-      ) : null,
-    [db, user]
+    () =>
+      user && user.uid && db
+        ? query(
+            collection(db, 'chats'),
+            where('participantIds', 'array-contains', user.uid),
+            orderBy('lastMessageTimestamp', 'desc')
+          )
+        : null,
+    [db, user?.uid]
   );
   const { data: chats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
 
