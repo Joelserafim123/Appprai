@@ -26,7 +26,7 @@ const profileSchema = z.object({
   cpf: z.string()
     .min(1, "O CPF é obrigatório.")
     .refine(isValidCpf, { message: "O número do CPF informado é inválido." }),
-  cep: z.string().refine(value => !value || /^\d{8}$/.test(value), { message: 'CEP inválido. Deve conter 8 números.' }).optional(),
+  cep: z.string().refine(value => !value || /^\d{5}-?\d{3}$/.test(value.replace(/\D/g, '')) , { message: 'CEP inválido. Deve conter 8 números.' }).optional(),
   street: z.string().optional().or(z.literal('')),
   number: z.string().optional().or(z.literal('')),
   neighborhood: z.string().optional().or(z.literal('')),
@@ -101,15 +101,18 @@ export default function SettingsPage() {
 
 
    const handleCepChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\D/g, '');
-    setValue('cep', rawValue, { shouldValidate: true, shouldDirty: true });
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 8) value = value.slice(0, 8);
+    value = value.replace(/(\d{5})(\d)/, '$1-$2');
+    setValue('cep', value, { shouldValidate: true, shouldDirty: true });
   }, [setValue]);
   
   useEffect(() => {
+    const cepDigits = watchedCep?.replace(/\D/g, '') || '';
     const fetchAddress = async () => {
-        if (watchedCep && watchedCep.length === 8) {
+        if (cepDigits && cepDigits.length === 8) {
              try {
-                const res = await fetch(`https://viacep.com.br/ws/${watchedCep}/json/`);
+                const res = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
                 const data = await res.json();
                 if (!data.erro) {
                 setValue('street', data.logradouro, { shouldTouch: true, shouldDirty: true });
@@ -185,7 +188,7 @@ export default function SettingsPage() {
           displayName: data.displayName,
           profileComplete: true,
           cpf: cpfDigits,
-          cep: data.cep || null,
+          cep: data.cep?.replace(/\D/g, '') || null,
           street: data.street || null,
           number: data.number || null,
           neighborhood: data.neighborhood || null,
@@ -217,11 +220,13 @@ export default function SettingsPage() {
             }
             const { downloadURL } = await uploadFile(storage, profileImageFile, `users/${user.uid}/profile-pictures`);
             
-            // --- STAGE 3: Save the new photoURL ---
-            await Promise.all([
-                updateProfile(currentUser, { photoURL: downloadURL }),
-                updateDoc(userDocRef, { photoURL: downloadURL })
-            ]);
+            // --- STAGE 3: Save the new photoURL to Firestore (Primary source of truth) ---
+            await updateDoc(userDocRef, { photoURL: downloadURL });
+            
+            // Update auth profile as well, but don't block on it or Promise.all with firestore write
+            updateProfile(currentUser, { photoURL: downloadURL }).catch(authError => {
+                console.warn("Could not update auth profile photoURL, but Firestore was updated.", authError);
+            });
         }
         
         toast({
@@ -356,7 +361,7 @@ export default function SettingsPage() {
             
             <div className="space-y-2">
                 <Label htmlFor="cep">CEP</Label>
-                <Input {...register('cep')} onChange={handleCepChange} placeholder="00000000" disabled={isSubmitting} maxLength={8} />
+                <Input {...register('cep')} onChange={handleCepChange} placeholder="00000-000" disabled={isSubmitting} maxLength={9} />
                 {errors.cep && <p className="text-sm text-destructive">{errors.cep.message}</p>}
             </div>
 

@@ -189,4 +189,18 @@ export const tentSchema = z.object({
   }),
 });
 
+export const profileSchema = z.object({
+  displayName: z.string().min(2, 'O nome completo é obrigatório.'),
+  cpf: z.string()
+    .min(1, "O CPF é obrigatório.")
+    .refine(isValidCpf, { message: "O número do CPF informado é inválido." }),
+  cep: z.string().refine(value => !value || /^\d{5}-?\d{3}$/.test(value.replace(/\D/g, '')) , { message: 'CEP inválido. Deve conter 8 números.' }).optional(),
+  street: z.string().optional().or(z.literal('')),
+  number: z.string().optional().or(z.literal('')),
+  neighborhood: z.string().optional().or(z.literal('')),
+  city: z.string().optional().or(z.literal('')),
+  state: z.string().optional().or(z.literal('')),
+});
+
+
 export type TentFormData = z.infer<typeof tentSchema>;
