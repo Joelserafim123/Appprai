@@ -151,21 +151,18 @@ const onSubmit = async (data: ProfileFormData) => {
             state: data.state || undefined,
         };
 
-        if (user.cpf !== data.cpf.replace(/\D/g, '') && data.cpf) {
+        const isNewCpf = !user.cpf && data.cpf;
+
+        if (isNewCpf) {
             const cpfDigits = data.cpf.replace(/\D/g, '');
             const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
             
-            // Only check for uniqueness if it's a new CPF or the user had no CPF
-            if(!user.cpf) {
-                const cpfDocSnap = await getDoc(newCpfDocRef);
-                if (cpfDocSnap.exists()) {
-                    throw new Error('Este CPF já está associado a outra conta.');
-                }
-                firestoreUpdateData.cpf = cpfDigits;
-                batch.set(newCpfDocRef, { userId: user.uid });
-            } else {
-                 throw new Error('Não é possível alterar o CPF após ter sido definido.');
+            const cpfDocSnap = await getDoc(newCpfDocRef);
+            if (cpfDocSnap.exists()) {
+                throw new Error('Este CPF já está associado a outra conta.');
             }
+            firestoreUpdateData.cpf = cpfDigits;
+            batch.set(newCpfDocRef, { userId: user.uid });
         }
         
         batch.update(userDocRef, firestoreUpdateData as any);
@@ -187,11 +184,18 @@ const onSubmit = async (data: ProfileFormData) => {
 
     } catch (error: any) {
         console.error("Error updating profile:", error);
-        const description = error.message || 'Não foi possível salvar as alterações. Tente novamente.';
+        
+        let description = 'Não foi possível salvar as alterações. Tente novamente.';
+        if (error instanceof FirebaseError && error.code === 'permission-denied' && !user.cpf) {
+            description = 'Este CPF já pode estar em uso por outra conta. Verifique os dados e tente novamente.'
+        } else if (error.message) {
+            description = error.message;
+        }
+
         toast({
             variant: 'destructive',
             title: 'Erro ao Salvar',
-            description: `Detalhe: ${description}`,
+            description: description,
             duration: 9000
         });
     } finally {
