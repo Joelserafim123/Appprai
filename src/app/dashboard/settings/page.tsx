@@ -135,28 +135,43 @@ export default function SettingsPage() {
     return () => clearTimeout(timeoutId);
   }, [watchedCep, setValue, toast]);
   
-  const handleSavePhoto = async () => {
-    if (!user || !storage || !firestore || !profileImageFile) return;
+const handleSavePhoto = async () => {
+    if (!user || !storage || !firestore || !auth || !profileImageFile) return;
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
     setIsPhotoSubmitting(true);
+    const oldPhotoURL = user.photoURL; // Capture old URL to delete later
+
     try {
       toast({ title: 'A iniciar upload...', description: 'Aguarde um momento.' });
-      
+
+      // 1. Upload the new file first
       const { downloadURL: newPhotoURL } = await uploadFile(
         storage,
         profileImageFile,
         `users/${user.uid}/profile-pictures`
       );
+      toast({ title: 'Upload concluído!', description: 'A atualizar a sua conta...' });
 
-      toast({ title: 'Upload concluído!', description: 'A atualizar o seu perfil...' });
-
+      // 2. Update the Firestore document
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, { photoURL: newPhotoURL });
 
+      // 3. Update the Firebase Auth user profile
+      await updateProfile(currentUser, { photoURL: newPhotoURL });
+
       toast({ title: 'Foto de perfil atualizada com sucesso!' });
-      
-      setProfileImageFile(null);
+
+      // 4. Refresh local state and UI
       await refresh();
+      setProfileImageFile(null); // Clear the selected file from the input
+
+      // 5. As a final, non-critical step, delete the old photo
+      if (oldPhotoURL && oldPhotoURL.includes('firebasestorage.googleapis.com')) {
+          deleteFileByUrl(storage, oldPhotoURL).catch(console.warn);
+      }
 
     } catch (error: any) {
       console.error("Error updating profile photo:", error);

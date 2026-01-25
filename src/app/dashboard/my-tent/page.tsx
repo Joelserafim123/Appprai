@@ -206,6 +206,7 @@ const onSubmit = async (data: TentFormData) => {
             toast({ title: "A guardar alterações..." });
             const tentDocRef = doc(firestore, "tents", existingTent.id);
             let newBannerUrl = existingTent.bannerUrl;
+            const oldBannerUrl = existingTent.bannerUrl; // Capture old URL
 
             // Only upload if a new file is selected
             if (bannerFile) {
@@ -213,11 +214,6 @@ const onSubmit = async (data: TentFormData) => {
                  const { downloadURL } = await uploadFile(storage, bannerFile, `tents/${existingTent.id}/banner`);
                  newBannerUrl = downloadURL;
                  toast({ title: "Upload do banner concluído!" });
-                 
-                 // Non-critical: delete old file after new one is confirmed. Don't await this.
-                 if (existingTent.bannerUrl && existingTent.bannerUrl.includes('firebasestorage.googleapis.com')) {
-                    deleteFileByUrl(storage, existingTent.bannerUrl).catch(console.warn);
-                 }
             }
             
             const updateData: Partial<Tent> = {
@@ -232,6 +228,11 @@ const onSubmit = async (data: TentFormData) => {
 
             await updateDoc(tentDocRef, updateData as any);
             toast({ title: `Barraca atualizada com sucesso!` });
+
+            // Non-critical: IF a new banner was uploaded, delete the old one after update.
+            if (bannerFile && oldBannerUrl && oldBannerUrl.includes('firebasestorage.googleapis.com')) {
+                deleteFileByUrl(storage, oldBannerUrl).catch(console.warn);
+            }
 
         } else {
             // --- CREATE LOGIC ---
