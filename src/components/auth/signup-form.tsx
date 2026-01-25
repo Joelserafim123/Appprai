@@ -144,14 +144,13 @@ export function SignUpForm() {
                 onValueChange={field.onChange}
                 defaultValue={field.value}
                 className="flex space-x-4 pt-2"
-                disabled={isLoading || !!pendingData}
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="customer" id="customer" />
+                  <RadioGroupItem value="customer" id="customer" disabled={isLoading || !!pendingData} />
                   <Label htmlFor="customer" className="font-normal">Quero alugar e pedir</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="owner" id="owner" />
+                  <RadioGroupItem value="owner" id="owner" disabled={isLoading || !!pendingData} />
                   <Label htmlFor="owner" className="font-normal">Sou dono de barraca</Label>
                 </div>
               </RadioGroup>
