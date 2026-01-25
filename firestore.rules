@@ -14,7 +14,7 @@ service cloud.firestore {
 
     // Is the user a participant in a document (e.g., reservation, chat)?
     function isParticipant(doc) {
-      return request.auth.uid in doc.data.participantIds;
+      return 'participantIds' in doc.data && request.auth.uid in doc.data.participantIds;
     }
 
     function isCpfUnchanged() {
