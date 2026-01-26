@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment, limit } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment, limit, orderBy } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
 
@@ -503,7 +503,8 @@ export default function OwnerReservationsPage() {
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
         collection(firestore, 'reservations'),
-        where('tentOwnerId', '==', user.uid)
+        where('tentOwnerId', '==', user.uid),
+        orderBy('createdAt', 'desc')
       ) : null,
     [firestore, user]
   );
@@ -511,8 +512,7 @@ export default function OwnerReservationsPage() {
   
   const reservations = useMemo(() => {
     if (!rawReservations) return [];
-    // Sort locally after fetching
-    return [...rawReservations].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    return rawReservations;
   }, [rawReservations]);
 
   const filteredReservations = useMemo(() => {

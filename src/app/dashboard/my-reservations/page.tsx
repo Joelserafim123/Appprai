@@ -28,7 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { collection, query, where, doc, updateDoc, writeBatch, increment, getDocs, addDoc, serverTimestamp, limit } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, writeBatch, increment, getDocs, addDoc, serverTimestamp, limit, orderBy } from 'firebase/firestore';
 import { useMemo, useState } from 'react';
 import { ReviewDialog } from '@/components/reviews/review-dialog';
 import { useTranslations } from '@/i18n';
@@ -62,7 +62,8 @@ export default function MyReservationsPage() {
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
         collection(firestore, 'reservations'),
-        where('userId', '==', user.uid)
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
       ) : null,
     [firestore, user]
   );
@@ -70,12 +71,7 @@ export default function MyReservationsPage() {
   
   const reservations = useMemo(() => {
     if (!rawReservations) return [];
-    return [...rawReservations].sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-            return b.createdAt.toMillis() - a.createdAt.toMillis();
-        }
-        return 0;
-    });
+    return rawReservations;
   }, [rawReservations]);
 
   const isLateCancellation = useMemo(() => {
