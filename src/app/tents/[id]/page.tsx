@@ -95,28 +95,24 @@ export default function TentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   
-  // Fetch Tent by ID
   const tentRef = useMemoFirebase(() => (firestore && tentId) ? doc(firestore, 'tents', tentId) : null, [firestore, tentId]);
   const { data: tent, isLoading: loadingTent } = useDoc<Tent>(tentRef);
-
+  
+  const isOwnerViewingOwnTent = useMemo(() => {
+    return user && tent ? user.uid === tent.ownerId : false;
+  }, [user, tent]);
+  
   const subQueryTentId = tent?.id;
-
-  const [todayKey, setTodayKey] = useState('');
-  const [isTentOpenToday, setIsTentOpenToday] = useState(true);
-
-  // Fetch Menu and Rental Items
+  
   const menuItemsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? collection(firestore, 'tents', subQueryTentId, 'menuItems') : null, [firestore, subQueryTentId]);
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
   
   const rentalItemsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? collection(firestore, 'tents', subQueryTentId, 'rentalItems') : null, [firestore, subQueryTentId]);
   const { data: rentalItems, isLoading: loadingRentals } = useCollection<RentalItem>(rentalItemsQuery);
-
+  
   const reviewsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? query(collection(firestore, 'tents', subQueryTentId, 'reviews'), orderBy('createdAt', 'desc')) : null, [firestore, subQueryTentId]);
   const { data: reviews, isLoading: loadingReviews } = useCollection<Review>(reviewsQuery);
-
-  const isOwnerViewingOwnTent = useMemo(() => (user && tent ? user.uid === tent.ownerId : false), [user, tent]);
-
-  // Check for active reservations
+  
   const userReservationsQuery = useMemoFirebase(() => {
     if (firestore && user && !user.isAnonymous && user.uid) {
         return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
@@ -130,27 +126,32 @@ export default function TentPage() {
     if (!userReservations) return false;
     return userReservations.some(r => ['confirmed', 'checked-in', 'payment-pending'].includes(r.status));
   }, [userReservations]);
-
-
+  
   const rentalKit = useMemo(() => rentalItems?.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras"), [rentalItems]);
   const additionalChair = useMemo(() => rentalItems?.find(item => item.name === "Cadeira Adicional"), [rentalItems]);
-
+  
   const isFavorite = useMemo(() => user?.favoriteTentIds?.includes(tentId), [user, tentId]);
+
+  const [todayKey, setTodayKey] = useState('');
+  const [isTentOpenToday, setIsTentOpenToday] = useState(true);
 
   useEffect(() => {
     // Automatically add one kit to the cart when the page loads, if available.
-    if (rentalKit && rentalKit.quantity > 0 && !isOwnerViewingOwnTent) {
-      setCart((prevCart) => {
-        // Only add if the cart is empty to avoid re-adding on navigation or re-renders.
-        if (Object.keys(prevCart).length === 0) {
-          return {
-            [rentalKit.id]: { item: rentalKit, quantity: 1, type: 'rental' },
-          };
+    if (rentalItems && !isOwnerViewingOwnTent) {
+        const kit = rentalItems.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras");
+        if (kit && kit.quantity > 0) {
+            setCart((prevCart) => {
+                // Only add if the cart is empty to avoid re-adding on navigation or re-renders.
+                if (Object.keys(prevCart).length === 0) {
+                  return {
+                    [kit.id]: { item: kit, quantity: 1, type: 'rental' },
+                  };
+                }
+                return prevCart;
+            });
         }
-        return prevCart;
-      });
     }
-  }, [rentalKit, isOwnerViewingOwnTent]);
+  }, [rentalItems, isOwnerViewingOwnTent]);
 
   useEffect(() => {
     const key = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
@@ -160,7 +161,6 @@ export default function TentPage() {
         const todayHours = tent.operatingHours[key as keyof typeof tent.operatingHours] as OperatingHoursDay;
         setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
     } else {
-        // If operating hours are not defined, assume it's open
         setIsTentOpenToday(true);
     }
   }, [tent?.operatingHours]);
@@ -395,7 +395,7 @@ export default function TentPage() {
             })),
             total: finalTotal,
             outstandingBalancePaid: outstandingBalance,
-            createdAt: serverTimestamp() as any, // Cast to any to satisfy type temporarily
+            createdAt: serverTimestamp() as any,
             reservationTime,
             orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
             checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
@@ -463,7 +463,7 @@ export default function TentPage() {
         await updateDoc(userRef, {
             favoriteTentIds: isFavorite ? arrayRemove(tentId) : arrayUnion(tentId)
         });
-        await refresh(); // Refresh user data to get updated favorites
+        await refresh();
         toast({
             title: isFavorite ? "Removido dos Favoritos" : "Adicionado aos Favoritos!",
         });
@@ -530,182 +530,172 @@ export default function TentPage() {
                         <TabsTrigger value="reviews">Avaliações</TabsTrigger>
                         <TabsTrigger value="info">Informações</TabsTrigger>
                     </TabsList>
-                     <TabsContent value="menu" className="mt-6">
-                        <Card>
-                            <CardHeader>
-                            <CardTitle>Nosso Cardápio</CardTitle>
-                            <CardDescription>Escolha seus pratos e bebidas favoritos.</CardDescription>
-                             {tent.minimumOrderForFeeWaiver && tent.minimumOrderForFeeWaiver > 0 && (
-                                <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
-                                    <Info className="h-5 w-5 text-primary"/>
-                                    <div>
-                                    <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {proportionalFeeWaiverAmount > 0 ? proportionalFeeWaiverAmount.toFixed(2) : baseFeeWaiverAmount.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
-                                    </div>
-                                </div>
-                            )}
-                            </CardHeader>
-                            <CardContent>
-                                {loadingMenu ? (
-                                    <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
-                                ) : menuItems && menuItems.length > 0 ? (
-                                    <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
-                                    {Object.entries(menuByCategory).map(([category, items]) => (
-                                        <AccordionItem key={category} value={category}>
-                                        <AccordionTrigger className="text-lg font-semibold">{t_categories(category as any)}</AccordionTrigger>
-                                        <AccordionContent>
-                                            <div className="space-y-4 pt-2">
-                                            {items.map((item) => (
-                                                <div key={item.id} className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-medium">{item.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                                                    <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                    <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
-                                                </div>
-                                                </div>
-                                            ))}
-                                            </div>
-                                        </AccordionContent>
-                                        </AccordionItem>
-                                    ))}
-                                    </Accordion>
-                                ) : (
-                                    <div className="py-12 text-center text-muted-foreground">
-                                        <Utensils className="mx-auto h-10 w-10" />
-                                        <h3 className="mt-4 text-lg font-semibold text-card-foreground">Cardápio Indisponível</h3>
-                                        <p className="mt-1 text-sm">Esta barraca ainda não cadastrou itens no cardápio.</p>
+
+                    <div className="mt-6">
+                        <TabsContent value="menu" className="mt-0 space-y-6">
+                            <div>
+                                <h2 className="text-2xl font-semibold leading-none tracking-tight">Nosso Cardápio</h2>
+                                <p className="text-sm text-muted-foreground mt-1.5">Escolha seus pratos e bebidas favoritos.</p>
+                                {tent.minimumOrderForFeeWaiver && tent.minimumOrderForFeeWaiver > 0 && (
+                                    <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
+                                        <Info className="h-5 w-5 text-primary"/>
+                                        <div>
+                                        <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {proportionalFeeWaiverAmount > 0 ? proportionalFeeWaiverAmount.toFixed(2) : baseFeeWaiverAmount.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
+                                        </div>
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
-                        </TabsContent>
-
-                        <TabsContent value="reserve" className="mt-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Aluguel de Itens e Horário</CardTitle>
-                                    <CardDescription>Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${tentId}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    {!isTentOpenToday && (
-                                        <Alert variant="destructive">
-                                            <AlertTriangle className="h-4 w-4" />
-                                            <AlertTitle>Barraca Fechada Hoje</AlertTitle>
-                                            <AlertDescription>
-                                                Esta barraca não está a aceitar reservas para hoje. Por favor, verifique o horário de funcionamento na aba 'Informações'.
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                                    <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
-                                            <Input id="reservation-time" type="time" value={reservationTime} onChange={e => setReservationTime(e.target.value)} disabled={isSubmitting}/>
-                                            <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje.</p>
+                            </div>
+                            
+                            {loadingMenu ? (
+                                <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
+                            ) : menuItems && menuItems.length > 0 ? (
+                                <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
+                                {Object.entries(menuByCategory).map(([category, items]) => (
+                                    <AccordionItem key={category} value={category}>
+                                    <AccordionTrigger className="text-lg font-semibold">{t_categories(category as any)}</AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="space-y-4 pt-2">
+                                        {items.map((item) => (
+                                            <div key={item.id} className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-medium">{item.name}</p>
+                                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                                                <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
+                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
+                                            </div>
+                                            </div>
+                                        ))}
                                         </div>
+                                    </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                                </Accordion>
+                            ) : (
+                                <div className="py-12 text-center text-muted-foreground">
+                                    <Utensils className="mx-auto h-10 w-10" />
+                                    <h3 className="mt-4 text-lg font-semibold text-card-foreground">Cardápio Indisponível</h3>
+                                    <p className="mt-1 text-sm">Esta barraca ainda não cadastrou itens no cardápio.</p>
+                                </div>
+                            )}
+                        </TabsContent>
 
-                                        {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
-                                            <div className='space-y-4'>
-                                                {rentalKit && (
-                                                    <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-                                                        <div>
-                                                            <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                                <Armchair className="h-5 w-5"/>
-                                                                {t_products(rentalKit.name as any)}
-                                                            </h3>
-                                                            <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
-                                                            <p className="text-2xl font-bold text-primary">R$ {rentalKit.price.toFixed(2)}</p>
-                                                        </div>
-                                                        <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                            <Input type="number" readOnly value={cart[rentalKit.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
-                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity || (cart[rentalKit.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {additionalChair && (
-                                                    <div className={cn("flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between transition-opacity", !hasRentalKitInCart && "opacity-50 pointer-events-none")}>
-                                                        <div>
-                                                            <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                                <Armchair className="h-5 w-5"/>
-                                                                {t_products(additionalChair.name as any)}
-                                                            </h3>
-                                                            <p className="text-sm text-muted-foreground">Disponível: {additionalChair.quantity - (cart[additionalChair.id]?.quantity || 0)}</p>
-                                                            <p className="text-xl font-bold text-primary">R$ {additionalChair.price.toFixed(2)}</p>
-                                                        </div>
-                                                        <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', -1)} disabled={isSubmitting || !hasRentalKitInCart}><Minus className="h-4 w-4"/></Button>
-                                                            <Input type="number" readOnly value={cart[additionalChair.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting || !hasRentalKitInCart}/>
-                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity || (cart[additionalChair.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            ) : (
-                                                <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
-                                            )}
+                        <TabsContent value="reserve" className="mt-0 space-y-6">
+                            <div>
+                                <h2 className="text-2xl font-semibold leading-none tracking-tight">Aluguel de Itens e Horário</h2>
+                                <p className="text-sm text-muted-foreground mt-1.5">Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${tentId}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</p>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                {!isTentOpenToday && (
+                                    <Alert variant="destructive">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>Barraca Fechada Hoje</AlertTitle>
+                                        <AlertDescription>
+                                            Esta barraca não está a aceitar reservas para hoje. Por favor, verifique o horário de funcionamento na aba 'Informações'.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                                <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
+                                        <Input id="reservation-time" type="time" value={reservationTime} onChange={e => setReservationTime(e.target.value)} disabled={isSubmitting}/>
+                                        <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje.</p>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                        <TabsContent value="reviews" className="mt-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Avaliações dos Clientes</CardTitle>
-                                    {tent.reviewCount != null && tent.reviewCount > 0 ? (
-                                        <CardDescription>Veja o que outros clientes estão a dizer sobre a {tent.name}.</CardDescription>
-                                    ) : (
-                                        <CardDescription>Esta barraca ainda não tem avaliações.</CardDescription>
-                                    )}
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    {loadingReviews ? (
-                                        <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
-                                    ) : reviews && reviews.length > 0 ? (
-                                        reviews.map(review => (
-                                            <div key={review.id} className="flex gap-4">
-                                                <Avatar>
-                                                    <AvatarImage src={review.userPhotoURL ?? undefined} />
-                                                    <AvatarFallback className="bg-primary/20 text-primary">
-                                                        <UserIcon className="h-5 w-5" />
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex-1">
-                                                    <div className="flex items-center justify-between">
-                                                        <p className="font-semibold">{review.userName}</p>
-                                                        <div className="flex items-center">
-                                                            {[...Array(5)].map((_, i) => (
-                                                                <Star key={i} className={cn("w-4 h-4", i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/50")} />
-                                                            ))}
-                                                        </div>
+
+                                    {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
+                                        <div className='space-y-4'>
+                                            {rentalKit && (
+                                                <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+                                                    <div>
+                                                        <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                            <Armchair className="h-5 w-5"/>
+                                                            {t_products(rentalKit.name as any)}
+                                                        </h3>
+                                                        <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
+                                                        <p className="text-2xl font-bold text-primary">R$ {rentalKit.price.toFixed(2)}</p>
                                                     </div>
-                                                    <p className="text-sm text-muted-foreground mt-2">{review.comment}</p>
+                                                    <div className="mt-4 flex items-center gap-2 sm:mt-0">
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                        <Input type="number" readOnly value={cart[rentalKit.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity || (cart[rentalKit.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
+                                                    </div>
                                                 </div>
+                                            )}
+                                            {additionalChair && (
+                                                <div className={cn("flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between transition-opacity", !hasRentalKitInCart && "opacity-50 pointer-events-none")}>
+                                                    <div>
+                                                        <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                            <Armchair className="h-5 w-5"/>
+                                                            {t_products(additionalChair.name as any)}
+                                                        </h3>
+                                                        <p className="text-sm text-muted-foreground">Disponível: {additionalChair.quantity - (cart[additionalChair.id]?.quantity || 0)}</p>
+                                                        <p className="text-xl font-bold text-primary">R$ {additionalChair.price.toFixed(2)}</p>
+                                                    </div>
+                                                    <div className="mt-4 flex items-center gap-2 sm:mt-0">
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', -1)} disabled={isSubmitting || !hasRentalKitInCart}><Minus className="h-4 w-4"/></Button>
+                                                        <Input type="number" readOnly value={cart[additionalChair.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting || !hasRentalKitInCart}/>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity || (cart[additionalChair.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        ) : (
+                                            <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
+                                        )}
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="reviews" className="mt-0 space-y-6">
+                             <div>
+                                <h2 className="text-2xl font-semibold leading-none tracking-tight">Avaliações dos Clientes</h2>
+                                <p className="text-sm text-muted-foreground mt-1.5">{tent.reviewCount != null && tent.reviewCount > 0 ? `Veja o que outros clientes estão a dizer sobre a ${tent.name}.` : 'Esta barraca ainda não tem avaliações.'}</p>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                {loadingReviews ? (
+                                    <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
+                                ) : reviews && reviews.length > 0 ? (
+                                    reviews.map(review => (
+                                        <div key={review.id} className="flex gap-4">
+                                            <Avatar>
+                                                <AvatarImage src={review.userPhotoURL ?? undefined} />
+                                                <AvatarFallback className="bg-primary/20 text-primary">
+                                                    <UserIcon className="h-5 w-5" />
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-semibold">{review.userName}</p>
+                                                    <div className="flex items-center">
+                                                        {[...Array(5)].map((_, i) => (
+                                                            <Star key={i} className={cn("w-4 h-4", i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/50")} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-2">{review.comment}</p>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-center text-muted-foreground py-8">Seja o primeiro a avaliar!</p>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-center text-muted-foreground py-8">Seja o primeiro a avaliar!</p>
+                                )}
+                            </div>
                         </TabsContent>
-                         <TabsContent value="info" className="mt-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Informações</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                     <div>
-                                        <h3 className="font-semibold flex items-center gap-2"><Clock className="w-4 h-4" /> Horário de Funcionamento</h3>
-                                        <OperatingHoursDisplay hours={tent.operatingHours} />
-                                    </div>
-                                </CardContent>
-                            </Card>
+
+                         <TabsContent value="info" className="mt-0 space-y-4">
+                            <h2 className="text-2xl font-semibold leading-none tracking-tight">Informações</h2>
+                            <div>
+                                <h3 className="font-semibold flex items-center gap-2"><Clock className="w-4 h-4" /> Horário de Funcionamento</h3>
+                                <OperatingHoursDisplay hours={tent.operatingHours} />
+                            </div>
                         </TabsContent>
-                    </Tabs>
+                    </div>
+                </Tabs>
             </div>
             <div className="lg:col-span-1 mt-8 lg:mt-0">
                 <Card className="sticky top-24">
