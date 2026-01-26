@@ -107,7 +107,8 @@
         "pleaseLogin": "Please log in to see your conversations.",
         "yourConversations": "Your Conversations",
         "noConversations": "No conversations found.",
-        "selectConversation": "Select a conversation to start"
+        "selectConversation": "Select a conversation to start",
+        "backToConversations": "Back to conversations"
     },
     "FavoritesPage": {
         "title": "My Favorite Tents",

@@ -107,7 +107,8 @@
         "pleaseLogin": "Por favor, faça login para ver suas conversas.",
         "yourConversations": "Suas Conversas",
         "noConversations": "Nenhuma conversa encontrada.",
-        "selectConversation": "Selecione uma conversa para começar"
+        "selectConversation": "Selecione uma conversa para começar",
+        "backToConversations": "Voltar para as conversas"
     },
     "FavoritesPage": {
         "title": "Minhas Barracas Favoritas",
