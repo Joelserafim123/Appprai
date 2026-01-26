@@ -2,7 +2,7 @@
 
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, Clock, Upload, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Building, MapPin, Clock, Upload, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 const operatingHoursSchema = z.object({
@@ -351,6 +352,22 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   };
   
     const renderMap = () => {
+        const googleMapsMapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
+
+        if (!googleMapsMapId) {
+            return (
+                <div className="flex h-full items-center justify-center bg-destructive/10 p-4">
+                    <Alert variant="destructive" className="max-w-md border-destructive/50 text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
+                        <AlertDescription>
+                            O ID do Mapa (<code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code>) não foi configurado. Este ID é necessário para usar marcadores avançados no mapa.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            );
+        }
+
         if (loadError) {
             return <div className="flex items-center justify-center h-full bg-destructive/10 text-destructive-foreground p-4">Erro ao carregar o mapa. Verifique a sua chave de API do Google Maps e as configurações do projeto.</div>;
         }
@@ -359,6 +376,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         }
         return (
             <GoogleMap
+                mapId={googleMapsMapId}
                 mapContainerStyle={mapContainerStyle}
                 center={mapCenter}
                 zoom={16}
