@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Tent } from "@/lib/types";
@@ -123,7 +124,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-  const googleMapsMapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
+  const googleMapsMapId = "242e19b5da448b392212a4a1";
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'beach-map-google-maps-script',
@@ -243,25 +244,6 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
         </div>
       );
     }
-
-    if (!googleMapsMapId) {
-        return (
-          <div className="flex h-full items-center justify-center bg-muted p-8">
-            <Alert variant="destructive" className="max-w-lg">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
-              <AlertDescription>
-                  <p className="mb-2">O ID do Mapa (Map ID) do Google Maps não foi configurado. Para exibir os marcadores, você precisa:</p>
-                  <ol className="list-decimal space-y-2 pl-5">
-                      <li>Aceder à <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a>.</li>
-                      <li>Ir para "IDs do mapa" e criar um novo ID do mapa, selecionando o tipo "JavaScript".</li>
-                      <li>Adicionar a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code> ao seu projeto com o valor do ID que você criou.</li>
-                  </ol>
-              </AlertDescription>
-            </Alert>
-          </div>
-        );
-      }
 
     if (loadError) {
       return (

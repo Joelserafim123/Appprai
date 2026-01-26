@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
@@ -352,21 +353,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   };
   
     const renderMap = () => {
-        const googleMapsMapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
-
-        if (!googleMapsMapId) {
-            return (
-                <div className="flex h-full items-center justify-center bg-destructive/10 p-4">
-                    <Alert variant="destructive" className="max-w-md border-destructive/50 text-destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
-                        <AlertDescription>
-                            O ID do Mapa (<code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code>) não foi configurado. Este ID é necessário para usar marcadores avançados no mapa.
-                        </AlertDescription>
-                    </Alert>
-                </div>
-            );
-        }
+        const googleMapsMapId = "242e19b5da448b392212a4a1";
 
         if (loadError) {
             return <div className="flex items-center justify-center h-full bg-destructive/10 text-destructive-foreground p-4">Erro ao carregar o mapa. Verifique a sua chave de API do Google Maps e as configurações do projeto.</div>;
