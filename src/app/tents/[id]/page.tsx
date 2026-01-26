@@ -128,7 +128,7 @@ export default function TentPage() {
   
   const userReservationsQuery = useMemoFirebase(() => {
     if (firestore && user && !user.isAnonymous && user.uid) {
-        return query(collection(firestore, 'reservations'), where('userId', '==', user.uid));
+        return query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid));
     }
     return null;
   }, [firestore, user]);
@@ -211,7 +211,7 @@ export default function TentPage() {
         setCart({ [kit.id]: { item: kit, quantity: 1, type: 'rental' } });
       }
     }
-  }, [rentalItems, isOwnerViewingOwnTent, cart]);
+  }, [rentalItems, isOwnerViewingOwnTent]);
 
   useEffect(() => {
       if (reservationDate) {

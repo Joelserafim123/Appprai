@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
   const hasTent = useMemo(() => tents && tents.length > 0, [tents]);
 
   const reservationsQuery = useMemoFirebase(
-    () => (user?.role === 'owner' && firestore) ? query(collection(firestore, 'reservations'), where('tentOwnerId', '==', user.uid)) : null,
+    () => (user?.role === 'owner' && firestore) ? query(collection(firestore, 'reservations'), where('participantIds', 'array-contains', user.uid)) : null,
     [firestore, user]
   );
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
@@ -60,11 +60,13 @@ export default function AnalyticsPage() {
 
   const analyticsData = useMemo(() => {
     if (!reservations || !user) return null;
+    
+    const ownerReservations = reservations.filter(r => r.tentOwnerId === user.uid);
 
-    const completedReservations = reservations.filter(r => r.status === 'completed');
+    const completedReservations = ownerReservations.filter(r => r.status === 'completed');
     
     // Include platform fees from completed reservations AND specific cancelled ones
-    const feeBearingReservations = reservations.filter(r => 
+    const feeBearingReservations = ownerReservations.filter(r => 
         r.status === 'completed' || 
         (r.status === 'cancelled' && r.cancellationReason === 'owner_late' && r.platformFee && r.platformFee > 0)
     );

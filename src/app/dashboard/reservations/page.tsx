@@ -503,7 +503,7 @@ export default function OwnerReservationsPage() {
   const reservationsQuery = useMemoFirebase(
     () => (user?.role === 'owner' && firestore) ? query(
         collection(firestore, 'reservations'),
-        where('tentOwnerId', '==', user.uid),
+        where('participantIds', 'array-contains', user.uid),
         orderBy('createdAt', 'desc')
       ) : null,
     [firestore, user]
@@ -511,9 +511,9 @@ export default function OwnerReservationsPage() {
   const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
   
   const reservations = useMemo(() => {
-    if (!rawReservations) return [];
-    return rawReservations;
-  }, [rawReservations]);
+    if (!rawReservations || !user) return [];
+    return rawReservations.filter(r => r.tentOwnerId === user.uid);
+  }, [rawReservations, user]);
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
