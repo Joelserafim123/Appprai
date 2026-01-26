@@ -57,6 +57,11 @@ export function ReviewDialog({ reservation, onFinished }: { reservation: Reserva
         toast({ variant: 'destructive', title: 'Por favor, selecione uma avaliação.' });
         return;
     }
+    if (comment.length > 100) {
+      toast({ variant: 'destructive', title: 'Comentário muito longo', description: 'O seu comentário não pode ter mais de 100 caracteres.' });
+      return;
+    }
+
     setIsSubmitting(true);
     
     const tentRef = doc(firestore, 'tents', reservation.tentId);
@@ -80,6 +85,7 @@ export function ReviewDialog({ reservation, onFinished }: { reservation: Reserva
             transaction.set(reviewRef, {
                 userId: user.uid,
                 userName: user.displayName,
+                userPhotoURL: user.photoURL || null,
                 tentId: reservation.tentId,
                 reservationId: reservation.id,
                 rating,
@@ -108,6 +114,8 @@ export function ReviewDialog({ reservation, onFinished }: { reservation: Reserva
     }
   }
 
+  const isCommentTooLong = comment.length > 100;
+
   return (
     <DialogContent>
       <DialogHeader>
@@ -122,21 +130,30 @@ export function ReviewDialog({ reservation, onFinished }: { reservation: Reserva
             <StarRating rating={rating} setRating={setRating} disabled={isSubmitting} />
         </div>
         <div className="space-y-2">
+          <div className="flex justify-between items-center">
             <Label htmlFor="comment">Comentário (opcional)</Label>
+            <span className={cn("text-xs", isCommentTooLong ? "text-destructive" : "text-muted-foreground")}>
+              {comment.length}/100
+            </span>
+          </div>
             <Textarea 
                 id="comment" 
                 placeholder="Descreva sua experiência..." 
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 disabled={isSubmitting}
+                maxLength={100}
             />
+             {isCommentTooLong && (
+              <p className="text-sm text-destructive">O comentário não pode ter mais de 100 caracteres.</p>
+            )}
         </div>
       </div>
       <DialogFooter>
         <DialogClose asChild>
           <Button variant="ghost" disabled={isSubmitting}>Cancelar</Button>
         </DialogClose>
-        <Button onClick={handleSubmit} disabled={isSubmitting || rating === 0}>
+        <Button onClick={handleSubmit} disabled={isSubmitting || rating === 0 || isCommentTooLong}>
           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Enviar Avaliação'}
         </Button>
       </DialogFooter>
