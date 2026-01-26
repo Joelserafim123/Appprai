@@ -53,6 +53,9 @@ const haversineDistance = (
   return R * c;
 };
 
+// Define the libraries array outside the component to prevent re-creation on re-renders.
+const beachMapLibraries: ('places' | 'marker')[] = ['places', 'marker'];
+
 
 export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTentIds: string[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
@@ -66,7 +69,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: googleMapsApiKey,
-    libraries: ['marker', 'places'],
+    libraries: beachMapLibraries,
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);

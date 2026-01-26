@@ -79,6 +79,9 @@ const defaultCenter = {
   lng: -43.2040
 };
 
+// Define the libraries array outside the component to prevent re-creation on re-renders.
+const tentFormMapLibraries: ('marker')[] = ['marker'];
+
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
@@ -113,7 +116,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ['marker']
+    libraries: tentFormMapLibraries
   });
 
   const handleGetCurrentLocation = useCallback((panMap = false) => {
