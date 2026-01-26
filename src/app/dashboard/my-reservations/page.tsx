@@ -193,27 +193,35 @@ export default function MyReservationsPage() {
     if (!firestore || !user || !reservationToCancel) return;
     setIsCancelling(true);
 
-    const reservationRef = doc(firestore, 'reservations', reservationToCancel.id);
-    const userRef = doc(firestore, 'users', user.uid);
-    const batch = writeBatch(firestore);
-    
-    let feeApplied = false;
-
-    if (isLateCancellation) {
-        batch.update(reservationRef, { 
-            status: 'cancelled',
-            cancellationFee: 3,
-            cancellationReason: 'client_late',
-        });
-        batch.update(userRef, {
-            outstandingBalance: increment(3)
-        });
-        feeApplied = true;
-    } else {
-        batch.update(reservationRef, { status: 'cancelled' });
-    }
-
     try {
+        const batch = writeBatch(firestore);
+        const reservationRef = doc(firestore, 'reservations', reservationToCancel.id);
+        const userRef = doc(firestore, 'users', user.uid);
+        
+        let feeApplied = false;
+
+        if (isLateCancellation) {
+            batch.update(reservationRef, { 
+                status: 'cancelled',
+                cancellationFee: 3,
+                cancellationReason: 'client_late',
+            });
+            batch.update(userRef, {
+                outstandingBalance: increment(3)
+            });
+            feeApplied = true;
+        } else {
+            batch.update(reservationRef, { status: 'cancelled' });
+        }
+        
+        const chatsRef = collection(firestore, 'chats');
+        const q = query(chatsRef, where('reservationId', '==', reservationToCancel.id), limit(1));
+        const chatSnapshot = await getDocs(q);
+
+        if (!chatSnapshot.empty) {
+            batch.update(chatSnapshot.docs[0].ref, { status: 'archived' });
+        }
+
        await batch.commit();
        toast({ 
            title: "Reserva Cancelada",

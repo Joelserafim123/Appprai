@@ -234,18 +234,28 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         if (!firestore || !reservationForCancel) return;
         setIsSubmitting(true);
         
-        const reservationRef = doc(firestore, 'reservations', reservationForCancel.id);
-        const updateData: { status: ReservationStatus, platformFee?: number, cancellationReason?: string } = { status: 'cancelled' };
-        let feeApplied = false;
-
-        if (isLateCancellation || reservationForCancel?.status === 'checked-in') {
-            updateData.platformFee = 3.00;
-            updateData.cancellationReason = 'owner_late';
-            feeApplied = true;
-        }
-
         try {
-            await updateDoc(reservationRef, updateData);
+            const batch = writeBatch(firestore);
+            const reservationRef = doc(firestore, 'reservations', reservationForCancel.id);
+            const updateData: { status: ReservationStatus, platformFee?: number, cancellationReason?: string } = { status: 'cancelled' };
+            let feeApplied = false;
+
+            if (isLateCancellation || reservationForCancel?.status === 'checked-in') {
+                updateData.platformFee = 3.00;
+                updateData.cancellationReason = 'owner_late';
+                feeApplied = true;
+            }
+            batch.update(reservationRef, updateData);
+            
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservationForCancel.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+            if (!chatSnapshot.empty) {
+                batch.update(chatSnapshot.docs[0].ref, { status: 'archived' });
+            }
+
+            await batch.commit();
+
             toast({
                 title: "Reserva Cancelada!",
                 description: feeApplied ? "Uma taxa de R$ 3,00 foi aplicada a você por este cancelamento." : undefined,
@@ -264,22 +274,28 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         if (!firestore || !reservationForNoShow) return;
         setIsSubmitting(true);
 
-        const reservationRef = doc(firestore, 'reservations', reservationForNoShow.id);
-        const clientUserRef = doc(firestore, 'users', reservationForNoShow.userId);
-
-        const batch = writeBatch(firestore);
-
-        batch.update(reservationRef, {
-            status: 'cancelled',
-            cancellationFee: 3,
-            cancellationReason: 'no_show'
-        });
-
-        batch.update(clientUserRef, {
-            outstandingBalance: increment(3)
-        });
-
         try {
+            const batch = writeBatch(firestore);
+            const reservationRef = doc(firestore, 'reservations', reservationForNoShow.id);
+            const clientUserRef = doc(firestore, 'users', reservationForNoShow.userId);
+
+            batch.update(reservationRef, {
+                status: 'cancelled',
+                cancellationFee: 3,
+                cancellationReason: 'no_show'
+            });
+
+            batch.update(clientUserRef, {
+                outstandingBalance: increment(3)
+            });
+
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservationForNoShow.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+            if (!chatSnapshot.empty) {
+                batch.update(chatSnapshot.docs[0].ref, { status: 'archived' });
+            }
+            
             await batch.commit();
             toast({ title: 'Reserva cancelada por não comparecimento.', description: 'Uma taxa de R$ 3,00 foi aplicada ao cliente.' });
         } catch (error) {

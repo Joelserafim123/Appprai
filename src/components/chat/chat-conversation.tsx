@@ -1,8 +1,8 @@
 'use client';
 
-import { UserData, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import type { Chat, ChatMessage } from '@/lib/types';
-import { useState, useRef, useEffect } from 'react';
+import { UserData, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import type { Chat, ChatMessage, UserProfile, Tent } from '@/lib/types';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,22 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     [db, chat]
   );
   const { data: messages, isLoading: messagesLoading } = useCollection<ChatMessage>(messagesQuery);
+
+  const amIOwnerInThisChat = currentUser.uid === chat.tentOwnerId;
+
+  // Fetch live data for the other party to ensure it's up-to-date
+  const otherUserRef = useMemoFirebase(
+    () => (db && amIOwnerInThisChat) ? doc(db, 'users', chat.userId) : null,
+    [db, amIOwnerInThisChat, chat.userId]
+  );
+  const { data: otherUserData, isLoading: isLoadingUser } = useDoc<UserProfile>(otherUserRef);
+
+  const tentRef = useMemoFirebase(
+    () => (db && !amIOwnerInThisChat) ? doc(db, 'tents', chat.tentId) : null,
+    [db, amIOwnerInThisChat, chat.tentId]
+  );
+  const { data: tentData, isLoading: isLoadingTent } = useDoc<Tent>(tentRef);
+
 
   useEffect(() => {
     // Scroll to bottom on new messages
@@ -97,10 +113,18 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
         setIsSending(false);
     }
   };
+  
+  const isLoading = messagesLoading || isLoadingUser || isLoadingTent;
 
-  const amIOwnerInThisChat = currentUser.uid === chat.tentOwnerId;
-  const otherPartyName = amIOwnerInThisChat ? chat.userName : chat.tentName;
-  const otherPartyAvatar = amIOwnerInThisChat ? chat.userPhotoURL : chat.tentLogoUrl;
+  // Use live data if available, otherwise fallback to denormalized data from chat object
+  const otherPartyName = amIOwnerInThisChat 
+    ? (otherUserData?.displayName ?? chat.userName) 
+    : (tentData?.name ?? chat.tentName);
+
+  const otherPartyAvatar = amIOwnerInThisChat 
+    ? (otherUserData?.photoURL ?? chat.userPhotoURL) 
+    : (tentData?.logoUrl ?? chat.tentLogoUrl);
+
 
   return (
     <Card className="flex flex-col flex-1 h-full">
@@ -109,7 +133,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
              <Avatar>
                 <AvatarImage src={otherPartyAvatar ?? undefined} />
                 <AvatarFallback className="bg-primary/20 text-primary">
-                    {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
+                    {getInitials(otherPartyName)}
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -120,7 +144,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full" viewportRef={scrollAreaViewport}>
           <div className="flex flex-col gap-4 p-4">
-            {messagesLoading ? (
+            {isLoading ? (
               <div className="flex justify-center items-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
@@ -140,7 +164,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                         <AvatarFallback className="bg-muted text-muted-foreground">
-                          {amIOwnerInThisChat ? <UserIcon className="h-4 w-4" /> : getInitials(otherPartyName)}
+                          {getInitials(otherPartyName)}
                         </AvatarFallback>
                       </Avatar>
                     )}
