@@ -112,8 +112,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const hydratedUser: UserData = {
           // Firebase Auth data
           uid: firebaseUser.uid,
-          email: firebaseUser.email!,
-          displayName: firebaseUser.displayName!,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || '',
           photoURL: userProfile?.photoURL ?? firebaseUser.photoURL,
           emailVerified: firebaseUser.emailVerified,
           isAnonymous: firebaseUser.isAnonymous,
