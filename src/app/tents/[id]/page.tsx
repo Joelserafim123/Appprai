@@ -114,6 +114,8 @@ export default function TentPage() {
   const reviewsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? query(collection(firestore, 'tents', subQueryTentId, 'reviews'), orderBy('createdAt', 'desc')) : null, [firestore, subQueryTentId]);
   const { data: reviews, isLoading: loadingReviews } = useCollection<Review>(reviewsQuery);
 
+  const isOwnerViewingOwnTent = useMemo(() => (user && tent ? user.uid === tent.ownerId : false), [user, tent]);
+
   // Check for active reservations
   const userReservationsQuery = useMemoFirebase(() => {
     if (firestore && user && !user.isAnonymous && user.uid) {
@@ -135,21 +137,6 @@ export default function TentPage() {
 
   const isFavorite = useMemo(() => user?.favoriteTentIds?.includes(tentId), [user, tentId]);
 
-  const isOwnerViewingOwnTent = useMemo(() => (user && tent ? user.uid === tent.ownerId : false), [user, tent]);
-
-  useEffect(() => {
-    const key = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    setTodayKey(key);
-
-    if (tent?.operatingHours) {
-        const todayHours = tent.operatingHours[key as keyof typeof tent.operatingHours] as OperatingHoursDay;
-        setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
-    } else {
-        // If operating hours are not defined, assume it's open
-        setIsTentOpenToday(true);
-    }
-  }, [tent?.operatingHours]);
-
   useEffect(() => {
     // Automatically add one kit to the cart when the page loads, if available.
     if (rentalKit && rentalKit.quantity > 0 && !isOwnerViewingOwnTent) {
@@ -164,6 +151,19 @@ export default function TentPage() {
       });
     }
   }, [rentalKit, isOwnerViewingOwnTent]);
+
+  useEffect(() => {
+    const key = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    setTodayKey(key);
+
+    if (tent?.operatingHours) {
+        const todayHours = tent.operatingHours[key as keyof typeof tent.operatingHours] as OperatingHoursDay;
+        setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
+    } else {
+        // If operating hours are not defined, assume it's open
+        setIsTentOpenToday(true);
+    }
+  }, [tent?.operatingHours]);
 
   if (loadingTent || isUserLoading || loadingActiveReservation) {
     return (
@@ -265,6 +265,21 @@ export default function TentPage() {
         });
         return;
     }
+
+    const now = new Date();
+    const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
+    const reservationDateTime = new Date();
+    reservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
+
+    if (reservationDateTime <= now) {
+        toast({
+            variant: "destructive",
+            title: "Horário Inválido",
+            description: "Só é possível fazer reservas para horários futuros.",
+        });
+        return;
+    }
+
     setActiveTab('menu');
   }
 
@@ -315,11 +330,24 @@ export default function TentPage() {
         });
         return;
     }
+
+    const now = new Date();
+    const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
+    const reservationDateTime = new Date();
+    reservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
+
+    if (reservationDateTime <= now) {
+        toast({
+            variant: "destructive",
+            title: "Horário Inválido",
+            description: "Só é possível fazer reservas para horários futuros.",
+        });
+        return;
+    }
     
     if (tent.operatingHours) {
         const todayHours = tent.operatingHours[todayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
         if (todayHours && todayHours.isOpen) {
-            const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
             const [openHour, openMinute] = todayHours.open.split(':').map(Number);
             const [closeHour, closeMinute] = todayHours.close.split(':').map(Number);
 
