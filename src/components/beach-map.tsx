@@ -67,7 +67,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
+    id: 'beach-map-google-maps-script',
     googleMapsApiKey: googleMapsApiKey,
     libraries: beachMapLibraries,
   });
