@@ -104,20 +104,6 @@ export default function TentPage() {
   const [todayKey, setTodayKey] = useState('');
   const [isTentOpenToday, setIsTentOpenToday] = useState(true);
 
-  useEffect(() => {
-    const key = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    setTodayKey(key);
-
-    if (tent?.operatingHours) {
-        const todayHours = tent.operatingHours[key as keyof typeof tent.operatingHours] as OperatingHoursDay;
-        setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
-    } else {
-        // If operating hours are not defined, assume it's open
-        setIsTentOpenToday(true);
-    }
-  }, [tent?.operatingHours]);
-
-
   // Fetch Menu and Rental Items
   const menuItemsQuery = useMemoFirebase(() => (firestore && subQueryTentId) ? collection(firestore, 'tents', subQueryTentId, 'menuItems') : null, [firestore, subQueryTentId]);
   const { data: menuItems, isLoading: loadingMenu } = useCollection<MenuItem>(menuItemsQuery);
@@ -149,20 +135,20 @@ export default function TentPage() {
 
   const isFavorite = useMemo(() => user?.favoriteTentIds?.includes(tentId), [user, tentId]);
 
-  if (loadingTent || isUserLoading || loadingActiveReservation) {
-    return (
-       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Carregando barraca...</p>
-      </div>
-    );
-  }
-  
-  if(!tent) {
-    notFound();
-  }
+  const isOwnerViewingOwnTent = useMemo(() => (user && tent ? user.uid === tent.ownerId : false), [user, tent]);
 
-  const isOwnerViewingOwnTent = user && user.uid === tent.ownerId;
+  useEffect(() => {
+    const key = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    setTodayKey(key);
+
+    if (tent?.operatingHours) {
+        const todayHours = tent.operatingHours[key as keyof typeof tent.operatingHours] as OperatingHoursDay;
+        setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
+    } else {
+        // If operating hours are not defined, assume it's open
+        setIsTentOpenToday(true);
+    }
+  }, [tent?.operatingHours]);
 
   useEffect(() => {
     // Automatically add one kit to the cart when the page loads, if available.
@@ -178,6 +164,19 @@ export default function TentPage() {
       });
     }
   }, [rentalKit, isOwnerViewingOwnTent]);
+
+  if (loadingTent || isUserLoading || loadingActiveReservation) {
+    return (
+       <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Carregando barraca...</p>
+      </div>
+    );
+  }
+  
+  if(!tent) {
+    notFound();
+  }
 
   const bannerSrc = tent.bannerUrl || tentBannerUrl;
 
