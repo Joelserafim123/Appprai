@@ -501,7 +501,7 @@ export default function OwnerReservationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const reservationsQuery = useMemoFirebase(
-    () => (user && firestore) ? query(
+    () => (user?.role === 'owner' && firestore) ? query(
         collection(firestore, 'reservations'),
         where('tentOwnerId', '==', user.uid),
         orderBy('createdAt', 'desc')

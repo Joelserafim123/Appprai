@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
   const hasTent = useMemo(() => tents && tents.length > 0, [tents]);
 
   const reservationsQuery = useMemoFirebase(
-    () => (user && firestore) ? query(collection(firestore, 'reservations'), where('tentOwnerId', '==', user.uid)) : null,
+    () => (user?.role === 'owner' && firestore) ? query(collection(firestore, 'reservations'), where('tentOwnerId', '==', user.uid)) : null,
     [firestore, user]
   );
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
