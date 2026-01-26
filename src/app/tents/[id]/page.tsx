@@ -149,7 +149,6 @@ export default function TentPage() {
 
   const isFavorite = useMemo(() => user?.favoriteTentIds?.includes(tentId), [user, tentId]);
 
-
   if (loadingTent || isUserLoading || loadingActiveReservation) {
     return (
        <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
@@ -164,6 +163,22 @@ export default function TentPage() {
   }
 
   const isOwnerViewingOwnTent = user && user.uid === tent.ownerId;
+
+  useEffect(() => {
+    // Automatically add one kit to the cart when the page loads, if available.
+    if (rentalKit && rentalKit.quantity > 0 && !isOwnerViewingOwnTent) {
+      setCart((prevCart) => {
+        // Only add if the cart is empty to avoid re-adding on navigation or re-renders.
+        if (Object.keys(prevCart).length === 0) {
+          return {
+            [rentalKit.id]: { item: rentalKit, quantity: 1, type: 'rental' },
+          };
+        }
+        return prevCart;
+      });
+    }
+  }, [rentalKit, isOwnerViewingOwnTent]);
+
   const bannerSrc = tent.bannerUrl || tentBannerUrl;
 
   const menuByCategory = (menuItems || []).reduce((acc, item) => {
