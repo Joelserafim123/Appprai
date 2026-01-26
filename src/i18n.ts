@@ -58,7 +58,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   
   const value: I18nContextType = { locale, setLocale, t };
 
-  // Using React.createElement to bypass JSX parsing issues
   return React.createElement(I18nContext.Provider, { value: value }, children);
 }
 

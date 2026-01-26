@@ -217,9 +217,5 @@ export const useStorage = (): FirebaseStorage => useFirebase().storage;
 
 
 export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T {
-  const memoized = useMemo(factory, deps);
-  if (typeof memoized === 'object' && memoized !== null) {
-    (memoized as any).__memo = true;
-  }
-  return memoized;
+  return useMemo(factory, deps);
 }
