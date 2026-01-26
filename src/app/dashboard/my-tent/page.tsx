@@ -16,7 +16,7 @@ import type { Tent, OperatingHours, TentFormData } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, useGoogleMap } from '@react-google-maps/api';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
@@ -81,6 +81,49 @@ const defaultCenter = {
 
 // Define the libraries array outside the component to prevent re-creation on re-renders.
 const tentFormMapLibraries: ('marker')[] = ['marker'];
+
+
+const DraggableAdvancedMarker = ({ position, onDragEnd }: {
+    position: { lat: number; lng: number; };
+    onDragEnd: (e: google.maps.MapMouseEvent) => void;
+}) => {
+    const map = useGoogleMap();
+    const [marker, setMarker] = useState<google.maps.marker.AdvancedMarkerElement>();
+    const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
+
+    // Create/destroy marker
+    useEffect(() => {
+        if (!map) return;
+        const newMarker = new google.maps.marker.AdvancedMarkerElement({ map });
+        setMarker(newMarker);
+        
+        return () => {
+            newMarker.map = null;
+        };
+    }, [map]);
+
+    // Update marker properties
+    useEffect(() => {
+        if (!marker) return;
+        marker.position = position;
+        marker.gmpDraggable = true;
+        marker.title = "Arraste para ajustar a posição";
+    }, [marker, position]);
+
+    // Update event listener
+    useEffect(() => {
+        if (!marker) return;
+        
+        if (listenerRef.current) {
+            google.maps.event.removeListener(listenerRef.current);
+        }
+        
+        listenerRef.current = marker.addListener('dragend', onDragEnd);
+        
+    }, [marker, onDragEnd]);
+
+    return null;
+}
 
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
@@ -328,9 +371,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                 }}
             >
                 {markerPosition?.latitude && markerPosition?.longitude && (
-                    <Marker
+                    <DraggableAdvancedMarker
                         position={{ lat: markerPosition.latitude, lng: markerPosition.longitude }}
-                        draggable={true}
                         onDragEnd={onMarkerDragEnd}
                     />
                 )}

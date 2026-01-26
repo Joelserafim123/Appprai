@@ -4,11 +4,12 @@ import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2, MapPin, Search, Star } from "lucide-react";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Autocomplete } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, InfoWindow, Autocomplete, useGoogleMap } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Input } from "./ui/input";
+import { createRoot } from "react-dom/client";
 
 const containerStyle = {
   width: '100%',
@@ -55,6 +56,63 @@ const haversineDistance = (
 
 // Define the libraries array outside the component to prevent re-creation on re-renders.
 const beachMapLibraries: ('places' | 'marker')[] = ['places', 'marker'];
+
+const CustomMarker = ({ color }: { color: string }) => {
+    const svgPath = "M12,2A9,9 0 0,1 21,11H3A9,9 0 0,1 12,2M11,12V22A1,1 0 0,0 12,23A1,1 0 0,0 13,22V12H11Z";
+    return (
+        <div style={{ width: 24, height: 24 }}>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill={color} style={{ stroke: '#fff', strokeWidth: 1 }}>
+                <path d={svgPath}></path>
+            </svg>
+        </div>
+    );
+}
+
+const AdvancedMapMarker = ({ tent, onClick, isSelected, isFavorite }: {
+  tent: Tent,
+  onClick: (tent: Tent) => void,
+  isSelected: boolean,
+  isFavorite: boolean
+}) => {
+    const map = useGoogleMap();
+
+    useEffect(() => {
+        if (!map || !tent.location?.latitude || !tent.location?.longitude) return;
+        
+        let color: string;
+        if (isSelected) {
+          color = 'hsl(var(--accent))'; // accent orange for selected (highest priority)
+        } else if (isFavorite) {
+          color = 'hsl(50, 100%, 50%)'; // Gold for favorite
+        } else if (tent.hasAvailableKits) {
+          color = 'hsl(142.1, 76.2%, 36.3%)'; // green (available)
+        } else {
+          color = 'hsl(0, 84.2%, 60.2%)'; // red (unavailable)
+        }
+
+        const container = document.createElement('div');
+        const root = createRoot(container);
+        root.render(<CustomMarker color={color} />);
+
+        const newMarker = new google.maps.marker.AdvancedMarkerElement({
+            map,
+            position: { lat: tent.location.latitude, lng: tent.location.longitude },
+            content: container,
+            title: tent.name,
+        });
+
+        const listener = newMarker.addListener('click', () => onClick(tent));
+
+        return () => {
+            google.maps.event.removeListener(listener);
+            newMarker.map = null;
+            // Unmount the React root to prevent memory leaks
+            setTimeout(() => root.unmount(), 0);
+        };
+    }, [map, tent, onClick, isSelected, isFavorite]);
+
+    return null;
+}
 
 
 export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTentIds: string[] }) {
@@ -169,32 +227,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
       map?.panTo({ lat: tent.location.latitude, lng: tent.location.longitude });
     }
   };
-
-  const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
-    let color: string;
-    const isFavorite = favoriteTentIds.includes(tent.id);
-
-    if (selectedTent?.id === tent.id) {
-      color = 'hsl(var(--accent))'; // accent orange for selected (highest priority)
-    } else if (isFavorite) {
-      color = 'hsl(50, 100%, 50%)'; // Gold for favorite
-    } else if (tent.hasAvailableKits) {
-      color = 'hsl(142.1, 76.2%, 36.3%)'; // green (available)
-    } else {
-      color = 'hsl(0, 84.2%, 60.2%)'; // red (unavailable)
-    }
-
-    return {
-      path: "M12,2A9,9 0 0,1 21,11H3A9,9 0 0,1 12,2M11,12V22A1,1 0 0,0 12,23A1,1 0 0,0 13,22V12H11Z",
-      fillColor: color,
-      fillOpacity: 1,
-      strokeColor: '#fff',
-      strokeWeight: 1,
-      scale: 1.5,
-      anchor: new google.maps.Point(12, 12),
-    };
-  }
-
+  
   const renderMap = () => {
     if (!googleMapsApiKey) {
       return (
@@ -256,11 +289,12 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
       >
         {sortedTents.map((tent) => (
           tent.location.latitude && tent.location.longitude && (
-            <Marker
+             <AdvancedMapMarker
               key={tent.id}
-              position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
-              onClick={() => handleTentSelect(tent)}
-              icon={getMarkerIcon(tent)}
+              tent={tent}
+              onClick={handleTentSelect}
+              isSelected={selectedTent?.id === tent.id}
+              isFavorite={favoriteTentIds.includes(tent.id)}
             />
           )
         ))}
