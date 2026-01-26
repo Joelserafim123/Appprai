@@ -47,6 +47,7 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { format, addDays, getDay, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 type CartItem = { 
@@ -113,9 +114,6 @@ export default function TentPage() {
   const tentRef = useMemoFirebase(() => (firestore && tentId) ? doc(firestore, 'tents', tentId) : null, [firestore, tentId]);
   const { data: tent, isLoading: loadingTent } = useDoc<Tent>(tentRef);
   
-  const isOwnerViewingOwnTent = useMemo(() => {
-    return user && tent ? user.uid === tent.ownerId : false;
-  }, [user, tent]);
   
   const subQueryTentId = tent?.id;
   
@@ -136,6 +134,10 @@ export default function TentPage() {
   }, [firestore, user]);
   
   const { data: userReservations, isLoading: loadingActiveReservation } = useCollection<Reservation>(userReservationsQuery);
+
+  const isOwnerViewingOwnTent = useMemo(() => {
+    return user && tent ? user.uid === tent.ownerId : false;
+  }, [user, tent]);
   
   const hasActiveReservation = useMemo(() => {
     if (!userReservations) return false;
@@ -175,6 +177,32 @@ export default function TentPage() {
     }
     return slots;
   }, [reservationDate, tent?.operatingHours]);
+
+  const validateReservationTime = useCallback(() => {
+    if (!reservationDate || !reservationTime) {
+      toast({
+        variant: "destructive",
+        title: "Data e Hora Obrigatórias",
+        description: "Por favor, selecione uma data e um horário para a sua reserva.",
+      });
+      return false;
+    }
+    
+    const now = new Date();
+    const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
+    const reservationDateTime = new Date(reservationDate);
+    reservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
+
+    if (reservationDateTime <= now) {
+        toast({
+            variant: "destructive",
+            title: "Horário Inválido",
+            description: "Só é possível fazer reservas para horários futuros.",
+        });
+        return false;
+    }
+    return true;
+  }, [reservationDate, reservationTime, toast]);
 
   useEffect(() => {
     if (rentalItems && !isOwnerViewingOwnTent) {
@@ -279,32 +307,6 @@ export default function TentPage() {
   
   const isCartEmpty = Object.keys(cart).length === 0;
   
-  const validateReservationTime = useCallback(() => {
-    if (!reservationDate || !reservationTime) {
-      toast({
-        variant: "destructive",
-        title: "Data e Hora Obrigatórias",
-        description: "Por favor, selecione uma data e um horário para a sua reserva.",
-      });
-      return false;
-    }
-    
-    const now = new Date();
-    const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
-    const reservationDateTime = new Date(reservationDate);
-    reservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
-
-    if (reservationDateTime <= now) {
-        toast({
-            variant: "destructive",
-            title: "Horário Inválido",
-            description: "Só é possível fazer reservas para horários futuros.",
-        });
-        return false;
-    }
-    return true;
-  }, [reservationDate, reservationTime, toast]);
-
   const handleProceedToMenu = () => {
     if (!hasRentalKitInCart) {
         toast({
