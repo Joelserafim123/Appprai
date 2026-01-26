@@ -33,9 +33,10 @@ export default function ChatsPage() {
 
   const sortedChats = useMemo(() => {
     if (!chats) return [];
-    // Firestore does not support orderBy on a different field than the one used in the where clause with array-contains.
-    // So we sort client-side.
-    return [...chats].sort((a, b) => {
+    // Filter out self-chats and then sort by last message timestamp.
+    return chats
+      .filter(chat => chat.userId !== chat.tentOwnerId)
+      .sort((a, b) => {
         if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
             return b.lastMessageTimestamp.toMillis() - a.lastMessageTimestamp.toMillis();
         }
@@ -86,11 +87,6 @@ export default function ChatsPage() {
                     {sortedChats && sortedChats.length > 0 ? (
                         <div className="space-y-2">
                            {sortedChats.map((chat) => {
-                                // A chat with oneself (where customer and owner are the same) should not be displayed.
-                                if (chat.userId === chat.tentOwnerId) {
-                                  return null;
-                                }
-                           
                                 // Determine the user's role specifically for this chat.
                                 const amIOwnerInThisChat = user.uid === chat.tentOwnerId;
 
