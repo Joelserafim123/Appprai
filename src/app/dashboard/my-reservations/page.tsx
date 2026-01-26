@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, QrCode, Check, MessageSquare, HandCoins } from 'lucide-react';
+import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -21,14 +21,7 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
@@ -56,99 +49,6 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
     pix: 'PIX'
 }
 
-function CustomerPaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
-    const { toast } = useToast();
-    const { firestore } = useFirebase();
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleConfirmPayment = async () => {
-        if (!paymentMethod) {
-            toast({ variant: 'destructive', title: 'Selecione um método de pagamento.'});
-            return;
-        };
-        if (!firestore || !reservation) return;
-        setIsSubmitting(true);
-        try {
-            const batch = writeBatch(firestore);
-
-            const reservationRef = doc(firestore, 'reservations', reservation.id);
-            const platformFee = Math.max(reservation.total * 0.10, 3);
-            batch.update(reservationRef, {
-                status: 'completed',
-                paymentMethod: paymentMethod,
-                platformFee: platformFee,
-            });
-
-            const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
-            const chatSnapshot = await getDocs(q);
-            if (!chatSnapshot.empty) {
-                const chatDoc = chatSnapshot.docs[0];
-                batch.update(chatDoc.ref, { status: 'archived' });
-            }
-
-            await batch.commit();
-
-            toast({ title: 'Pagamento Confirmado!', description: 'O seu pagamento foi processado com sucesso.' });
-            onFinished();
-        } catch(error) {
-            console.error("Error confirming payment: ", error);
-            toast({ variant: 'destructive', title: 'Erro ao confirmar pagamento' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    return (
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Efetuar Pagamento</DialogTitle>
-                <DialogDescription>
-                    Selecione o método de pagamento para finalizar a sua reserva.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Valor Total</p>
-                    <p className="text-4xl font-bold">R$ {reservation.total.toFixed(2)}</p>
-                </div>
-                <RadioGroup onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} value={paymentMethod ?? undefined} className="grid grid-cols-3 gap-4">
-                    <div>
-                        <RadioGroupItem value="card" id="card" className="peer sr-only" />
-                        <Label htmlFor="card" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <CreditCard className="mb-3 h-6 w-6" />
-                            Cartão
-                        </Label>
-                    </div>
-                     <div>
-                        <RadioGroupItem value="pix" id="pix" className="peer sr-only" />
-                         <Label htmlFor="pix" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <QrCode className="mb-3 h-6 w-6" />
-                            PIX
-                        </Label>
-                    </div>
-                     <div>
-                        <RadioGroupItem value="cash" id="cash" className="peer sr-only" />
-                         <Label htmlFor="cash" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                            <HandCoins className="mb-3 h-6 w-6" />
-                            Dinheiro
-                        </Label>
-                    </div>
-                </RadioGroup>
-                 <p className="text-xs text-muted-foreground text-center pt-4">Isto é uma simulação. Ao confirmar, o pagamento será marcado como completo. Nenhuma cobrança real será feita.</p>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                <Button onClick={handleConfirmPayment} disabled={!paymentMethod || isSubmitting}>
-                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Pagar Agora'}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    );
-}
-
-
 export default function MyReservationsPage() {
   const { user, isUserLoading, refresh } = useUser();
   const { firestore } = useFirebase();
@@ -156,7 +56,6 @@ export default function MyReservationsPage() {
   const router = useRouter();
   const t_products = useTranslations('Shared.ProductNames');
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
-  const [reservationForPayment, setReservationForPayment] = useState<Reservation | null>(null);
   const [reservationToReview, setReservationToReview] = useState<Reservation | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   
@@ -345,9 +244,10 @@ export default function MyReservationsPage() {
                           </Button>
                       )}
                       {reservation.status === 'payment-pending' && (
-                        <Button onClick={() => setReservationForPayment(reservation)}>
-                            <CreditCard className="mr-2 h-4 w-4"/> Pagar Agora
-                        </Button>
+                        <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-center text-sm w-full font-semibold flex items-center justify-center gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            <p>Dirija-se ao caixa para efetuar o pagamento.</p>
+                        </div>
                       )}
                       {reservation.tentLocation && ['confirmed', 'checked-in'].includes(reservation.status) && (
                           <Button asChild variant="outline">
@@ -434,9 +334,6 @@ export default function MyReservationsPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-        <Dialog open={!!reservationForPayment} onOpenChange={(open) => !open && setReservationForPayment(null)}>
-            {reservationForPayment && <CustomerPaymentDialog reservation={reservationForPayment} onFinished={() => setReservationForPayment(null)} />}
-        </Dialog>
         <Dialog open={!!reservationToReview} onOpenChange={(open) => !open && setReservationToReview(null)}>
             {reservationToReview && <ReviewDialog reservation={reservationToReview} onFinished={() => { setReservationToReview(null); refresh(); }} />}
         </Dialog>
