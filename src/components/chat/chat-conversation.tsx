@@ -98,8 +98,9 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     }
   };
 
-  const otherPartyName = currentUser.role === 'owner' ? chat.userName : chat.tentName;
-  const otherPartyAvatar = currentUser.role === 'owner' ? chat.userPhotoURL : chat.tentLogoUrl;
+  const amIOwnerInThisChat = currentUser.uid === chat.tentOwnerId;
+  const otherPartyName = amIOwnerInThisChat ? chat.userName : chat.tentName;
+  const otherPartyAvatar = amIOwnerInThisChat ? chat.userPhotoURL : chat.tentLogoUrl;
 
   return (
     <Card className="flex flex-col flex-1 h-full">
@@ -108,7 +109,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
              <Avatar>
                 <AvatarImage src={otherPartyAvatar ?? undefined} />
                 <AvatarFallback className="bg-primary/20 text-primary">
-                    {currentUser.role === 'owner' ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
+                    {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -118,7 +119,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full" viewportRef={scrollAreaViewport}>
-          <div className="flex flex-col gap-2 p-4">
+          <div className="flex flex-col gap-4 p-4">
             {messagesLoading ? (
               <div className="flex justify-center items-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -131,30 +132,54 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                   <div
                     key={message.id}
                     className={cn(
-                      'flex items-end',
+                      'flex items-start gap-3',
                       isCurrentUser ? 'justify-end' : 'justify-start'
                     )}
                   >
-                    <div className={cn("flex flex-col max-w-[80%]", isCurrentUser ? 'items-end' : 'items-start')}>
-                        <div
-                            className={cn(
-                                'rounded-xl px-3 py-2',
-                                isCurrentUser
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            )}
-                        >
-                            <p className='text-sm' style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.text}</p>
-                        </div>
-                        <div className="mt-1 flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">
-                                {message.timestamp?.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            {isCurrentUser && (
-                                message.isRead ? <CheckCheck className="h-4 w-4 text-primary" /> : <Check className="h-4 w-4 text-muted-foreground" />
-                            )}
-                        </div>
+                    {!isCurrentUser && (
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
+                        <AvatarFallback className="bg-muted text-muted-foreground">
+                          {amIOwnerInThisChat ? <UserIcon className="h-4 w-4" /> : getInitials(otherPartyName)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div
+                      className={cn(
+                        'flex flex-col max-w-[80%]',
+                        isCurrentUser ? 'items-end' : 'items-start'
+                      )}
+                    >
+                      <span className="text-xs text-muted-foreground px-2 mb-0.5">
+                        {isCurrentUser ? 'Você' : otherPartyName}
+                      </span>
+                      <div
+                        className={cn(
+                          'rounded-lg px-3 py-2',
+                          isCurrentUser
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        )}
+                      >
+                        <p className='text-sm' style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.text}</p>
+                      </div>
+                      <div className={cn("mt-1 flex items-center gap-1", isCurrentUser ? 'pr-1' : 'pl-1')}>
+                        <span className="text-xs text-muted-foreground">
+                            {message.timestamp?.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {isCurrentUser && (
+                            message.isRead ? <CheckCheck className="h-4 w-4 text-primary" /> : <Check className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
                     </div>
+                     {isCurrentUser && (
+                       <Avatar className="h-8 w-8">
+                        <AvatarImage src={currentUser.photoURL ?? undefined} alt={currentUser.displayName ?? ''} />
+                        <AvatarFallback className="bg-primary/20 text-primary">
+                          {getInitials(currentUser.displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
                 );
               })
