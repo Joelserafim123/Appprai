@@ -3,11 +3,12 @@
 import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, MapPin, Star } from "lucide-react";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { AlertTriangle, Loader2, MapPin, Search, Star } from "lucide-react";
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Autocomplete } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Input } from "./ui/input";
 
 const containerStyle = {
   width: '100%',
@@ -58,13 +59,14 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [isLocating, setIsLocating] = useState(false);
   const { toast } = useToast();
+  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: googleMapsApiKey,
-    libraries: ['marker'],
+    libraries: ['marker', 'places'],
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -111,6 +113,22 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
       }
     );
   }, [map, toast]);
+
+  const onAutocompleteLoad = useCallback((ac: google.maps.places.Autocomplete) => {
+    setAutocomplete(ac);
+  }, []);
+
+  const onPlaceChanged = useCallback(() => {
+    if (autocomplete) {
+        const place = autocomplete.getPlace();
+        if (place.geometry?.viewport) {
+            map?.fitBounds(place.geometry.viewport);
+        } else if (place.geometry?.location) {
+            map?.panTo(place.geometry.location);
+            map?.setZoom(15);
+        }
+    }
+  }, [autocomplete, map]);
 
   const sortedTents = useMemo(() => {
     if (!tents) return [];
@@ -273,17 +291,36 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
 
   return (
     <div className="h-full w-full">
-      <div className="relative h-full w-full bg-muted">
-          {renderMap()}
-          <Button
-            size="icon"
-            className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg"
-            onClick={handleGetCurrentLocation}
-            disabled={isLocating}
-            aria-label="Usar minha localização atual"
-          >
-            {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
-          </Button>
+        <div className="relative h-full w-full bg-muted">
+            {renderMap()}
+
+            {isLoaded && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-full max-w-md px-4">
+                    <Autocomplete
+                        onLoad={onAutocompleteLoad}
+                        onPlaceChanged={onPlaceChanged}
+                    >
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <Input
+                                type="text"
+                                placeholder="Buscar por cidade ou praia..."
+                                className="w-full pl-10 pr-4 h-12 rounded-full shadow-lg"
+                            />
+                        </div>
+                    </Autocomplete>
+                </div>
+            )}
+            
+            <Button
+                size="icon"
+                className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg"
+                onClick={handleGetCurrentLocation}
+                disabled={isLocating}
+                aria-label="Usar minha localização atual"
+            >
+                {isLocating ? <Loader2 className="animate-spin" /> : <MapPin />}
+            </Button>
         </div>
     </div>
   );

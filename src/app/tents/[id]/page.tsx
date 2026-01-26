@@ -5,10 +5,9 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, Utensils, Heart, Star, User as UserIcon } from 'lucide-react';
+import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, Utensils, Heart, Star, User as UserIcon, Calendar as CalendarIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -33,6 +32,21 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch, updateDoc, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTranslations } from '@/i18n';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { format, addDays, getDay, set } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 
 type CartItem = { 
@@ -88,6 +102,7 @@ export default function TentPage() {
   const t_categories = useTranslations('Shared.Categories');
   const t_products = useTranslations('Shared.ProductNames');
   
+  const [reservationDate, setReservationDate] = useState<Date | undefined>();
   const [reservationTime, setReservationTime] = useState<string>('');
   const [activeTab, setActiveTab] = useState('reserve');
 
@@ -132,38 +147,55 @@ export default function TentPage() {
   
   const isFavorite = useMemo(() => user?.favoriteTentIds?.includes(tentId), [user, tentId]);
 
-  const [todayKey, setTodayKey] = useState('');
   const [isTentOpenToday, setIsTentOpenToday] = useState(true);
 
-  useEffect(() => {
-    // Automatically add one kit to the cart when the page loads, if available.
-    if (rentalItems && !isOwnerViewingOwnTent) {
-        const kit = rentalItems.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras");
-        if (kit && kit.quantity > 0) {
-            setCart((prevCart) => {
-                // Only add if the cart is empty to avoid re-adding on navigation or re-renders.
-                if (Object.keys(prevCart).length === 0) {
-                  return {
-                    [kit.id]: { item: kit, quantity: 1, type: 'rental' },
-                  };
-                }
-                return prevCart;
-            });
+  const timeSlots = useMemo(() => {
+    if (!reservationDate || !tent?.operatingHours) return [];
+    
+    const dayKey = dayOrder[getDay(reservationDate)];
+    const dayHours = tent.operatingHours[dayKey];
+    if (!dayHours || !dayHours.isOpen) return [];
+
+    const [openHour, openMinute] = dayHours.open.split(':').map(Number);
+    const [closeHour, closeMinute] = dayHours.close.split(':').map(Number);
+    const now = new Date();
+    const isToday = format(reservationDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+    
+    const slots = [];
+    for (let h = openHour; h <= closeHour; h++) {
+        for (let m = 0; m < 60; m += 30) {
+            if (h === closeHour && m > closeMinute) continue;
+            if (h === openHour && m < openMinute) continue;
+            
+            const slotDate = set(reservationDate, { hours: h, minutes: m });
+            if (isToday && slotDate <= now) continue;
+            
+            slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
         }
     }
-  }, [rentalItems, isOwnerViewingOwnTent]);
+    return slots;
+  }, [reservationDate, tent?.operatingHours]);
 
   useEffect(() => {
-    const key = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    setTodayKey(key);
-
-    if (tent?.operatingHours) {
-        const todayHours = tent.operatingHours[key as keyof typeof tent.operatingHours] as OperatingHoursDay;
-        setIsTentOpenToday(todayHours ? todayHours.isOpen : true);
-    } else {
-        setIsTentOpenToday(true);
+    if (rentalItems && !isOwnerViewingOwnTent) {
+      const kit = rentalItems.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras");
+      if (kit && kit.quantity > 0 && Object.keys(cart).length === 0) {
+        setCart({ [kit.id]: { item: kit, quantity: 1, type: 'rental' } });
+      }
     }
-  }, [tent?.operatingHours]);
+  }, [rentalItems, isOwnerViewingOwnTent, cart]);
+
+  useEffect(() => {
+      if (reservationDate) {
+        const dayKey = dayOrder[getDay(reservationDate)];
+        const dayHours = tent?.operatingHours?.[dayKey];
+        setIsTentOpenToday(dayHours?.isOpen ?? true);
+        setReservationTime(''); // Reset time when date changes
+      } else {
+        setIsTentOpenToday(true);
+      }
+  }, [reservationDate, tent?.operatingHours]);
+
 
   if (loadingTent || isUserLoading || loadingActiveReservation) {
     return (
@@ -246,6 +278,32 @@ export default function TentPage() {
   const finalTotal = cartTotal + (user?.outstandingBalance || 0);
   
   const isCartEmpty = Object.keys(cart).length === 0;
+  
+  const validateReservationTime = useCallback(() => {
+    if (!reservationDate || !reservationTime) {
+      toast({
+        variant: "destructive",
+        title: "Data e Hora Obrigatórias",
+        description: "Por favor, selecione uma data e um horário para a sua reserva.",
+      });
+      return false;
+    }
+    
+    const now = new Date();
+    const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
+    const reservationDateTime = new Date(reservationDate);
+    reservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
+
+    if (reservationDateTime <= now) {
+        toast({
+            variant: "destructive",
+            title: "Horário Inválido",
+            description: "Só é possível fazer reservas para horários futuros.",
+        });
+        return false;
+    }
+    return true;
+  }, [reservationDate, reservationTime, toast]);
 
   const handleProceedToMenu = () => {
     if (!hasRentalKitInCart) {
@@ -257,28 +315,7 @@ export default function TentPage() {
         return;
     }
     
-    if (!reservationTime) {
-        toast({
-            variant: "destructive",
-            title: "Horário Obrigatório",
-            description: "Por favor, selecione um horário para a sua reserva.",
-        });
-        return;
-    }
-
-    const now = new Date();
-    const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
-    const reservationDateTime = new Date();
-    reservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
-
-    if (reservationDateTime <= now) {
-        toast({
-            variant: "destructive",
-            title: "Horário Inválido",
-            description: "Só é possível fazer reservas para horários futuros.",
-        });
-        return;
-    }
+    if (!validateReservationTime()) return;
 
     setActiveTab('menu');
   }
@@ -322,34 +359,15 @@ export default function TentPage() {
         return;
     }
     
-    if (!reservationTime) {
-        toast({
-            variant: "destructive",
-            title: "Horário Obrigatório",
-            description: "Por favor, selecione um horário para a sua reserva.",
-        });
-        return;
-    }
-
-    const now = new Date();
-    const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
-    const reservationDateTime = new Date();
-    reservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
-
-    if (reservationDateTime <= now) {
-        toast({
-            variant: "destructive",
-            title: "Horário Inválido",
-            description: "Só é possível fazer reservas para horários futuros.",
-        });
-        return;
-    }
+    if (!validateReservationTime()) return;
     
+    const dayKey = dayOrder[getDay(reservationDate!)];
     if (tent.operatingHours) {
-        const todayHours = tent.operatingHours[todayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
+        const todayHours = tent.operatingHours[dayKey as keyof typeof tent.operatingHours] as OperatingHoursDay;
         if (todayHours && todayHours.isOpen) {
             const [openHour, openMinute] = todayHours.open.split(':').map(Number);
             const [closeHour, closeMinute] = todayHours.close.split(':').map(Number);
+            const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
 
             const selectedTimeInMinutes = selectedHour * 60 + selectedMinute;
             const openTimeInMinutes = openHour * 60 + openMinute;
@@ -363,6 +381,13 @@ export default function TentPage() {
                 });
                 return;
             }
+        } else if (todayHours && !todayHours.isOpen) {
+             toast({
+                variant: "destructive",
+                title: "Barraca Fechada",
+                description: `A barraca está fechada neste dia.`,
+            });
+            return;
         }
     }
 
@@ -376,6 +401,10 @@ export default function TentPage() {
         const newChatRef = doc(collection(firestore, 'chats'));
         const userRef = doc(firestore, 'users', user.uid);
         const outstandingBalance = user.outstandingBalance || 0;
+
+        const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
+        const finalReservationDateTime = new Date(reservationDate!);
+        finalReservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
 
         const reservationData: Omit<Reservation, 'id'> = {
             userId: user.uid,
@@ -395,8 +424,8 @@ export default function TentPage() {
             })),
             total: finalTotal,
             outstandingBalancePaid: outstandingBalance,
-            createdAt: serverTimestamp() as any,
-            reservationTime,
+            createdAt: finalReservationDateTime as any, // Store the full date and time
+            reservationTime, // Keep this for display legacy if needed, but createdAt is the source of truth
             orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
             checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
             status: 'confirmed',
@@ -530,83 +559,75 @@ export default function TentPage() {
                         <TabsTrigger value="reviews">Avaliações</TabsTrigger>
                         <TabsTrigger value="info">Informações</TabsTrigger>
                     </TabsList>
-
                     <div className="mt-6">
-                        <TabsContent value="menu" className="mt-0 space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-semibold leading-none tracking-tight">Nosso Cardápio</h2>
-                                <p className="text-sm text-muted-foreground mt-1.5">Escolha seus pratos e bebidas favoritos.</p>
-                                {tent.minimumOrderForFeeWaiver && tent.minimumOrderForFeeWaiver > 0 && (
-                                    <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
-                                        <Info className="h-5 w-5 text-primary"/>
-                                        <div>
-                                        <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {proportionalFeeWaiverAmount > 0 ? proportionalFeeWaiverAmount.toFixed(2) : baseFeeWaiverAmount.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            {loadingMenu ? (
-                                <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
-                            ) : menuItems && menuItems.length > 0 ? (
-                                <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full">
-                                {Object.entries(menuByCategory).map(([category, items]) => (
-                                    <AccordionItem key={category} value={category}>
-                                    <AccordionTrigger className="text-lg font-semibold">{t_categories(category as any)}</AccordionTrigger>
-                                    <AccordionContent>
-                                        <div className="space-y-4 pt-2">
-                                        {items.map((item) => (
-                                            <div key={item.id} className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium">{item.name}</p>
-                                                <p className="text-sm text-muted-foreground">{item.description}</p>
-                                                <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
-                                            </div>
-                                            </div>
-                                        ))}
-                                        </div>
-                                    </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                                </Accordion>
-                            ) : (
-                                <div className="py-12 text-center text-muted-foreground">
-                                    <Utensils className="mx-auto h-10 w-10" />
-                                    <h3 className="mt-4 text-lg font-semibold text-card-foreground">Cardápio Indisponível</h3>
-                                    <p className="mt-1 text-sm">Esta barraca ainda não cadastrou itens no cardápio.</p>
-                                </div>
-                            )}
-                        </TabsContent>
-
                         <TabsContent value="reserve" className="mt-0 space-y-6">
                             <div>
                                 <h2 className="text-2xl font-semibold leading-none tracking-tight">Aluguel de Itens e Horário</h2>
-                                <p className="text-sm text-muted-foreground mt-1.5">Para reservar, é obrigatório o aluguel do kit e a seleção de um horário para hoje. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${tentId}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</p>
+                                <p className="text-sm text-muted-foreground mt-1.5">Para reservar, é obrigatório o aluguel do kit e a seleção de data e hora. { user?.isAnonymous && <Link href={`/login?redirect=/tents/${tentId}`} className="text-primary underline font-medium">Faça login para alugar</Link>}</p>
                             </div>
                             
                             <div className="space-y-6">
-                                {!isTentOpenToday && (
-                                    <Alert variant="destructive">
-                                        <AlertTriangle className="h-4 w-4" />
-                                        <AlertTitle>Barraca Fechada Hoje</AlertTitle>
-                                        <AlertDescription>
-                                            Esta barraca não está a aceitar reservas para hoje. Por favor, verifique o horário de funcionamento na aba 'Informações'.
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-                                <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
-                                        <Input id="reservation-time" type="time" value={reservationTime} onChange={e => setReservationTime(e.target.value)} disabled={isSubmitting}/>
-                                        <p className="text-xs text-muted-foreground">Reservas são apenas para o dia de hoje.</p>
+                                <div className="space-y-6">
+                                     {!isTentOpenToday && reservationDate && (
+                                        <Alert variant="destructive">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertTitle>Barraca Fechada</AlertTitle>
+                                            <AlertDescription>
+                                                Esta barraca está fechada no dia selecionado. Por favor, escolha outra data.
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                    <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                             <div className="space-y-2">
+                                                <Label className="flex items-center gap-2"><CalendarIcon className="w-4 h-4"/> Data da Reserva</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                            variant={"outline"}
+                                                            className={cn(
+                                                                "w-full justify-start text-left font-normal",
+                                                                !reservationDate && "text-muted-foreground"
+                                                            )}
+                                                            disabled={isSubmitting}
+                                                        >
+                                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                                            {reservationDate ? format(reservationDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={reservationDate}
+                                                            onSelect={setReservationDate}
+                                                            initialFocus
+                                                            locale={ptBR}
+                                                            fromDate={new Date()}
+                                                            toDate={addDays(new Date(), 3)}
+                                                            disabled={isSubmitting}
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
+                                                <Select onValueChange={setReservationTime} value={reservationTime} disabled={isSubmitting || !reservationDate || timeSlots.length === 0}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecione um horário" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {timeSlots.map(time => (
+                                                            <SelectItem key={time} value={time}>{time}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                {!reservationDate && <p className="text-xs text-muted-foreground">Selecione uma data para ver os horários.</p>}
+                                                {reservationDate && timeSlots.length === 0 && <p className="text-xs text-destructive">Não há horários disponíveis para esta data.</p>}
+                                            </div>
+                                        </div>
                                     </div>
-
-                                    {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
+                                    
+                                     {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
                                         <div className='space-y-4'>
                                             {rentalKit && (
                                                 <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -650,13 +671,64 @@ export default function TentPage() {
                             </div>
                         </TabsContent>
 
-                        <TabsContent value="reviews" className="mt-0 space-y-6">
+                        <TabsContent value="menu" className="mt-0">
+                            <div>
+                                <h2 className="text-2xl font-semibold leading-none tracking-tight">Nosso Cardápio</h2>
+                                <p className="text-sm text-muted-foreground mt-1.5">Escolha seus pratos e bebidas favoritos.</p>
+                                {tent.minimumOrderForFeeWaiver && tent.minimumOrderForFeeWaiver > 0 && (
+                                    <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
+                                        <Info className="h-5 w-5 text-primary"/>
+                                        <div>
+                                        <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {proportionalFeeWaiverAmount > 0 ? proportionalFeeWaiverAmount.toFixed(2) : baseFeeWaiverAmount.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {loadingMenu ? (
+                                <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
+                            ) : menuItems && menuItems.length > 0 ? (
+                                <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full mt-6">
+                                {Object.entries(menuByCategory).map(([category, items]) => (
+                                    <AccordionItem key={category} value={category}>
+                                    <AccordionTrigger className="text-lg font-semibold">{t_categories(category as any)}</AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="space-y-4 pt-2">
+                                        {items.map((item) => (
+                                            <div key={item.id} className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-medium">{item.name}</p>
+                                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                                                <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
+                                                <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
+                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
+                                            </div>
+                                            </div>
+                                        ))}
+                                        </div>
+                                    </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                                </Accordion>
+                            ) : (
+                                <div className="py-12 text-center text-muted-foreground">
+                                    <Utensils className="mx-auto h-10 w-10" />
+                                    <h3 className="mt-4 text-lg font-semibold text-card-foreground">Cardápio Indisponível</h3>
+                                    <p className="mt-1 text-sm">Esta barraca ainda não cadastrou itens no cardápio.</p>
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="reviews" className="mt-0">
                              <div>
                                 <h2 className="text-2xl font-semibold leading-none tracking-tight">Avaliações dos Clientes</h2>
                                 <p className="text-sm text-muted-foreground mt-1.5">{tent.reviewCount != null && tent.reviewCount > 0 ? `Veja o que outros clientes estão a dizer sobre a ${tent.name}.` : 'Esta barraca ainda não tem avaliações.'}</p>
                             </div>
                             
-                            <div className="space-y-6">
+                            <div className="space-y-6 mt-6">
                                 {loadingReviews ? (
                                     <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
                                 ) : reviews && reviews.length > 0 ? (
@@ -687,9 +759,9 @@ export default function TentPage() {
                             </div>
                         </TabsContent>
 
-                         <TabsContent value="info" className="mt-0 space-y-4">
+                         <TabsContent value="info" className="mt-0">
                             <h2 className="text-2xl font-semibold leading-none tracking-tight">Informações</h2>
-                            <div>
+                            <div className="mt-6">
                                 <h3 className="font-semibold flex items-center gap-2"><Clock className="w-4 h-4" /> Horário de Funcionamento</h3>
                                 <OperatingHoursDisplay hours={tent.operatingHours} />
                             </div>
@@ -765,13 +837,13 @@ export default function TentPage() {
                                 </Button>
                             </div>
                         ) : activeTab === 'reserve' ? (
-                             <Button size="lg" className="w-full" onClick={handleProceedToMenu} disabled={!hasRentalKitInCart || isSubmitting || !isTentOpenToday}>
+                             <Button size="lg" className="w-full" onClick={handleProceedToMenu} disabled={!hasRentalKitInCart || isSubmitting || !reservationDate || !reservationTime}>
                                 {isSubmitting ? <Loader2 className="animate-spin" /> : <>Próximo Passo <ArrowRight className="ml-2" /></>}
                             </Button>
                         ) : (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button size="lg" className="w-full" disabled={!hasRentalKitInCart || isSubmitting || !isTentOpenToday}>
+                                    <Button size="lg" className="w-full" disabled={!hasRentalKitInCart || isSubmitting || !reservationDate || !reservationTime}>
                                         {isSubmitting ? <Loader2 className="animate-spin" /> : <>Fazer Reserva <ShoppingCart className="ml-2" /></>}
                                     </Button>
                                 </AlertDialogTrigger>
