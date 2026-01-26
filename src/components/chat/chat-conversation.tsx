@@ -126,6 +126,8 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
             ) : (
               messages?.map((message) => {
                 const isCurrentUser = message.senderId === currentUser.uid;
+                const displayName = isCurrentUser ? 'Você' : otherPartyName;
+
                 return (
                   <div
                     key={message.id}
@@ -143,6 +145,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                         </Avatar>
                     )}
                      <div className={cn("flex flex-col w-full", isCurrentUser ? 'items-end' : 'items-start')}>
+                        <p className="text-xs text-muted-foreground mb-1">{displayName}</p>
                         <div
                             className={cn(
                                 'rounded-xl px-3 py-2',
