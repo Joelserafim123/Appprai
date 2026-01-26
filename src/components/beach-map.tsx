@@ -5,12 +5,11 @@ import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2, MapPin, Search, Star } from "lucide-react";
-import { GoogleMap, useJsApiLoader, InfoWindow, Autocomplete, useGoogleMap } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, InfoWindow, Autocomplete, Marker } from '@react-google-maps/api';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Input } from "./ui/input";
-import { createRoot } from "react-dom/client";
 
 const containerStyle = {
   width: '100%',
@@ -56,69 +55,7 @@ const haversineDistance = (
 };
 
 // Define the libraries array outside the component to prevent re-creation on re-renders.
-const beachMapLibraries: ('places' | 'marker')[] = ['places', 'marker'];
-
-const CustomMarker = ({ color }: { color: string }) => {
-    const svgPath = "M12,2A9,9 0 0,1 21,11H3A9,9 0 0,1 12,2M11,12V22A1,1 0 0,0 12,23A1,1 0 0,0 13,22V12H11Z";
-    return (
-        <div style={{ width: 24, height: 24 }}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill={color} style={{ stroke: '#fff', strokeWidth: 1 }}>
-                <path d={svgPath}></path>
-            </svg>
-        </div>
-    );
-}
-
-const AdvancedMapMarker = ({ tent, onClick, isSelected, isFavorite }: {
-  tent: Tent,
-  onClick: (tent: Tent) => void,
-  isSelected: boolean,
-  isFavorite: boolean
-}) => {
-    const map = useGoogleMap();
-
-    useEffect(() => {
-        if (!map || !tent.location?.latitude || !tent.location?.longitude) return;
-        
-        if (!google.maps.marker) {
-          console.error("Advanced Markers library not loaded.");
-          return;
-        }
-        
-        let color: string;
-        if (isSelected) {
-          color = 'hsl(var(--accent))'; // accent orange for selected (highest priority)
-        } else if (isFavorite) {
-          color = 'hsl(50, 100%, 50%)'; // Gold for favorite
-        } else if (tent.hasAvailableKits) {
-          color = 'hsl(142.1, 76.2%, 36.3%)'; // green (available)
-        } else {
-          color = 'hsl(0, 84.2%, 60.2%)'; // red (unavailable)
-        }
-
-        const container = document.createElement('div');
-        const root = createRoot(container);
-        root.render(<CustomMarker color={color} />);
-
-        const newMarker = new google.maps.marker.AdvancedMarkerElement({
-            map,
-            position: { lat: tent.location.latitude, lng: tent.location.longitude },
-            content: container,
-            title: tent.name,
-        });
-
-        const listener = newMarker.addListener('click', () => onClick(tent));
-
-        return () => {
-            google.maps.event.removeListener(listener);
-            newMarker.map = null;
-            // Unmount the React root to prevent memory leaks
-            setTimeout(() => root.unmount(), 0);
-        };
-    }, [map, tent, onClick, isSelected, isFavorite]);
-
-    return null;
-}
+const beachMapLibraries: ('places')[] = ['places'];
 
 
 export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTentIds: string[] }) {
@@ -128,12 +65,9 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const { toast } = useToast();
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
-  const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-  const googleMapsMapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? "";
-
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'beach-map-google-maps-script',
-    googleMapsApiKey: googleMapsApiKey,
+    id: 'google-maps-script-beachmap',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
     libraries: beachMapLibraries,
   });
 
@@ -235,7 +169,31 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
     }
   };
   
+    const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
+        let color: string;
+        if (selectedTent?.id === tent.id) {
+          color = '#FFB347'; // accent orange for selected
+        } else if (favoriteTentIds.includes(tent.id)) {
+          color = '#FFD700'; // Gold for favorite
+        } else if (tent.hasAvailableKits) {
+          color = '#22c55e'; // green (available)
+        } else {
+          color = '#ef4444'; // red (unavailable)
+        }
+        return {
+            path: "M12,2A9,9 0 0,1 21,11H3A9,9 0 0,1 12,2M11,12V22A1,1 0 0,0 12,23A1,1 0 0,0 13,22V12H11Z", // Umbrella path from mdi
+            fillColor: color,
+            fillOpacity: 1,
+            strokeWeight: 1,
+            strokeColor: '#fff',
+            rotation: 0,
+            scale: 1,
+            anchor: new google.maps.Point(12, 12),
+        };
+    };
+
   const renderMap = () => {
+    const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
     if (!googleMapsApiKey) {
       return (
         <div className="flex h-full items-center justify-center bg-muted p-8">
@@ -244,27 +202,6 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
             <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
             <AlertDescription>
               A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.
-            </AlertDescription>
-          </Alert>
-        </div>
-      );
-    }
-
-    if (!googleMapsMapId) {
-       return (
-        <div className="flex h-full items-center justify-center bg-muted p-8">
-          <Alert variant="destructive" className="max-w-lg">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Configuração do Mapa Incompleta: ID do Mapa é necessário</AlertTitle>
-            <AlertDescription>
-                <p className="mb-4">Os Marcadores Avançados requerem um <strong>ID do Mapa (Map ID)</strong>. Siga estes passos para configurar:</p>
-                <ol className="list-decimal space-y-2 pl-5">
-                    <li>Vá para a <a href="https://console.cloud.google.com/google/maps-apis/studio/maps" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a> e selecione o seu projeto.</li>
-                    <li>Clique em <strong>"Criar novo ID do mapa"</strong>.</li>
-                    <li>Dê um nome ao ID (ex: "beachpal-map"), selecione o tipo "JavaScript" e escolha o estilo "Vetor".</li>
-                    <li>Copie o ID do Mapa gerado.</li>
-                    <li>Adicione este ID como uma nova variável de ambiente chamada <code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code> ao seu projeto.</li>
-                </ol>
             </AlertDescription>
           </Alert>
         </div>
@@ -301,7 +238,6 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
 
     return (
       <GoogleMap
-        mapId={googleMapsMapId}
         mapContainerStyle={containerStyle}
         center={mapCenter}
         zoom={12}
@@ -312,12 +248,12 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
       >
         {sortedTents.map((tent) => (
           tent.location.latitude && tent.location.longitude && (
-             <AdvancedMapMarker
-              key={tent.id}
-              tent={tent}
-              onClick={handleTentSelect}
-              isSelected={selectedTent?.id === tent.id}
-              isFavorite={favoriteTentIds.includes(tent.id)}
+             <Marker
+                key={tent.id}
+                position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
+                onClick={() => handleTentSelect(tent)}
+                icon={getMarkerIcon(tent)}
+                title={tent.name}
             />
           )
         ))}

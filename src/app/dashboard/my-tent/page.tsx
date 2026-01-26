@@ -17,7 +17,7 @@ import type { Tent, OperatingHours, TentFormData } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
-import { GoogleMap, useJsApiLoader, useGoogleMap } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
@@ -82,54 +82,7 @@ const defaultCenter = {
 };
 
 // Define the libraries array outside the component to prevent re-creation on re-renders.
-const tentFormMapLibraries: ('marker' | 'places')[] = ['marker', 'places'];
-
-
-const DraggableAdvancedMarker = ({ position, onDragEnd }: {
-    position: { lat: number; lng: number; };
-    onDragEnd: (e: google.maps.MapMouseEvent) => void;
-}) => {
-    const map = useGoogleMap();
-    const [marker, setMarker] = useState<google.maps.marker.AdvancedMarkerElement>();
-    const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
-
-    // Create/destroy marker
-    useEffect(() => {
-        if (!map) return;
-        if (!google.maps.marker) {
-          console.error("Advanced Markers library not loaded.");
-          return;
-        }
-        const newMarker = new google.maps.marker.AdvancedMarkerElement({ map });
-        setMarker(newMarker);
-        
-        return () => {
-            newMarker.map = null;
-        };
-    }, [map]);
-
-    // Update marker properties
-    useEffect(() => {
-        if (!marker) return;
-        marker.position = position;
-        marker.gmpDraggable = true;
-        marker.title = "Arraste para ajustar a posição";
-    }, [marker, position]);
-
-    // Update event listener
-    useEffect(() => {
-        if (!marker) return;
-        
-        if (listenerRef.current) {
-            google.maps.event.removeListener(listenerRef.current);
-        }
-        
-        listenerRef.current = marker.addListener('dragend', onDragEnd);
-        
-    }, [marker, onDragEnd]);
-
-    return null;
-}
+const tentFormMapLibraries: ('places')[] = ['places'];
 
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
@@ -163,7 +116,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const markerPosition = watchedLocation;
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'tent-form-google-maps-script',
+    id: 'google-maps-script-tentform',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
     libraries: tentFormMapLibraries
   });
@@ -358,8 +311,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   
     const renderMap = () => {
         const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-        const googleMapsMapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? "";
-        
         if (!googleMapsApiKey) {
             return (
                 <div className="flex h-full items-center justify-center bg-muted p-8">
@@ -368,27 +319,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                         <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
                         <AlertDescription>
                         A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.
-                        </AlertDescription>
-                    </Alert>
-                </div>
-            );
-        }
-
-        if (!googleMapsMapId) {
-            return (
-                <div className="flex h-full items-center justify-center bg-muted p-8">
-                    <Alert variant="destructive" className="max-w-lg">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Configuração do Mapa Incompleta: ID do Mapa é necessário</AlertTitle>
-                        <AlertDescription>
-                            <p className="mb-4">Os Marcadores Avançados requerem um <strong>ID do Mapa (Map ID)</strong>. Siga estes passos para configurar:</p>
-                            <ol className="list-decimal space-y-2 pl-5">
-                                <li>Vá para a <a href="https://console.cloud.google.com/google/maps-apis/studio/maps" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a> e selecione o seu projeto.</li>
-                                <li>Clique em <strong>"Criar novo ID do mapa"</strong>.</li>
-                                <li>Dê um nome ao ID (ex: "beachpal-map"), selecione o tipo "JavaScript" e escolha o estilo "Vetor".</li>
-                                <li>Copie o ID do Mapa gerado.</li>
-                                <li>Adicione este ID como uma nova variável de ambiente chamada <code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code> ao seu projeto.</li>
-                            </ol>
                         </AlertDescription>
                     </Alert>
                 </div>
@@ -418,7 +348,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         }
         return (
             <GoogleMap
-                mapId={googleMapsMapId}
                 mapContainerStyle={mapContainerStyle}
                 center={mapCenter}
                 zoom={16}
@@ -431,9 +360,11 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                 }}
             >
                 {markerPosition?.latitude && markerPosition?.longitude && (
-                    <DraggableAdvancedMarker
+                    <Marker
                         position={{ lat: markerPosition.latitude, lng: markerPosition.longitude }}
+                        draggable={true}
                         onDragEnd={onMarkerDragEnd}
+                        title="Arraste para ajustar a posição"
                     />
                 )}
             </GoogleMap>
