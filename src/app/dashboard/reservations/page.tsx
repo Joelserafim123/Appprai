@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info, AlertTriangle } from 'lucide-react';
+import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -152,21 +152,32 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Confirmar Pagamento</DialogTitle>
+                <DialogDescription>
+                    Confirme o recebimento do valor de <span className="font-bold">R$ {reservation.total.toFixed(2)}</span> e selecione o método de pagamento utilizado pelo cliente.
+                </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-                <p>Confirme o recebimento do valor de <span className="font-bold">R$ {reservation.total.toFixed(2)}</span> e selecione o método de pagamento utilizado pelo cliente.</p>
-                <RadioGroup onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} value={paymentMethod ?? undefined}>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="card" id="card" />
-                        <Label htmlFor="card">Cartão</Label>
+                <RadioGroup onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} value={paymentMethod ?? undefined} className="grid grid-cols-3 gap-4">
+                    <div>
+                        <RadioGroupItem value="card" id="owner-card" className="peer sr-only" />
+                        <Label htmlFor="owner-card" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <CreditCard className="mb-3 h-6 w-6" />
+                            Cartão
+                        </Label>
                     </div>
-                     <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="pix" id="pix" />
-                        <Label htmlFor="pix">PIX</Label>
+                     <div>
+                        <RadioGroupItem value="pix" id="owner-pix" className="peer sr-only" />
+                         <Label htmlFor="owner-pix" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <QrCode className="mb-3 h-6 w-6" />
+                            PIX
+                        </Label>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="cash" id="cash" />
-                        <Label htmlFor="cash">Dinheiro</Label>
+                    <div>
+                        <RadioGroupItem value="cash" id="owner-cash" className="peer sr-only" />
+                        <Label htmlFor="owner-cash" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <HandCoins className="mb-3 h-6 w-6" />
+                            Dinheiro
+                        </Label>
                     </div>
                 </RadioGroup>
             </div>
@@ -227,7 +238,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         const updateData: { status: ReservationStatus, platformFee?: number, cancellationReason?: string } = { status: 'cancelled' };
         let feeApplied = false;
 
-        if (isLateCancellation || reservationForCancel.status === 'checked-in') {
+        if (isLateCancellation || reservationForCancel?.status === 'checked-in') {
             updateData.platformFee = 3.00;
             updateData.cancellationReason = 'owner_late';
             feeApplied = true;

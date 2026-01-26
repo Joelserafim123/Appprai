@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, QrCode, Check, MessageSquare } from 'lucide-react';
+import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, QrCode, Check, MessageSquare, HandCoins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -113,19 +113,26 @@ function CustomerPaymentDialog({ reservation, onFinished }: { reservation: Reser
                     <p className="text-sm text-muted-foreground">Valor Total</p>
                     <p className="text-4xl font-bold">R$ {reservation.total.toFixed(2)}</p>
                 </div>
-                <RadioGroup onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} value={paymentMethod ?? undefined} className="grid grid-cols-2 gap-4">
+                <RadioGroup onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} value={paymentMethod ?? undefined} className="grid grid-cols-3 gap-4">
                     <div>
                         <RadioGroupItem value="card" id="card" className="peer sr-only" />
-                        <Label htmlFor="card" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                        <Label htmlFor="card" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                             <CreditCard className="mb-3 h-6 w-6" />
                             Cartão
                         </Label>
                     </div>
                      <div>
                         <RadioGroupItem value="pix" id="pix" className="peer sr-only" />
-                         <Label htmlFor="pix" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                         <Label htmlFor="pix" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                             <QrCode className="mb-3 h-6 w-6" />
                             PIX
+                        </Label>
+                    </div>
+                     <div>
+                        <RadioGroupItem value="cash" id="cash" className="peer sr-only" />
+                         <Label htmlFor="cash" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <HandCoins className="mb-3 h-6 w-6" />
+                            Dinheiro
                         </Label>
                     </div>
                 </RadioGroup>
