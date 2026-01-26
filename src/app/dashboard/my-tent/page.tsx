@@ -20,6 +20,8 @@ import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 const operatingHoursSchema = z.object({
   isOpen: z.boolean(),
@@ -89,6 +91,10 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const [bannerPreview, setBannerPreview] = useState<string | null>(existingTent?.bannerUrl || null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
+  const [logoImageFile, setLogoImageFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(existingTent?.logoUrl || null);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+
   const { register, handleSubmit, formState: { errors }, setValue, watch, control, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
@@ -151,6 +157,9 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       if (existingTent.bannerUrl) {
           setBannerPreview(existingTent.bannerUrl);
       }
+      if (existingTent.logoUrl) {
+          setLogoPreview(existingTent.logoUrl);
+      }
     } else {
         reset({
             name: '',
@@ -194,6 +203,14 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     }
   }
 
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        setLogoImageFile(file);
+        setLogoPreview(URL.createObjectURL(file));
+    }
+  }
+
   const onSubmit = async (data: TentFormData) => {
     if (!firestore || !user || !storage) return;
     setIsSubmitting(true);
@@ -201,6 +218,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
     try {
       let bannerDownloadURL: string | null = existingTent?.bannerUrl || null;
+      let logoDownloadURL: string | null = existingTent?.logoUrl || null;
       
       const tentId = existingTent ? existingTent.id : doc(collection(firestore, "tents")).id;
       const tentDocRef = doc(firestore, "tents", tentId);
@@ -216,11 +234,23 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         toast({ title: 'Upload do banner bem-sucedido!' });
       }
 
+      if (logoImageFile) {
+        toast({ title: 'A fazer upload do logo...' });
+        const fileRef = storageRef(storage, `tents/${tentId}/logo.jpg`);
+        const uploadMetadata = { customMetadata: { ownerUid: user.uid } };
+        
+        await uploadBytes(fileRef, logoImageFile, uploadMetadata);
+        logoDownloadURL = await getDownloadURL(fileRef);
+        
+        toast({ title: 'Upload do logo bem-sucedido!' });
+      }
+
       const tentDataForFirestore = {
         ...data,
         ownerId: user.uid,
         ownerName: user.displayName,
         bannerUrl: bannerDownloadURL,
+        logoUrl: logoDownloadURL,
       };
 
       if (existingTent) {
@@ -308,6 +338,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <input type="file" ref={logoFileInputRef} onChange={handleLogoFileChange} hidden accept="image/png, image/jpeg, image/webp" />
       <input type="file" ref={bannerFileInputRef} onChange={handleFileChange} hidden accept="image/png, image/jpeg, image/webp" />
       
       <div className="space-y-2">
@@ -327,11 +358,28 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="name">Nome da Barraca</Label>
-        <Input id="name" {...register('name')} disabled={isSubmitting} />
-        {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+      <div className="flex items-start gap-4">
+        <div className="space-y-2">
+            <Label>Logo da Barraca</Label>
+            <div className="relative group w-24 h-24">
+                <Avatar className="w-24 h-24 rounded-lg">
+                    <AvatarImage src={logoPreview ?? undefined} alt="Logo da barraca" className="object-cover" />
+                    <AvatarFallback className="rounded-lg bg-muted">
+                        <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                    </AvatarFallback>
+                </Avatar>
+                <button type="button" onClick={() => logoFileInputRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                    <Upload className='h-8 w-8'/>
+                </button>
+            </div>
+        </div>
+        <div className="space-y-2 flex-1">
+            <Label htmlFor="name">Nome da Barraca</Label>
+            <Input id="name" {...register('name')} disabled={isSubmitting} />
+            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+        </div>
       </div>
+
       <div className="space-y-2">
         <Label htmlFor="description">Descrição</Label>
         <Textarea id="description" {...register('description')} disabled={isSubmitting} />
