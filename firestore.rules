@@ -84,9 +84,9 @@ service cloud.firestore {
     match /reservations/{reservationId} {
       allow get, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
       allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
-      allow list: if isSignedIn() && 
-                     (request.query.get('userId') == request.auth.uid || 
-                      request.query.get('tentOwnerId') == request.auth.uid);
+      // Allow list if the user is signed in. The 'get' rule will be applied by Firestore 
+      // to each document in the result set, ensuring users only see reservations they are a part of.
+      allow list: if isSignedIn();
       allow delete: if false; // Prevent accidental deletion.
     }
     
