@@ -118,7 +118,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full" viewportRef={scrollAreaViewport}>
-          <div className="flex flex-col gap-4 p-4">
+          <div className="flex flex-col gap-2 p-4">
             {messagesLoading ? (
               <div className="flex justify-center items-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -126,26 +126,16 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
             ) : (
               messages?.map((message) => {
                 const isCurrentUser = message.senderId === currentUser.uid;
-                const displayName = isCurrentUser ? 'Você' : otherPartyName;
 
                 return (
                   <div
                     key={message.id}
                     className={cn(
-                      'flex w-full max-w-[80%] gap-2',
-                      isCurrentUser ? 'self-end flex-row-reverse' : 'self-start'
+                      'flex items-end',
+                      isCurrentUser ? 'justify-end' : 'justify-start'
                     )}
                   >
-                    {!isCurrentUser && (
-                       <Avatar className='h-8 w-8 self-end'>
-                            <AvatarImage src={otherPartyAvatar ?? undefined} />
-                            <AvatarFallback className="bg-muted text-muted-foreground">
-                                {currentUser.role === 'owner' ? <UserIcon className="h-4 w-4" /> : getInitials(otherPartyName)}
-                            </AvatarFallback>
-                        </Avatar>
-                    )}
-                     <div className={cn("flex flex-col w-full", isCurrentUser ? 'items-end' : 'items-start')}>
-                        <p className="text-xs text-muted-foreground mb-1">{displayName}</p>
+                    <div className={cn("flex flex-col max-w-[80%]", isCurrentUser ? 'items-end' : 'items-start')}>
                         <div
                             className={cn(
                                 'rounded-xl px-3 py-2',
