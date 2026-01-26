@@ -80,6 +80,11 @@ const AdvancedMapMarker = ({ tent, onClick, isSelected, isFavorite }: {
     useEffect(() => {
         if (!map || !tent.location?.latitude || !tent.location?.longitude) return;
         
+        if (!google.maps.marker) {
+          console.error("Advanced Markers library not loaded.");
+          return;
+        }
+        
         let color: string;
         if (isSelected) {
           color = 'hsl(var(--accent))'; // accent orange for selected (highest priority)
@@ -124,7 +129,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-  const googleMapsMapId = "242e19b5da448b392212a4a1";
+  const googleMapsMapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? "";
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'beach-map-google-maps-script',
@@ -238,7 +243,28 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
             <AlertDescription>
-              A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> ao seu ambiente.
+              A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
+
+    if (!googleMapsMapId) {
+       return (
+        <div className="flex h-full items-center justify-center bg-muted p-8">
+          <Alert variant="destructive" className="max-w-lg">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Configuração do Mapa Incompleta: ID do Mapa é necessário</AlertTitle>
+            <AlertDescription>
+                <p className="mb-4">Os Marcadores Avançados requerem um <strong>ID do Mapa (Map ID)</strong>. Siga estes passos para configurar:</p>
+                <ol className="list-decimal space-y-2 pl-5">
+                    <li>Vá para a <a href="https://console.cloud.google.com/google/maps-apis/studio/maps" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a> e selecione o seu projeto.</li>
+                    <li>Clique em <strong>"Criar novo ID do mapa"</strong>.</li>
+                    <li>Dê um nome ao ID (ex: "beachpal-map"), selecione o tipo "JavaScript" e escolha o estilo "Vetor".</li>
+                    <li>Copie o ID do Mapa gerado.</li>
+                    <li>Adicione este ID como uma nova variável de ambiente chamada <code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code> ao seu projeto.</li>
+                </ol>
             </AlertDescription>
           </Alert>
         </div>
@@ -253,17 +279,11 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
                 <AlertDescription>
                     <p className="mb-4">Ocorreu um problema com a sua chave de API do Google Maps. Por favor, verifique os seguintes pontos na sua <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a>:</p>
                     <ul className="list-disc space-y-2 pl-5">
-                        <li>
-                            <span className="font-semibold">Faturação Ativada:</span> Certifique-se de que a faturação está ativada para o projeto associado a esta chave de API.
-                        </li>
-                        <li>
-                            <span className="font-semibold">API Ativada:</span> Verifique se a "Maps JavaScript API" está ativada para o seu projeto.
-                        </li>
-                        <li>
-                            <span className="font-semibold">Restrições de Chave:</span> Se você configurou restrições, certifique-se de que o website atual está autorizado a usar a chave.
-                        </li>
+                        <li><span className="font-semibold">Faturação Ativada:</span> Certifique-se de que a faturação está ativada para o projeto associado a esta chave de API.</li>
+                        <li><span className="font-semibold">API Ativada:</span> Verifique se a "Maps JavaScript API" está ativada para o seu projeto.</li>
+                        <li><span className="font-semibold">Restrições de Chave:</span> Se você configurou restrições, certifique-se de que o website atual está autorizado a usar a chave.</li>
                     </ul>
-                    <p className="mt-4">Se o problema persistir após verificar estes pontos, a sua chave pode ser inválida.</p>
+                     <p className="mt-4">Se o problema persistir, a sua chave pode ser inválida.</p>
                 </AlertDescription>
             </Alert>
         </div>

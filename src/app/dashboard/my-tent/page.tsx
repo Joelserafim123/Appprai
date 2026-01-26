@@ -82,7 +82,7 @@ const defaultCenter = {
 };
 
 // Define the libraries array outside the component to prevent re-creation on re-renders.
-const tentFormMapLibraries: ('marker')[] = ['marker'];
+const tentFormMapLibraries: ('marker' | 'places')[] = ['marker', 'places'];
 
 
 const DraggableAdvancedMarker = ({ position, onDragEnd }: {
@@ -96,6 +96,10 @@ const DraggableAdvancedMarker = ({ position, onDragEnd }: {
     // Create/destroy marker
     useEffect(() => {
         if (!map) return;
+        if (!google.maps.marker) {
+          console.error("Advanced Markers library not loaded.");
+          return;
+        }
         const newMarker = new google.maps.marker.AdvancedMarkerElement({ map });
         setMarker(newMarker);
         
@@ -353,10 +357,61 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   };
   
     const renderMap = () => {
-        const googleMapsMapId = "242e19b5da448b392212a4a1";
+        const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+        const googleMapsMapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? "";
+        
+        if (!googleMapsApiKey) {
+            return (
+                <div className="flex h-full items-center justify-center bg-muted p-8">
+                    <Alert variant="destructive" className="max-w-md">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
+                        <AlertDescription>
+                        A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            );
+        }
+
+        if (!googleMapsMapId) {
+            return (
+                <div className="flex h-full items-center justify-center bg-muted p-8">
+                    <Alert variant="destructive" className="max-w-lg">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Configuração do Mapa Incompleta: ID do Mapa é necessário</AlertTitle>
+                        <AlertDescription>
+                            <p className="mb-4">Os Marcadores Avançados requerem um <strong>ID do Mapa (Map ID)</strong>. Siga estes passos para configurar:</p>
+                            <ol className="list-decimal space-y-2 pl-5">
+                                <li>Vá para a <a href="https://console.cloud.google.com/google/maps-apis/studio/maps" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a> e selecione o seu projeto.</li>
+                                <li>Clique em <strong>"Criar novo ID do mapa"</strong>.</li>
+                                <li>Dê um nome ao ID (ex: "beachpal-map"), selecione o tipo "JavaScript" e escolha o estilo "Vetor".</li>
+                                <li>Copie o ID do Mapa gerado.</li>
+                                <li>Adicione este ID como uma nova variável de ambiente chamada <code>NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID</code> ao seu projeto.</li>
+                            </ol>
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            );
+        }
 
         if (loadError) {
-            return <div className="flex items-center justify-center h-full bg-destructive/10 text-destructive-foreground p-4">Erro ao carregar o mapa. Verifique a sua chave de API do Google Maps e as configurações do projeto.</div>;
+            return (
+                <div className="flex items-center justify-center h-full bg-destructive/10 text-destructive-foreground p-4">
+                    <Alert variant="destructive" className="max-w-lg">
+                        <AlertTitle>Erro ao Carregar o Google Maps</AlertTitle>
+                        <AlertDescription>
+                            <p className="mb-4">Ocorreu um problema com a sua chave de API do Google Maps. Por favor, verifique os seguintes pontos na sua <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a>:</p>
+                            <ul className="list-disc space-y-2 pl-5">
+                                <li><span className="font-semibold">Faturação Ativada:</span> Certifique-se de que a faturação está ativada para o projeto associado a esta chave de API.</li>
+                                <li><span className="font-semibold">API Ativada:</span> Verifique se a "Maps JavaScript API" está ativada para o seu projeto.</li>
+                                <li><span className="font-semibold">Restrições de Chave:</span> Se você configurou restrições, certifique-se de que o website atual está autorizado a usar a chave.</li>
+                            </ul>
+                            <p className="mt-4">Se o problema persistir, a sua chave pode ser inválida.</p>
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            );
         }
         if (!isLoaded) {
             return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin mr-2" /> Carregando Mapa...</div>;
