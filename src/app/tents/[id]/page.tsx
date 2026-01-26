@@ -205,13 +205,13 @@ export default function TentPage() {
   }, [reservationDate, reservationTime, toast]);
 
   useEffect(() => {
-    if (rentalItems && !isOwnerViewingOwnTent) {
+    if (rentalItems && !isOwnerViewingOwnTent && Object.keys(cart).length === 0) {
       const kit = rentalItems.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras");
-      if (kit && kit.quantity > 0 && Object.keys(cart).length === 0) {
+      if (kit && kit.quantity > 0) {
         setCart({ [kit.id]: { item: kit, quantity: 1, type: 'rental' } });
       }
     }
-  }, [rentalItems, isOwnerViewingOwnTent]);
+  }, [rentalItems, isOwnerViewingOwnTent, cart]);
 
   useEffect(() => {
       if (reservationDate) {
@@ -426,8 +426,9 @@ export default function TentPage() {
             })),
             total: finalTotal,
             outstandingBalancePaid: outstandingBalance,
-            createdAt: finalReservationDateTime as any, // Store the full date and time
-            reservationTime, // Keep this for display legacy if needed, but createdAt is the source of truth
+            createdAt: finalReservationDateTime as any, // This is the scheduled time
+            creationTimestamp: serverTimestamp() as any, // This is the creation time
+            reservationTime, // Keep this for display legacy if needed
             orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
             checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
             status: 'confirmed',

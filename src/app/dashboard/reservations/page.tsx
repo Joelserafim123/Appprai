@@ -126,6 +126,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
                 status: 'completed',
                 paymentMethod: paymentMethod,
                 platformFee: platformFee,
+                completedAt: serverTimestamp(),
             });
 
             const chatsRef = collection(firestore, 'chats');
@@ -504,7 +505,7 @@ export default function OwnerReservationsPage() {
     () => (user?.role === 'owner' && firestore) ? query(
         collection(firestore, 'reservations'),
         where('participantIds', 'array-contains', user.uid),
-        orderBy('createdAt', 'desc')
+        orderBy('creationTimestamp', 'desc')
       ) : null,
     [firestore, user]
   );

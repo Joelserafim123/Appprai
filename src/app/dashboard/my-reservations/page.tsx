@@ -63,7 +63,7 @@ export default function MyReservationsPage() {
     () => (user && firestore) ? query(
         collection(firestore, 'reservations'),
         where('participantIds', 'array-contains', user.uid),
-        orderBy('createdAt', 'desc')
+        orderBy('creationTimestamp', 'desc')
       ) : null,
     [firestore, user]
   );

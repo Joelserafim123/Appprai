@@ -77,8 +77,10 @@ export default function AnalyticsPage() {
     const averageOrderValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
 
     const dailyRevenue = completedReservations.reduce((acc, res) => {
-      if (res.createdAt && typeof res.createdAt.toDate === 'function') {
-        const date = format(res.createdAt.toDate(), 'yyyy-MM-dd');
+      // Use the completion date for analytics, fallback to creation/reservation date for older records
+      const completionTimestamp = res.completedAt || res.createdAt;
+      if (completionTimestamp && typeof completionTimestamp.toDate === 'function') {
+        const date = format(completionTimestamp.toDate(), 'yyyy-MM-dd');
         if (!acc[date]) {
           acc[date] = 0;
         }

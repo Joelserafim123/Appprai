@@ -109,7 +109,8 @@ export interface Reservation {
   };
   items: ReservationItem[];
   total: number;
-  createdAt: Timestamp;
+  createdAt: Timestamp; // This is the scheduled reservation time
+  creationTimestamp?: Timestamp; // This is when the document was created
   reservationTime: string;
   orderNumber: string;
   checkinCode: string;
@@ -122,6 +123,7 @@ export interface Reservation {
   tableNumber?: number;
   participantIds: string[];
   reviewed?: boolean;
+  completedAt?: Timestamp; // This is when the reservation was paid/completed
 }
 
 // A review of a tent
