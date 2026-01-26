@@ -3,7 +3,8 @@
 import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, MessageSquare, User as UserIcon, ArrowLeft } from 'lucide-react';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChatConversation } from '@/components/chat/chat-conversation';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,8 @@ export default function ChatsPage() {
   const { firestore: db } = useFirebase();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const t = useTranslations('ChatsPage');
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const chatsQuery = useMemoFirebase(
     () =>
@@ -31,6 +34,19 @@ export default function ChatsPage() {
     [db, user?.uid]
   );
   const { data: chats, isLoading: chatsLoading } = useCollection<Chat>(chatsQuery);
+  
+  useEffect(() => {
+    const reservationIdFromQuery = searchParams.get('reservationId');
+    if (reservationIdFromQuery && chats) {
+        const chatForReservation = chats.find(c => c.reservationId === reservationIdFromQuery);
+        if (chatForReservation) {
+            setSelectedChatId(chatForReservation.id);
+            // Optional: remove query param from URL to clean it up
+            router.replace('/dashboard/chats', { scroll: false });
+        }
+    }
+  }, [searchParams, chats, router]);
+
 
   const sortedChats = useMemo(() => {
     if (!chats) return [];

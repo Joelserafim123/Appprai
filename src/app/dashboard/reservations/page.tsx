@@ -320,7 +320,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     }
 
     const handleStartChat = (reservation: Reservation) => {
-        router.push('/dashboard/chats');
+        router.push(`/dashboard/chats?reservationId=${reservation.id}`);
     };
     
     return (

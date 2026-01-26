@@ -239,7 +239,7 @@ export default function MyReservationsPage() {
   }
 
   const handleStartChat = (reservation: Reservation) => {
-    router.push('/dashboard/chats');
+    router.push(`/dashboard/chats?reservationId=${reservation.id}`);
   };
 
 

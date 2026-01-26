@@ -74,14 +74,6 @@ export default function DashboardLayout({
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
-       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: t('chats'), side: 'right' }}>
-          <Link href="/dashboard/chats">
-            <MessageSquare />
-            <span>{t('chats')}</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
       <SidebarMenuItem>
         <SidebarMenuButton asChild tooltip={{ children: t('settings'), side: 'right' }}>
           <Link href="/dashboard/settings">
@@ -132,14 +124,6 @@ export default function DashboardLayout({
           <Link href="/dashboard/analytics">
             <BarChart />
             <span>{t('analytics')}</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-       <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={{ children: t('chats'), side: 'right' }}>
-          <Link href="/dashboard/chats">
-            <MessageSquare />
-            <span>{t('chats')}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>

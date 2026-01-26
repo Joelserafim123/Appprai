@@ -110,12 +110,6 @@ export function Header() {
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
-        <Link href="/dashboard/chats">
-          <MessageSquare className="mr-2 h-4 w-4" />
-          <span>{t('chats')}</span>
-        </Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
         <Link href="/dashboard/settings">
           <Settings className="mr-2 h-4 w-4" />
           <span>{t('settings')}</span>
