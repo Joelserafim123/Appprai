@@ -86,25 +86,43 @@ export default function ChatsPage() {
                     {sortedChats && sortedChats.length > 0 ? (
                         <div className="space-y-2">
                            {sortedChats.map((chat) => {
-                                if (chat.userId === chat.tentOwnerId) return null;
+                                // A chat with oneself (where customer and owner are the same) should not be displayed.
+                                if (chat.userId === chat.tentOwnerId) {
+                                  return null;
+                                }
                            
-                                const displayName = user.role === 'owner' ? chat.userName : chat.tentName;
+                                // Determine the user's role specifically for this chat.
+                                const amIOwnerInThisChat = user.uid === chat.tentOwnerId;
+
+                                // Determine the other party's details based on the user's role in this chat.
+                                const otherPartyName = amIOwnerInThisChat ? chat.userName : chat.tentName;
+                                const otherPartyAvatar = amIOwnerInThisChat ? chat.userPhotoURL : chat.tentLogoUrl;
+                                
                                 const lastMessagePrefix = chat.lastMessageSenderId === user.uid ? 'Você: ' : '';
 
                                 return (
-                                <button key={chat.id} onClick={() => handleSelectChat(chat.id)} className={cn("w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors", selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50')}>
+                                  <button
+                                    key={chat.id}
+                                    onClick={() => handleSelectChat(chat.id)}
+                                    className={cn(
+                                      "w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors",
+                                      selectedChatId === chat.id ? 'bg-muted' : 'hover:bg-muted/50'
+                                    )}
+                                  >
                                     <Avatar className='h-10 w-10'>
-                                        <AvatarImage src={user.role === 'owner' ? chat.userPhotoURL ?? undefined : chat.tentLogoUrl ?? undefined} />
-                                        <AvatarFallback className="bg-primary/20 text-primary">
-                                            {user.role === 'owner' ? <UserIcon className="h-6 w-6" /> : getInitials(displayName)}
-                                        </AvatarFallback>
+                                      <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
+                                      <AvatarFallback className="bg-primary/20 text-primary">
+                                        {/* If the other party is a user, show a user icon. If it's a tent, show initials. */}
+                                        {amIOwnerInThisChat ? <UserIcon className="h-6 w-6" /> : getInitials(otherPartyName)}
+                                      </AvatarFallback>
                                     </Avatar>
                                     <div className='flex-1 overflow-hidden'>
-                                        <p className='font-semibold truncate'>{displayName}</p>
-                                        <p className='text-xs text-muted-foreground truncate'>{lastMessagePrefix}{chat.lastMessage}</p>
+                                      <p className='font-semibold truncate'>{otherPartyName}</p>
+                                      <p className='text-xs text-muted-foreground truncate'>{lastMessagePrefix}{chat.lastMessage}</p>
                                     </div>
-                                </button>
-                           )})}
+                                  </button>
+                                );
+                           })}
                         </div>
                     ) : (
                         <div className="text-center py-8 text-sm text-muted-foreground">
