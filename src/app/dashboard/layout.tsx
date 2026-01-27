@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Home, Star, Settings, Briefcase, Building, Utensils, BarChart, LogOut, Armchair, MessageSquare, Loader2, Heart } from 'lucide-react';
 import { Header } from '@/components/layout/header';
-import { useUser } from '@/firebase/provider';
+import { useUser } from '@/firebase';
 import {
   SidebarProvider,
   Sidebar,

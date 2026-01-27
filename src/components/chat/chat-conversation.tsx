@@ -1,8 +1,6 @@
 'use client';
 
-import { useFirebase, useMemoFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useDoc } from '@/firebase/firestore/use-doc';
+import { useFirebase, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import type { Chat, ChatMessage, UserProfile, Tent, ChatMessageWrite, ChatWrite, UserData } from '@/lib/types';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';

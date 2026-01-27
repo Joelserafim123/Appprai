@@ -1,7 +1,6 @@
 'use client';
 
-import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useUser, useFirebase, useMemoFirebase, useCollection } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, MessageSquare, User as UserIcon, ArrowLeft } from 'lucide-react';
 import { useState, useCallback, useMemo, useEffect } from 'react';

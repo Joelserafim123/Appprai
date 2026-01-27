@@ -1,7 +1,6 @@
 'use client';
 
-import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useUser, useFirebase, useMemoFirebase, useCollection } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, MessageSquare } from 'lucide-react';

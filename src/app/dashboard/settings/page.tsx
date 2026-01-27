@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser, useFirebase } from '@/firebase/provider';
+import { useUser, useFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Info, User as UserIcon, Bell, BellRing, Upload } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';

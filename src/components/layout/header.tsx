@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
 import { LogOut, LayoutGrid, Settings, Star, Building, Utensils, BarChart, Armchair, List, MessageSquare, User as UserIcon, Heart } from 'lucide-react';
-import { useUser, useFirebase } from '@/firebase/provider';
+import { useUser, useFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';

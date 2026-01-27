@@ -5,8 +5,7 @@ import { BeachMap } from '@/components/beach-map';
 import { Loader2, Tent as TentIcon } from 'lucide-react';
 import type { Tent as TentType } from '@/lib/types';
 import { Logo } from '@/components/icons';
-import { useFirebase, useMemoFirebase, useUser } from '@/firebase/provider';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirebase, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 
 

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
-import { useFirebase, useUser } from '@/firebase/provider';
+import { useFirebase, useUser } from '@/firebase';
 import { useToast } from './use-toast';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 
