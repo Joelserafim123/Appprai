@@ -82,25 +82,23 @@ service cloud.firestore {
 
     // Rules for Reservations
     match /reservations/{reservationId} {
-      allow get, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
-      allow create: if request.auth != null && request.auth.uid in request.resource.data.participantIds;
-      // Allow list if the user is signed in. The 'get' rule will be applied by Firestore 
-      // to each document in the result set, ensuring users only see reservations they are a part of.
-      allow list: if isSignedIn();
+      allow get, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      // For list operations (queries), we don't use a broad `allow list`.
+      // Instead, Firestore implicitly ensures that any query only returns documents
+      // that the user would be allowed to `get`. This forces client-side queries
+      // to be secure, e.g., using `where('participantIds', 'array-contains', currentUser.uid)`.
       allow delete: if false; // Prevent accidental deletion.
     }
     
     // Rules for Chats and Messages
     match /chats/{chatId} {
-      // Allow a user to LIST chats if they are authenticated.
-      // Security is enforced by the client-side query with the `array-contains` filter.
-      // Firestore guarantees that this query will only return documents where the user is a participant.
-      allow list: if isSignedIn();
-
-      // Allow a user to GET, CREATE, or UPDATE a chat document if they are a participant.
       allow get, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
       allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
-      
+      // For list operations (queries), we don't use a broad `allow list`.
+      // Instead, Firestore implicitly ensures that any query only returns documents
+      // that the user would be allowed to `get`. This forces client-side queries
+      // to be secure, e.g., using `where('participantIds', 'array-contains', currentUser.uid)`.
       allow delete: if false; // Deleting chats is not allowed.
 
       match /messages/{messageId} {
