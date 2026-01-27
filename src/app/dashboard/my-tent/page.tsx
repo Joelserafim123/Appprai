@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, Clock } from 'lucide-react';
+import { Loader2, Building, MapPin, Clock, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebas
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { FirebaseError } from 'firebase/app';
 import { useGoogleMaps } from '@/components/google-maps-provider';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 const operatingHoursSchema = z.object({
@@ -100,7 +101,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const watchedLocation = watch('location');
   const markerPosition = watchedLocation;
 
-  const { isLoaded } = useGoogleMaps();
+  const { isLoaded, loadError, apiKeyIsMissing } = useGoogleMaps();
 
   const handleGetCurrentLocation = useCallback((panMap = false) => {
     if(navigator.geolocation) {
@@ -188,8 +189,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         ...data,
         ownerId: user.uid,
         ownerName: user.displayName,
-        bannerUrl: null,
-        logoUrl: null,
       };
 
       if (existingTent) {
@@ -198,6 +197,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       } else {
         const newTentData = {
           ...tentDataForFirestore,
+          bannerUrl: null,
+          logoUrl: null,
           hasAvailableKits: false,
           averageRating: 0,
           reviewCount: 0,
@@ -236,9 +237,33 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   };
   
     const renderMap = () => {
-        if (!isLoaded) {
-            return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin mr-2" /> Carregando Mapa...</div>;
-        }
+    if (apiKeyIsMissing) {
+      return (
+        <Alert variant="destructive" className="h-full">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
+          <AlertDescription>
+            A chave da API do Google Maps não está configurada para mostrar o mapa.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    
+    if (loadError) {
+      return (
+        <Alert variant="destructive" className="h-full">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Erro ao Carregar o Mapa</AlertTitle>
+          <AlertDescription>
+            Não foi possível carregar o mapa. Verifique a sua conexão.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (!isLoaded) {
+        return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin mr-2" /> Carregando Mapa...</div>;
+    }
         return (
             <GoogleMap
                 mapContainerStyle={mapContainerStyle}

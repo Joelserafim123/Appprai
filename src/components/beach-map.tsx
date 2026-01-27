@@ -4,12 +4,13 @@
 import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, Search, Star } from "lucide-react";
+import { Loader2, MapPin, Search, Star, AlertTriangle } from "lucide-react";
 import { GoogleMap, InfoWindow, Autocomplete, Marker } from '@react-google-maps/api';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Input } from "./ui/input";
-import { useGoogleMaps } from "@/components/google-maps-provider";
+import { useGoogleMaps } from '@/components/google-maps-provider';
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const containerStyle = {
   width: '100%',
@@ -62,7 +63,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const { toast } = useToast();
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
-  const { isLoaded } = useGoogleMaps();
+  const { isLoaded, loadError, apiKeyIsMissing } = useGoogleMaps();
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
@@ -185,14 +186,40 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
         };
     };
 
-    if (!isLoaded) {
+  if (apiKeyIsMissing) {
+    return (
+        <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted p-4">
+            <Alert variant="destructive" className="max-w-md">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
+                <AlertDescription>
+                A chave da API do Google Maps não foi configurada (<code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>).
+                </AlertDescription>
+            </Alert>
+        </div>
+    );
+  }
+
+  if (loadError) {
+      return (
+          <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted p-4">
+              <Alert variant="destructive" className="max-w-lg">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Erro ao Carregar o Google Maps</AlertTitle>
+                  <AlertDescription>Não foi possível carregar o mapa. Verifique a sua conexão ou a configuração da chave de API.</AlertDescription>
+              </Alert>
+          </div>
+      );
+  }
+
+  if (!isLoaded) {
       return (
           <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">Carregando mapa...</p>
           </div>
         );
-    }
+  }
 
   return (
     <div className="h-full w-full">
