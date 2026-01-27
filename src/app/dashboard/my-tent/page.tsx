@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, Clock, AlertTriangle } from 'lucide-react';
+import { Loader2, Building, MapPin, Clock } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,9 +17,9 @@ import type { Tent, OperatingHours, TentFormData } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, Marker } from '@react-google-maps/api';
 import { FirebaseError } from 'firebase/app';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useGoogleMaps } from '@/components/google-maps-provider';
 
 
 const operatingHoursSchema = z.object({
@@ -79,10 +78,6 @@ const defaultCenter = {
   lng: -43.2040
 };
 
-// Define the libraries array outside the component to prevent re-creation on re-renders.
-const tentFormMapLibraries: ('places')[] = ['places'];
-
-
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
   const { firestore } = useFirebase();
@@ -105,11 +100,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const watchedLocation = watch('location');
   const markerPosition = watchedLocation;
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-maps-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: tentFormMapLibraries
-  });
+  const { isLoaded } = useGoogleMaps();
 
   const handleGetCurrentLocation = useCallback((panMap = false) => {
     if(navigator.geolocation) {
@@ -245,39 +236,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   };
   
     const renderMap = () => {
-        const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-        if (!googleMapsApiKey) {
-            return (
-                <div className="flex h-full items-center justify-center bg-muted p-8">
-                    <Alert variant="destructive" className="max-w-md">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
-                        <AlertDescription>
-                        A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.
-                        </AlertDescription>
-                    </Alert>
-                </div>
-            );
-        }
-
-        if (loadError) {
-            return (
-                <div className="flex items-center justify-center h-full bg-destructive/10 text-destructive-foreground p-4">
-                    <Alert variant="destructive" className="max-w-lg">
-                        <AlertTitle>Erro ao Carregar o Google Maps</AlertTitle>
-                        <AlertDescription>
-                            <p className="mb-4">Ocorreu um problema com a sua chave de API do Google Maps. Por favor, verifique os seguintes pontos na sua <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a>:</p>
-                            <ul className="list-disc space-y-2 pl-5">
-                                <li><span className="font-semibold">Faturação Ativada:</span> Certifique-se de que a faturação está ativada para o projeto associado a esta chave de API.</li>
-                                <li><span className="font-semibold">API Ativada:</span> Verifique se a "Maps JavaScript API" está ativada para o seu projeto.</li>
-                                <li><span className="font-semibold">Restrições de Chave:</span> Se você configurou restrições, certifique-se de que o website atual está autorizado a usar a chave.</li>
-                            </ul>
-                            <p className="mt-4">Se o problema persistir, a sua chave pode ser inválida.</p>
-                        </AlertDescription>
-                    </Alert>
-                </div>
-            );
-        }
         if (!isLoaded) {
             return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin mr-2" /> Carregando Mapa...</div>;
         }

@@ -4,12 +4,12 @@
 import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Loader2, MapPin, Search, Star } from "lucide-react";
-import { GoogleMap, useJsApiLoader, InfoWindow, Autocomplete, Marker } from '@react-google-maps/api';
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Loader2, MapPin, Search, Star } from "lucide-react";
+import { GoogleMap, InfoWindow, Autocomplete, Marker } from '@react-google-maps/api';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Input } from "./ui/input";
+import { useGoogleMaps } from "@/components/google-maps-provider";
 
 const containerStyle = {
   width: '100%',
@@ -54,9 +54,6 @@ const haversineDistance = (
   return R * c;
 };
 
-// Define the libraries array outside the component to prevent re-creation on re-renders.
-const beachMapLibraries: ('places')[] = ['places'];
-
 
 export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTentIds: string[] }) {
   const [selectedTent, setSelectedTent] = useState<Tent | null>(null);
@@ -65,11 +62,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
   const { toast } = useToast();
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-maps-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: beachMapLibraries,
-  });
+  const { isLoaded } = useGoogleMaps();
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
@@ -192,121 +185,79 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
         };
     };
 
-  const renderMap = () => {
-    const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-    if (!googleMapsApiKey) {
-      return (
-        <div className="flex h-full items-center justify-center bg-muted p-8">
-          <Alert variant="destructive" className="max-w-md">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Configuração do Mapa Incompleta</AlertTitle>
-            <AlertDescription>
-              A chave da API do Google Maps não foi configurada. Por favor, adicione a variável de ambiente <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.
-            </AlertDescription>
-          </Alert>
-        </div>
-      );
-    }
-
-    if (loadError) {
-      return (
-        <div className="flex h-full items-center justify-center bg-muted p-8">
-            <Alert variant="destructive" className="max-w-lg">
-                <AlertTitle>Erro ao Carregar o Google Maps</AlertTitle>
-                <AlertDescription>
-                    <p className="mb-4">Ocorreu um problema com a sua chave de API do Google Maps. Por favor, verifique os seguintes pontos na sua <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="font-bold underline">Google Cloud Console</a>:</p>
-                    <ul className="list-disc space-y-2 pl-5">
-                        <li><span className="font-semibold">Faturação Ativada:</span> Certifique-se de que a faturação está ativada para o projeto associado a esta chave de API.</li>
-                        <li><span className="font-semibold">API Ativada:</span> Verifique se a "Maps JavaScript API" está ativada para o seu projeto.</li>
-                        <li><span className="font-semibold">Restrições de Chave:</span> Se você configurou restrições, certifique-se de que o website atual está autorizado a usar a chave.</li>
-                    </ul>
-                     <p className="mt-4">Se o problema persistir, a sua chave pode ser inválida.</p>
-                </AlertDescription>
-            </Alert>
-        </div>
-      );
-    }
-
     if (!isLoaded) {
       return (
-        <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Carregando mapa...</p>
-        </div>
-      );
+          <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Carregando mapa...</p>
+          </div>
+        );
     }
-
-    return (
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={mapCenter}
-        zoom={12}
-        options={mapOptions}
-        onLoad={onMapLoad}
-        onDragEnd={onCenterChanged}
-        onZoomChanged={onCenterChanged}
-      >
-        {sortedTents.map((tent) => (
-          tent.location.latitude && tent.location.longitude && (
-             <Marker
-                key={tent.id}
-                position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
-                onClick={() => handleTentSelect(tent)}
-                icon={getMarkerIcon(tent)}
-                title={tent.name}
-            />
-          )
-        ))}
-
-        {selectedTent && selectedTent.location.latitude && selectedTent.location.longitude && (
-          <InfoWindow
-            position={{ lat: selectedTent.location.latitude, lng: selectedTent.location.longitude }}
-            onCloseClick={() => setSelectedTent(null)}
-          >
-            <div className="p-2 max-w-xs">
-              <h3 className="font-bold flex items-center gap-2">
-                {selectedTent.name}
-                {favoriteTentIds.includes(selectedTent.id) && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
-              </h3>
-              <p className="text-xs text-muted-foreground">{selectedTent.beachName}</p>
-              <p className={cn(
-                'text-xs font-semibold mt-1',
-                selectedTent.hasAvailableKits ? 'text-green-600' : 'text-red-600'
-              )}>
-                {selectedTent.hasAvailableKits ? 'Aluguéis Disponíveis' : 'Aluguéis Indisponíveis'}
-              </p>
-              <Button asChild size="sm" className="w-full mt-2">
-                  <a href={`/tents/${selectedTent.id}`}>Ver Cardápio e Alugar</a>
-              </Button>
-            </div>
-          </InfoWindow>
-        )}
-      </GoogleMap>
-    );
-  }
 
   return (
     <div className="h-full w-full">
         <div className="relative h-full w-full bg-muted">
-            {renderMap()}
+            <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={mapCenter}
+                zoom={12}
+                options={mapOptions}
+                onLoad={onMapLoad}
+                onDragEnd={onCenterChanged}
+                onZoomChanged={onCenterChanged}
+            >
+                {sortedTents.map((tent) => (
+                tent.location.latitude && tent.location.longitude && (
+                    <Marker
+                        key={tent.id}
+                        position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
+                        onClick={() => handleTentSelect(tent)}
+                        icon={getMarkerIcon(tent)}
+                        title={tent.name}
+                    />
+                )
+                ))}
 
-            {isLoaded && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-full max-w-md px-4">
-                    <Autocomplete
-                        onLoad={onAutocompleteLoad}
-                        onPlaceChanged={onPlaceChanged}
-                    >
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="Buscar por cidade ou praia..."
-                                className="w-full pl-10 pr-4 h-12 rounded-full shadow-lg"
-                            />
-                        </div>
-                    </Autocomplete>
-                </div>
-            )}
+                {selectedTent && selectedTent.location.latitude && selectedTent.location.longitude && (
+                <InfoWindow
+                    position={{ lat: selectedTent.location.latitude, lng: selectedTent.location.longitude }}
+                    onCloseClick={() => setSelectedTent(null)}
+                >
+                    <div className="p-2 max-w-xs">
+                    <h3 className="font-bold flex items-center gap-2">
+                        {selectedTent.name}
+                        {favoriteTentIds.includes(selectedTent.id) && <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">{selectedTent.beachName}</p>
+                    <p className={cn(
+                        'text-xs font-semibold mt-1',
+                        selectedTent.hasAvailableKits ? 'text-green-600' : 'text-red-600'
+                    )}>
+                        {selectedTent.hasAvailableKits ? 'Aluguéis Disponíveis' : 'Aluguéis Indisponíveis'}
+                    </p>
+                    <Button asChild size="sm" className="w-full mt-2">
+                        <a href={`/tents/${selectedTent.id}`}>Ver Cardápio e Alugar</a>
+                    </Button>
+                    </div>
+                </InfoWindow>
+                )}
+            </GoogleMap>
+            
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-full max-w-md px-4">
+                <Autocomplete
+                    onLoad={onAutocompleteLoad}
+                    onPlaceChanged={onPlaceChanged}
+                >
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                            type="text"
+                            placeholder="Buscar por cidade ou praia..."
+                            className="w-full pl-10 pr-4 h-12 rounded-full shadow-lg"
+                        />
+                    </div>
+                </Autocomplete>
+            </div>
             
             <Button
                 size="icon"
