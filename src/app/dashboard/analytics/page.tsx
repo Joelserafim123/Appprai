@@ -6,17 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, DollarSign, BarChart, ShoppingBag, Landmark } from 'lucide-react';
 import { useMemo } from 'react';
-import {
-  Bar,
-  BarChart as RechartsBarChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts';
-import { ChartTooltipContent, ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
-import { format, isValid } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import type { Reservation, Tent } from '@/lib/types';
 import { collection, query, where } from 'firebase/firestore';
@@ -38,13 +27,6 @@ export default function AnalyticsPage() {
   const { firestore } = useFirebase();
   const t = useTranslations('AnalyticsPage');
 
-  const chartConfig = useMemo(() => ({
-    revenue: {
-      label: t('totalRevenue'),
-      color: 'hsl(var(--primary))',
-    },
-  }), [t]) satisfies ChartConfig;
-  
   const tentQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid)) : null,
     [firestore, user]
@@ -77,30 +59,11 @@ export default function AnalyticsPage() {
     const totalReservations = completedReservations.length;
     const averageOrderValue = totalReservations > 0 ? totalRevenue / totalReservations : 0;
 
-    const dailyRevenue = completedReservations.reduce((acc, res) => {
-      // Use the completion date for analytics, fallback to creation/reservation date for older records
-      const completionTimestamp = res.completedAt || res.createdAt;
-      if (completionTimestamp && typeof completionTimestamp.toDate === 'function') {
-        const date = format(completionTimestamp.toDate(), 'yyyy-MM-dd');
-        if (!acc[date]) {
-          acc[date] = 0;
-        }
-        acc[date] += res.total;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-
-    const chartData = Object.entries(dailyRevenue)
-      .map(([date, revenue]) => ({ date, revenue }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-
     return {
       totalRevenue,
       totalPlatformFee,
       totalReservations,
       averageOrderValue,
-      chartData,
     };
   }, [reservations, user]);
 
@@ -230,36 +193,9 @@ export default function AnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-                {analyticsData.chartData.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="aspect-video h-[250px] w-full">
-                        <RechartsBarChart accessibilityLayer data={analyticsData.chartData}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                            dataKey="date"
-                            tickLine={false}
-                            tickMargin={10}
-                            axisLine={false}
-                             tickFormatter={(value) => {
-                                const date = new Date(`${value}T00:00:00`);
-                                if (isValid(date)) {
-                                  return format(date, 'dd/MM', { locale: ptBR });
-                                }
-                                return '';
-                              }}
-                        />
-                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
-                        <ChartTooltip
-                            cursor={false}
-                            content={<ChartTooltipContent indicator="dot" />}
-                        />
-                        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                        </RechartsBarChart>
-                    </ChartContainer>
-                ) : (
-                    <div className="flex h-[250px] w-full items-center justify-center text-center">
-                        <p className="text-muted-foreground">{t('noChartData')}</p>
-                    </div>
-                )}
+              <div className="flex h-[250px] w-full items-center justify-center rounded-lg border-2 border-dashed text-center">
+                  <p className="text-muted-foreground">O gráfico de receita está temporariamente indisponível.</p>
+              </div>
             </CardContent>
           </Card>
         </div>
