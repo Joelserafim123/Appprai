@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore';
+import type { Timestamp, FieldValue } from 'firebase/firestore';
 import { z } from 'zod';
 import { isValidCpf } from './utils';
 
@@ -212,3 +212,19 @@ export const profileSchema = z.object({
 
 
 export type TentFormData = z.infer<typeof tentSchema>;
+
+
+// Firestore Write Types
+export type ReservationWrite = Omit<Reservation, 'id' | 'createdAt' | 'creationTimestamp' | 'completedAt'> & {
+  createdAt: Date;
+  creationTimestamp: FieldValue;
+  completedAt?: FieldValue;
+};
+
+export type ChatWrite = Omit<Chat, 'id' | 'lastMessageTimestamp'> & {
+  lastMessageTimestamp: FieldValue;
+};
+
+export type ChatMessageWrite = Omit<ChatMessage, 'id' | 'timestamp'> & {
+  timestamp: FieldValue;
+};

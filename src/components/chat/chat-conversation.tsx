@@ -1,7 +1,7 @@
 'use client';
 
 import { UserData, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import type { Chat, ChatMessage, UserProfile, Tent } from '@/lib/types';
+import type { Chat, ChatMessage, UserProfile, Tent, ChatMessageWrite, ChatWrite } from '@/lib/types';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -91,19 +91,21 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
         const batch = writeBatch(db);
         
         const messageRef = doc(collection(db, 'chats', chat.id, 'messages'));
-        batch.set(messageRef, {
+        const messagePayload: ChatMessageWrite = {
             senderId: currentUser.uid,
             text: messageText,
             timestamp: serverTimestamp(),
             isRead: false
-        });
+        };
+        batch.set(messageRef, messagePayload);
 
         const chatRef = doc(db, 'chats', chat.id);
-        batch.update(chatRef, {
+        const chatUpdatePayload: Partial<ChatWrite> = {
             lastMessage: messageText,
             lastMessageSenderId: currentUser.uid,
             lastMessageTimestamp: serverTimestamp()
-        });
+        };
+        batch.update(chatRef, chatUpdatePayload);
 
         await batch.commit();
 

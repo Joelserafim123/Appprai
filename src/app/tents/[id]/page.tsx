@@ -9,7 +9,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { Tent, OperatingHoursDay, Reservation, Review, Chat, MenuItem, RentalItem } from '@/lib/types';
+import type { Tent, OperatingHoursDay, Reservation, Review, Chat, MenuItem, RentalItem, ReservationWrite, ChatWrite } from '@/lib/types';
 import { cn, getInitials } from '@/lib/utils';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
@@ -325,7 +325,7 @@ export default function TentPage() {
         const finalReservationDateTime = new Date(reservationDate!);
         finalReservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
 
-        const reservationData: Omit<Reservation, 'id'> = {
+        const reservationData: ReservationWrite = {
             userId: user.uid,
             userName: user.displayName,
             userPhotoURL: user.photoURL || null,
@@ -343,8 +343,8 @@ export default function TentPage() {
             })),
             total: finalTotal,
             outstandingBalancePaid: outstandingBalance,
-            createdAt: finalReservationDateTime as any,
-            creationTimestamp: serverTimestamp() as any,
+            createdAt: finalReservationDateTime,
+            creationTimestamp: serverTimestamp(),
             reservationTime,
             orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
             checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
@@ -352,7 +352,7 @@ export default function TentPage() {
             participantIds: [user.uid, tent.ownerId],
         };
 
-        const chatData: Omit<Chat, 'id'> = {
+        const chatData: ChatWrite = {
             reservationId: newReservationRef.id,
             userId: user.uid,
             userName: user.displayName,
@@ -365,7 +365,7 @@ export default function TentPage() {
             status: 'active',
             lastMessage: 'Reserva criada. Inicie a conversa!',
             lastMessageSenderId: 'system',
-            lastMessageTimestamp: serverTimestamp() as any,
+            lastMessageTimestamp: serverTimestamp(),
         };
         
         batch.set(newReservationRef, reservationData);
