@@ -1,7 +1,8 @@
 'use client';
 
 import { Header } from '@/components/layout/header';
-import { useUser, useFirebase, useMemoFirebase, useCollection } from '@/firebase';
+import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { Loader2, Search, Tent as TentIcon } from 'lucide-react';
 import { useEffect } from 'react';
 import type { Tent as TentType } from '@/lib/types';
