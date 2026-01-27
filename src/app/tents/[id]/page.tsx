@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Info, Loader2, AlertTriangle, Clock, Star, User as UserIcon, Calendar as CalendarIcon, Heart } from 'lucide-react';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useDoc } from '@/firebase/firestore/use-doc';
@@ -83,6 +83,9 @@ export default function TentPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
+
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const timeSelectTriggerRef = useRef<HTMLButtonElement>(null);
   
   const { initializeCart, clearCart } = useCartActions();
   const cart = useCartStore((state) => state.cart);
@@ -501,40 +504,44 @@ export default function TentPage() {
                                   )}
                                   <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                              <Label className="flex items-center gap-2"><CalendarIcon className="w-4 h-4"/> Data da Reserva</Label>
-                                              <Popover>
-                                                  <PopoverTrigger asChild>
-                                                      <Button
-                                                          variant={"outline"}
-                                                          className={cn(
-                                                              "w-full justify-start text-left font-normal",
-                                                              !reservationDate && "text-muted-foreground"
-                                                          )}
-                                                          disabled={isSubmitting}
-                                                      >
-                                                          <CalendarIcon className="mr-2 h-4 w-4" />
-                                                          {reservationDate ? format(reservationDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
-                                                      </Button>
-                                                  </PopoverTrigger>
-                                                  <PopoverContent className="w-auto p-0">
-                                                      <Calendar
-                                                          mode="single"
-                                                          selected={reservationDate}
-                                                          onSelect={setReservationDate}
-                                                          initialFocus
-                                                          locale={ptBR}
-                                                          fromDate={new Date()}
-                                                          toDate={addDays(new Date(), 3)}
-                                                          disabled={isSubmitting}
-                                                      />
-                                                  </PopoverContent>
-                                              </Popover>
+                                          <div className="space-y-2">
+                                            <Label className="flex items-center gap-2"><CalendarIcon className="w-4 h-4"/> Data da Reserva</Label>
+                                            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full justify-start text-left font-normal",
+                                                            !reservationDate && "text-muted-foreground"
+                                                        )}
+                                                        disabled={isSubmitting}
+                                                    >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {reservationDate ? format(reservationDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0">
+                                                    <Calendar
+                                                        mode="single"
+                                                        selected={reservationDate}
+                                                        onSelect={(date) => {
+                                                            setReservationDate(date);
+                                                            setIsCalendarOpen(false);
+                                                            setTimeout(() => timeSelectTriggerRef.current?.focus(), 100);
+                                                        }}
+                                                        initialFocus
+                                                        locale={ptBR}
+                                                        fromDate={new Date()}
+                                                        toDate={addDays(new Date(), 3)}
+                                                        disabled={isSubmitting}
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
                                           </div>
                                           <div className="space-y-2">
                                               <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
                                               <Select onValueChange={setReservationTime} value={reservationTime} disabled={isSubmitting || !reservationDate || timeSlots.length === 0}>
-                                                  <SelectTrigger>
+                                                  <SelectTrigger id="reservation-time" ref={timeSelectTriggerRef}>
                                                       <SelectValue placeholder="Selecione um horário" />
                                                   </SelectTrigger>
                                                   <SelectContent>
