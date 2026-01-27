@@ -62,8 +62,7 @@ export default function MyReservationsPage() {
   const reservationsQuery = useMemoFirebase(
     () => (user && firestore) ? query(
         collection(firestore, 'reservations'),
-        where('participantIds', 'array-contains', user.uid),
-        orderBy('creationTimestamp', 'desc')
+        where('participantIds', 'array-contains', user.uid)
       ) : null,
     [firestore, user]
   );
@@ -71,7 +70,14 @@ export default function MyReservationsPage() {
   
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];
-    return rawReservations.filter(r => r.userId === user.uid);
+    // Sort on the client-side for robustness against inconsistent data
+    return rawReservations
+      .filter(r => r.userId === user.uid)
+      .sort((a, b) => {
+        const timeA = a.creationTimestamp?.toMillis() || a.createdAt.toMillis();
+        const timeB = b.creationTimestamp?.toMillis() || b.createdAt.toMillis();
+        return timeB - timeA;
+      });
   }, [rawReservations, user]);
 
   const isLateCancellation = useMemo(() => {
