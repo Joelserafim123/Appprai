@@ -1,7 +1,6 @@
 'use client';
 
 import { create } from 'zustand';
-import { immer } from 'zustand/middleware';
 import type { MenuItem, RentalItem } from '@/lib/types';
 
 type CartItem = {
@@ -23,59 +22,60 @@ interface CartState {
   };
 }
 
-export const useCartStore = create(
-  immer<CartState>((set, get) => ({
-    cart: {},
-    actions: {
-      initializeCart: (rentalKit, isOwner) => {
-        set((state) => {
-          if (isOwner || !rentalKit || rentalKit.quantity === 0) {
-            state.cart = {};
-            return;
-          }
-          // Only initialize if the cart is currently empty
-          if (Object.keys(get().cart).length === 0) {
-            state.cart[rentalKit.id] = { item: rentalKit, quantity: 1, type: 'rental' };
-          }
-        });
-      },
-      handleQuantityChange: (item, type, change) => {
-        set((state) => {
-          const existing = state.cart[item.id] || { item, quantity: 0, type };
-          let newQuantity = Math.max(0, existing.quantity + change);
+export const useCartStore = create<CartState>((set, get) => ({
+  cart: {},
+  actions: {
+    initializeCart: (rentalKit, isOwner) => {
+      set((state) => {
+        if (isOwner || !rentalKit || rentalKit.quantity === 0) {
+          return { cart: {} };
+        }
+        // Only initialize if the cart is currently empty
+        if (Object.keys(get().cart).length === 0) {
+          const newCart = { ...state.cart };
+          newCart[rentalKit.id] = { item: rentalKit, quantity: 1, type: 'rental' };
+          return { cart: newCart };
+        }
+        return state; // No change
+      });
+    },
+    handleQuantityChange: (item, type, change) => {
+      set((state) => {
+        const newCart = { ...state.cart };
+        const existing = newCart[item.id] || { item, quantity: 0, type };
+        let newQuantity = Math.max(0, existing.quantity + change);
 
-          if (type === 'rental') {
-            const rentalItem = item as RentalItem;
-            if (rentalItem.quantity) {
-              newQuantity = Math.min(newQuantity, rentalItem.quantity);
-            }
-            if (rentalItem.name === 'Kit Guarda-sol + 2 Cadeiras' || rentalItem.name === 'Cadeira Adicional') {
-              newQuantity = Math.min(newQuantity, 3);
-            }
+        if (type === 'rental') {
+          const rentalItem = item as RentalItem;
+          if (rentalItem.quantity) {
+            newQuantity = Math.min(newQuantity, rentalItem.quantity);
           }
+          if (rentalItem.name === 'Kit Guarda-sol + 2 Cadeiras' || rentalItem.name === 'Cadeira Adicional') {
+            newQuantity = Math.min(newQuantity, 3);
+          }
+        }
 
-          if (newQuantity === 0) {
-            delete state.cart[item.id];
-            // If the main kit is removed, also remove additional chairs.
-            if (type === 'rental' && (item as RentalItem).name === 'Kit Guarda-sol + 2 Cadeiras') {
-              for (const key in state.cart) {
-                if (state.cart[key]?.item.name === 'Cadeira Adicional') {
-                  delete state.cart[key];
-                }
+        if (newQuantity === 0) {
+          delete newCart[item.id];
+          // If the main kit is removed, also remove additional chairs.
+          if (type === 'rental' && (item as RentalItem).name === 'Kit Guarda-sol + 2 Cadeiras') {
+            for (const key in newCart) {
+              if (newCart[key]?.item.name === 'Cadeira Adicional') {
+                delete newCart[key];
               }
             }
-          } else {
-            state.cart[item.id] = { ...existing, quantity: newQuantity };
           }
-        });
-      },
-      clearCart: () => {
-        set((state) => {
-          state.cart = {};
-        });
-      },
+        } else {
+          newCart[item.id] = { ...existing, quantity: newQuantity };
+        }
+
+        return { cart: newCart };
+      });
     },
-  }))
-);
+    clearCart: () => {
+      set({ cart: {} });
+    },
+  },
+}));
 
 export const useCartActions = () => useCartStore((state) => state.actions);
