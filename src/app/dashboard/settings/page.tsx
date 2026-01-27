@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useUser, useFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Info, User as UserIcon, Bell, BellRing, Upload } from 'lucide-react';
+import { Loader2, Info, User as UserIcon, Bell, BellRing } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,13 +14,12 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
-import { isValidCpf } from '@/lib/utils';
+import { isValidCpf, getInitials } from '@/lib/utils';
 import { FirebaseError } from 'firebase/app';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 const profileSchema = z.object({
@@ -40,13 +40,10 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading, refresh } = useUser();
-  const { auth, firestore, storage } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
@@ -80,9 +77,6 @@ export default function SettingsPage() {
         city: user.city || '',
         state: user.state || '',
       });
-      if (user.photoURL) {
-        setImagePreview(user.photoURL);
-      }
     }
   }, [user, reset]);
   
@@ -103,14 +97,6 @@ export default function SettingsPage() {
     value = value.replace(/(\d{5})(\d)/, '$1-$2');
     setValue('cep', value, { shouldValidate: true, shouldDirty: true });
   }, [setValue]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-        setProfileImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
-    }
-  }
   
   useEffect(() => {
     const cepDigits = watchedCep?.replace(/\D/g, '') || '';
@@ -141,7 +127,7 @@ export default function SettingsPage() {
   
   
 const onSubmit = async (data: ProfileFormData) => {
-    if (!user || !firestore || !auth || !storage) return;
+    if (!user || !firestore || !auth) return;
     
     setIsSubmitting(true);
     toast({ title: 'A salvar as suas informações...' });
@@ -152,22 +138,12 @@ const onSubmit = async (data: ProfileFormData) => {
             throw new Error('Usuário não autenticado. Por favor, faça login novamente.');
         }
 
-        let photoDownloadURL: string | null = user.photoURL || null;
-
-        if (profileImageFile) {
-            toast({ title: 'A fazer upload da imagem...' });
-            const fileRef = storageRef(storage, `users/${user.uid}/profile.jpg`);
-            await uploadBytes(fileRef, profileImageFile);
-            photoDownloadURL = await getDownloadURL(fileRef);
-            toast({ title: 'Upload bem-sucedido!' });
-        }
-        
         const batch = writeBatch(firestore);
         const userDocRef = doc(firestore, 'users', user.uid);
         
         const firestoreUpdateData: Partial<UserProfile> = {
             displayName: data.displayName,
-            photoURL: photoDownloadURL,
+            photoURL: null,
             profileComplete: true,
             cep: data.cep?.replace(/\D/g, '') || '',
             street: data.street || '',
@@ -196,10 +172,10 @@ const onSubmit = async (data: ProfileFormData) => {
 
         await batch.commit();
 
-        if (currentUser.displayName !== data.displayName || currentUser.photoURL !== photoDownloadURL) {
+        if (currentUser.displayName !== data.displayName || currentUser.photoURL !== null) {
             await updateProfile(currentUser, {
                 displayName: data.displayName,
-                photoURL: photoDownloadURL,
+                photoURL: null,
             });
         }
         
@@ -209,7 +185,6 @@ const onSubmit = async (data: ProfileFormData) => {
         });
         await refresh();
         reset(data);
-        setProfileImageFile(null);
 
 
     } catch (error: any) {
@@ -220,14 +195,6 @@ const onSubmit = async (data: ProfileFormData) => {
         
         if (error instanceof FirebaseError) {
              switch(error.code) {
-                case 'storage/unauthorized':
-                    title = "Erro de Permissão no Upload";
-                    description = "Você não tem permissão para carregar a sua foto de perfil. Verifique as regras de segurança.";
-                    break;
-                case 'storage/canceled':
-                    title = "Upload Cancelado";
-                    description = "O upload da imagem foi cancelado.";
-                    break;
                 case 'permission-denied':
                     title = "Erro de Permissão";
                     description = 'Este CPF já pode estar em uso por outra conta ou você não tem permissão para salvar estes dados.';
@@ -264,7 +231,6 @@ const onSubmit = async (data: ProfileFormData) => {
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-8">
-       <input type="file" ref={fileInputRef} onChange={handleFileChange} hidden accept="image/png, image/jpeg, image/webp" />
       <header>
         <h1 className="text-3xl font-bold tracking-tight">Configurações da Conta</h1>
         <p className="text-muted-foreground">Gerencie as informações da sua conta.</p>
@@ -290,17 +256,12 @@ const onSubmit = async (data: ProfileFormData) => {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
-                <div className='relative group'>
-                    <Avatar className="h-24 w-24 rounded-lg">
-                        <AvatarImage src={imagePreview ?? undefined} alt={user.displayName || "User"} />
-                        <AvatarFallback className="bg-primary/20 text-primary">
-                            <UserIcon className="h-10 w-10" />
-                        </AvatarFallback>
-                    </Avatar>
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                        <Upload className='h-8 w-8'/>
-                    </button>
-                </div>
+                <Avatar className="h-24 w-24 rounded-lg">
+                    <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName || "User"} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-3xl">
+                        {getInitials(user.displayName)}
+                    </AvatarFallback>
+                </Avatar>
                 <div className="space-y-2">
                     <p className="text-lg font-semibold">{user.displayName}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
@@ -371,7 +332,7 @@ const onSubmit = async (data: ProfileFormData) => {
                     </div>
                 </div>
                  <CardFooter className="px-0 pt-6">
-                    <Button type="submit" disabled={isSubmitting || (!isDirty && !profileImageFile)}>
+                    <Button type="submit" disabled={isSubmitting || !isDirty}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
                     </Button>
                 </CardFooter>

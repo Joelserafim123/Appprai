@@ -4,8 +4,8 @@
 import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, Clock, Upload, Image as ImageIcon, AlertTriangle } from 'lucide-react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Loader2, Building, MapPin, Clock, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,10 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import Image from 'next/image';
 import { FirebaseError } from 'firebase/app';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
@@ -88,19 +85,11 @@ const tentFormMapLibraries: ('places')[] = ['places'];
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
-  const { firestore, storage } = useFirebase();
+  const { firestore } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
   
-  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(existingTent?.bannerUrl || null);
-  const bannerFileInputRef = useRef<HTMLInputElement>(null);
-
-  const [logoImageFile, setLogoImageFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(existingTent?.logoUrl || null);
-  const logoFileInputRef = useRef<HTMLInputElement>(null);
-
   const { register, handleSubmit, formState: { errors }, setValue, watch, control, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
@@ -160,12 +149,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       } else {
         handleGetCurrentLocation(true);
       }
-      if (existingTent.bannerUrl) {
-          setBannerPreview(existingTent.bannerUrl);
-      }
-      if (existingTent.logoUrl) {
-          setLogoPreview(existingTent.logoUrl);
-      }
     } else {
         reset({
             name: '',
@@ -201,62 +184,21 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
       }
   }, [setValue]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-        setBannerImageFile(file);
-        setBannerPreview(URL.createObjectURL(file));
-    }
-  }
-
-  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-        setLogoImageFile(file);
-        setLogoPreview(URL.createObjectURL(file));
-    }
-  }
-
   const onSubmit = async (data: TentFormData) => {
-    if (!firestore || !user || !storage) return;
+    if (!firestore || !user) return;
     setIsSubmitting(true);
     toast({ title: "A guardar alterações..." });
 
     try {
-      let bannerDownloadURL: string | null = existingTent?.bannerUrl || null;
-      let logoDownloadURL: string | null = existingTent?.logoUrl || null;
-      
       const tentId = existingTent ? existingTent.id : doc(collection(firestore, "tents")).id;
       const tentDocRef = doc(firestore, "tents", tentId);
-
-      if (bannerImageFile) {
-        toast({ title: 'A fazer upload da imagem do banner...' });
-        const fileRef = storageRef(storage, `tents/${tentId}/banner.jpg`);
-        const uploadMetadata = { customMetadata: { ownerUid: user.uid } };
-        
-        await uploadBytes(fileRef, bannerImageFile, uploadMetadata);
-        bannerDownloadURL = await getDownloadURL(fileRef);
-        
-        toast({ title: 'Upload do banner bem-sucedido!' });
-      }
-
-      if (logoImageFile) {
-        toast({ title: 'A fazer upload do logo...' });
-        const fileRef = storageRef(storage, `tents/${tentId}/logo.jpg`);
-        const uploadMetadata = { customMetadata: { ownerUid: user.uid } };
-        
-        await uploadBytes(fileRef, logoImageFile, uploadMetadata);
-        logoDownloadURL = await getDownloadURL(fileRef);
-        
-        toast({ title: 'Upload do logo bem-sucedido!' });
-      }
 
       const tentDataForFirestore = {
         ...data,
         ownerId: user.uid,
         ownerName: user.displayName,
-        bannerUrl: bannerDownloadURL,
-        logoUrl: logoDownloadURL,
+        bannerUrl: null,
+        logoUrl: null,
       };
 
       if (existingTent) {
@@ -281,14 +223,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
         if (error instanceof FirebaseError) {
             switch(error.code) {
-                case 'storage/unauthorized':
-                    title = "Erro de Permissão no Upload";
-                    description = "Você não tem permissão para carregar esta imagem. Verifique as regras de segurança do armazenamento.";
-                    break;
-                case 'storage/canceled':
-                    title = "Upload Cancelado";
-                    description = "O upload da imagem foi cancelado.";
-                    break;
                 case 'permission-denied':
                     title = "Erro de Permissão no Banco de Dados";
                     description = "Você não tem permissão para salvar os dados da barraca. Verifique as regras de segurança do Firestore.";
@@ -375,46 +309,10 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <input type="file" ref={logoFileInputRef} onChange={handleLogoFileChange} hidden accept="image/png, image/jpeg, image/webp" />
-      <input type="file" ref={bannerFileInputRef} onChange={handleFileChange} hidden accept="image/png, image/jpeg, image/webp" />
-      
       <div className="space-y-2">
-        <Label>Imagem do Banner</Label>
-        <div className="relative aspect-video w-full rounded-md border bg-muted group overflow-hidden">
-            {bannerPreview ? (
-                <Image src={bannerPreview} alt="Banner da barraca" layout="fill" objectFit="cover" />
-            ) : (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <ImageIcon className="h-10 w-10" />
-                    <p className="mt-2 text-sm">Sem imagem de banner</p>
-                </div>
-            )}
-            <button type="button" onClick={() => bannerFileInputRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
-                <Upload className='h-8 w-8'/>
-            </button>
-        </div>
-      </div>
-
-      <div className="flex items-start gap-4">
-        <div className="space-y-2">
-            <Label>Logo da Barraca</Label>
-            <div className="relative group w-24 h-24">
-                <Avatar className="w-24 h-24 rounded-lg">
-                    <AvatarImage src={logoPreview ?? undefined} alt="Logo da barraca" className="object-cover" />
-                    <AvatarFallback className="rounded-lg bg-muted">
-                        <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                    </AvatarFallback>
-                </Avatar>
-                <button type="button" onClick={() => logoFileInputRef.current?.click()} className="absolute inset-0 bg-black/50 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                    <Upload className='h-8 w-8'/>
-                </button>
-            </div>
-        </div>
-        <div className="space-y-2 flex-1">
-            <Label htmlFor="name">Nome da Barraca</Label>
-            <Input id="name" {...register('name')} disabled={isSubmitting} />
-            {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
-        </div>
+        <Label htmlFor="name">Nome da Barraca</Label>
+        <Input id="name" {...register('name')} disabled={isSubmitting} />
+        {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
       </div>
 
       <div className="space-y-2">
