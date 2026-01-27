@@ -3,58 +3,32 @@
 import { notFound, useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Armchair, Minus, Plus, Info, Loader2, AlertTriangle, Clock, ShoppingCart, ArrowRight, Utensils, Heart, Star, User as UserIcon, Calendar as CalendarIcon } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Info, Loader2, AlertTriangle, Clock, Star, User as UserIcon, Calendar as CalendarIcon, Heart } from 'lucide-react';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { Tent, OperatingHoursDay, Reservation, Review, Chat } from '@/lib/types';
+import type { Tent, OperatingHoursDay, Reservation, Review, Chat, MenuItem, RentalItem } from '@/lib/types';
 import { cn, getInitials } from '@/lib/utils';
-import type { MenuItem, RentalItem } from '@/lib/types';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { Header } from '@/components/layout/header';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { collection, query, where, addDoc, serverTimestamp, getDocs, doc, writeBatch, updateDoc, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTranslations } from '@/i18n';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { format, addDays, getDay, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
+import { useCartStore, useCartActions } from '@/hooks/use-cart-store';
+import { CartSummary } from '@/components/tents/cart-summary';
+import { RentalList } from '@/components/tents/rental-list';
+import { MenuList } from '@/components/tents/menu-list';
 
-type CartItem = { 
-    item: MenuItem | RentalItem; 
-    quantity: number,
-    type: 'menu' | 'rental' 
-};
 
 const daysOfWeekMap: Record<string, string> = {
   sunday: 'Domingo',
@@ -100,17 +74,17 @@ export default function TentPage() {
   const { user, isUserLoading, refresh } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  const t_categories = useTranslations('Shared.Categories');
-  const t_products = useTranslations('Shared.ProductNames');
   
   const [reservationDate, setReservationDate] = useState<Date | undefined>();
   const [reservationTime, setReservationTime] = useState<string>('');
   const [activeTab, setActiveTab] = useState('reserve');
 
-  const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   
+  const { initializeCart, clearCart } = useCartActions();
+  const cart = useCartStore((state) => state.cart);
+
   const tentRef = useMemoFirebase(() => (firestore && tentId) ? doc(firestore, 'tents', tentId) : null, [firestore, tentId]);
   const { data: tent, isLoading: loadingTent } = useDoc<Tent>(tentRef);
   
@@ -178,6 +152,27 @@ export default function TentPage() {
     return slots;
   }, [reservationDate, tent?.operatingHours]);
 
+  useEffect(() => {
+    if (rentalItems) {
+      initializeCart(rentalKit, isOwnerViewingOwnTent);
+    }
+    // Clear cart on component unmount
+    return () => {
+      clearCart();
+    };
+  }, [rentalItems, isOwnerViewingOwnTent, initializeCart, clearCart, rentalKit]);
+
+  useEffect(() => {
+      if (reservationDate) {
+        const dayKey = dayOrder[getDay(reservationDate)];
+        const dayHours = tent?.operatingHours?.[dayKey];
+        setIsTentOpenToday(dayHours?.isOpen ?? true);
+        setReservationTime(''); // Reset time when date changes
+      } else {
+        setIsTentOpenToday(true);
+      }
+  }, [reservationDate, tent?.operatingHours]);
+
   const validateReservationTime = useCallback(() => {
     if (!reservationDate || !reservationTime) {
       toast({
@@ -204,27 +199,6 @@ export default function TentPage() {
     return true;
   }, [reservationDate, reservationTime, toast]);
 
-  useEffect(() => {
-    if (rentalItems && !isOwnerViewingOwnTent && Object.keys(cart).length === 0) {
-      const kit = rentalItems.find(item => item.name === "Kit Guarda-sol + 2 Cadeiras");
-      if (kit && kit.quantity > 0) {
-        setCart({ [kit.id]: { item: kit, quantity: 1, type: 'rental' } });
-      }
-    }
-  }, [rentalItems, isOwnerViewingOwnTent, cart]);
-
-  useEffect(() => {
-      if (reservationDate) {
-        const dayKey = dayOrder[getDay(reservationDate)];
-        const dayHours = tent?.operatingHours?.[dayKey];
-        setIsTentOpenToday(dayHours?.isOpen ?? true);
-        setReservationTime(''); // Reset time when date changes
-      } else {
-        setIsTentOpenToday(true);
-      }
-  }, [reservationDate, tent?.operatingHours]);
-
-
   if (loadingTent || isUserLoading || loadingActiveReservation) {
     return (
        <div className="flex h-screen w-full flex-col items-center justify-center gap-4">
@@ -239,73 +213,7 @@ export default function TentPage() {
   }
 
   const bannerSrc = tent.bannerUrl || tentBannerUrl;
-
-  const menuByCategory = (menuItems || []).reduce((acc, item) => {
-    const category = item.category || 'Outros';
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(item);
-    return acc;
-  }, {} as Record<string, MenuItem[]>);
-
-  const handleQuantityChange = (
-    item: MenuItem | RentalItem,
-    type: 'menu' | 'rental',
-    change: number
-  ) => {
-    setCart((prev) => {
-      const existing = prev[item.id] || { item, quantity: 0, type };
-      let newQuantity = Math.max(0, existing.quantity + change);
-
-      if (type === 'rental') {
-        const rentalItem = item as RentalItem;
-        
-        if (rentalItem.quantity) {
-          newQuantity = Math.min(newQuantity, rentalItem.quantity);
-        }
-        if (rentalItem.name === 'Kit Guarda-sol + 2 Cadeiras') {
-            newQuantity = Math.min(newQuantity, 3);
-        }
-        if (rentalItem.name === 'Cadeira Adicional') {
-            newQuantity = Math.min(newQuantity, 3);
-        }
-      }
-
-      if (newQuantity === 0) {
-        const { [item.id]: _, ...rest } = prev;
-        
-        if (item.id === rentalKit?.id) {
-           if (additionalChair?.id) {
-            const { [additionalChair.id]: __, ...finalRest } = rest;
-            return finalRest;
-           }
-        }
-
-        return rest;
-      }
-
-      return {
-        ...prev,
-        [item.id]: { ...existing, quantity: newQuantity },
-      };
-    });
-  };
-
-  const rentalTotal = Object.values(cart).filter(i => i.type === 'rental').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
-  const menuTotal = Object.values(cart).filter(i => i.type === 'menu').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
   const hasRentalKitInCart = rentalKit && cart[rentalKit.id] && cart[rentalKit.id].quantity > 0;
-  
-  const kitsInCart = (rentalKit && cart[rentalKit.id]?.quantity) || 0;
-  const baseFeeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
-  const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
-  
-  const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
-  
-  const cartTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
-  const finalTotal = cartTotal + (user?.outstandingBalance || 0);
-  
-  const isCartEmpty = Object.keys(cart).length === 0;
   
   const handleProceedToMenu = () => {
     if (!hasRentalKitInCart) {
@@ -404,6 +312,15 @@ export default function TentPage() {
         const userRef = doc(firestore, 'users', user.uid);
         const outstandingBalance = user.outstandingBalance || 0;
 
+        const rentalTotal = Object.values(cart).filter(i => i.type === 'rental').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
+        const menuTotal = Object.values(cart).filter(i => i.type === 'menu').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
+        const kitsInCart = cart[rentalKit!.id]?.quantity || 0;
+        const baseFeeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
+        const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
+        const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
+        const cartTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
+        const finalTotal = cartTotal + outstandingBalance;
+
         const [selectedHour, selectedMinute] = reservationTime.split(':').map(Number);
         const finalReservationDateTime = new Date(reservationDate!);
         finalReservationDateTime.setHours(selectedHour, selectedMinute, 0, 0);
@@ -426,9 +343,9 @@ export default function TentPage() {
             })),
             total: finalTotal,
             outstandingBalancePaid: outstandingBalance,
-            createdAt: finalReservationDateTime as any, // This is the scheduled time
-            creationTimestamp: serverTimestamp() as any, // This is the creation time
-            reservationTime, // Keep this for display legacy if needed
+            createdAt: finalReservationDateTime as any,
+            creationTimestamp: serverTimestamp() as any,
+            reservationTime,
             orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
             checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
             status: 'confirmed',
@@ -464,6 +381,7 @@ export default function TentPage() {
             title: "Reserva Confirmada!",
             description: `Sua reserva na ${tent.name} foi criada com sucesso.`,
         });
+        clearCart();
         await refresh();
         router.push('/dashboard/my-reservations');
 
@@ -570,107 +488,68 @@ export default function TentPage() {
                             </div>
                             
                             <div className="space-y-6">
-                                <div className="space-y-6">
-                                     {!isTentOpenToday && reservationDate && (
-                                        <Alert variant="destructive">
-                                            <AlertTriangle className="h-4 w-4" />
-                                            <AlertTitle>Barraca Fechada</AlertTitle>
-                                            <AlertDescription>
-                                                Esta barraca está fechada no dia selecionado. Por favor, escolha outra data.
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                                    <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                             <div className="space-y-2">
-                                                <Label className="flex items-center gap-2"><CalendarIcon className="w-4 h-4"/> Data da Reserva</Label>
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button
-                                                            variant={"outline"}
-                                                            className={cn(
-                                                                "w-full justify-start text-left font-normal",
-                                                                !reservationDate && "text-muted-foreground"
-                                                            )}
-                                                            disabled={isSubmitting}
-                                                        >
-                                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {reservationDate ? format(reservationDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0">
-                                                        <Calendar
-                                                            mode="single"
-                                                            selected={reservationDate}
-                                                            onSelect={setReservationDate}
-                                                            initialFocus
-                                                            locale={ptBR}
-                                                            fromDate={new Date()}
-                                                            toDate={addDays(new Date(), 3)}
-                                                            disabled={isSubmitting}
-                                                        />
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
+                                  {!isTentOpenToday && reservationDate && (
+                                    <Alert variant="destructive">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>Barraca Fechada</AlertTitle>
+                                        <AlertDescription>
+                                            Esta barraca está fechada no dia selecionado. Por favor, escolha outra data.
+                                        </AlertDescription>
+                                    </Alert>
+                                  )}
+                                  <div className={cn(!isTentOpenToday && 'opacity-50 pointer-events-none')}>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
-                                                <Select onValueChange={setReservationTime} value={reservationTime} disabled={isSubmitting || !reservationDate || timeSlots.length === 0}>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Selecione um horário" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {timeSlots.map(time => (
-                                                            <SelectItem key={time} value={time}>{time}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                {!reservationDate && <p className="text-xs text-muted-foreground">Selecione uma data para ver os horários.</p>}
-                                                {reservationDate && timeSlots.length === 0 && <p className="text-xs text-destructive">Não há horários disponíveis para esta data.</p>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                     {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : rentalItems && rentalItems.length > 0 ? (
-                                        <div className='space-y-4'>
-                                            {rentalKit && (
-                                                <div className="flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-                                                    <div>
-                                                        <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                            <Armchair className="h-5 w-5"/>
-                                                            {t_products(rentalKit.name as any)}
-                                                        </h3>
-                                                        <p className="text-sm text-muted-foreground">Disponível: {rentalKit.quantity - (cart[rentalKit.id]?.quantity || 0)}</p>
-                                                        <p className="text-2xl font-bold text-primary">R$ {rentalKit.price.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                        <Input type="number" readOnly value={cart[rentalKit.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting}/>
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(rentalKit, 'rental', 1)} disabled={isSubmitting || (cart[rentalKit.id]?.quantity || 0) >= rentalKit.quantity || (cart[rentalKit.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {additionalChair && (
-                                                <div className={cn("flex flex-col rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between transition-opacity", !hasRentalKitInCart && "opacity-50 pointer-events-none")}>
-                                                    <div>
-                                                        <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                            <Armchair className="h-5 w-5"/>
-                                                            {t_products(additionalChair.name as any)}
-                                                        </h3>
-                                                        <p className="text-sm text-muted-foreground">Disponível: {additionalChair.quantity - (cart[additionalChair.id]?.quantity || 0)}</p>
-                                                        <p className="text-xl font-bold text-primary">R$ {additionalChair.price.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="mt-4 flex items-center gap-2 sm:mt-0">
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', -1)} disabled={isSubmitting || !hasRentalKitInCart}><Minus className="h-4 w-4"/></Button>
-                                                        <Input type="number" readOnly value={cart[additionalChair.id]?.quantity || 0} className="h-8 w-16 text-center" disabled={isSubmitting || !hasRentalKitInCart}/>
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(additionalChair, 'rental', 1)} disabled={isSubmitting || !hasRentalKitInCart || (cart[additionalChair.id]?.quantity || 0) >= additionalChair.quantity || (cart[additionalChair.id]?.quantity || 0) >= 3}><Plus className="h-4 w-4"/></Button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        ) : (
-                                            <p className="text-muted-foreground text-center">Nenhum item de aluguel disponível no momento.</p>
-                                        )}
-                                </div>
+                                              <Label className="flex items-center gap-2"><CalendarIcon className="w-4 h-4"/> Data da Reserva</Label>
+                                              <Popover>
+                                                  <PopoverTrigger asChild>
+                                                      <Button
+                                                          variant={"outline"}
+                                                          className={cn(
+                                                              "w-full justify-start text-left font-normal",
+                                                              !reservationDate && "text-muted-foreground"
+                                                          )}
+                                                          disabled={isSubmitting}
+                                                      >
+                                                          <CalendarIcon className="mr-2 h-4 w-4" />
+                                                          {reservationDate ? format(reservationDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                                                      </Button>
+                                                  </PopoverTrigger>
+                                                  <PopoverContent className="w-auto p-0">
+                                                      <Calendar
+                                                          mode="single"
+                                                          selected={reservationDate}
+                                                          onSelect={setReservationDate}
+                                                          initialFocus
+                                                          locale={ptBR}
+                                                          fromDate={new Date()}
+                                                          toDate={addDays(new Date(), 3)}
+                                                          disabled={isSubmitting}
+                                                      />
+                                                  </PopoverContent>
+                                              </Popover>
+                                          </div>
+                                          <div className="space-y-2">
+                                              <Label htmlFor="reservation-time" className="flex items-center gap-2"><Clock className="w-4 h-4"/> Horário da Reserva</Label>
+                                              <Select onValueChange={setReservationTime} value={reservationTime} disabled={isSubmitting || !reservationDate || timeSlots.length === 0}>
+                                                  <SelectTrigger>
+                                                      <SelectValue placeholder="Selecione um horário" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                      {timeSlots.map(time => (
+                                                          <SelectItem key={time} value={time}>{time}</SelectItem>
+                                                      ))}
+                                                  </SelectContent>
+                                              </Select>
+                                              {!reservationDate && <p className="text-xs text-muted-foreground">Selecione uma data para ver os horários.</p>}
+                                              {reservationDate && timeSlots.length === 0 && <p className="text-xs text-destructive">Não há horários disponíveis para esta data.</p>}
+                                          </div>
+                                      </div>
+                                  </div>
+                                  
+                                    {loadingRentals ? <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" /> : (
+                                      <RentalList rentalKit={rentalKit} additionalChair={additionalChair} isSubmitting={isSubmitting} />
+                                    )}
                             </div>
                         </TabsContent>
 
@@ -682,47 +561,13 @@ export default function TentPage() {
                                     <div className="mt-4 flex items-center gap-3 rounded-lg bg-primary/10 p-3 text-sm text-primary-foreground">
                                         <Info className="h-5 w-5 text-primary"/>
                                         <div>
-                                        <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {proportionalFeeWaiverAmount > 0 ? proportionalFeeWaiverAmount.toFixed(2) : baseFeeWaiverAmount.toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
+                                          <span className="font-semibold">Aluguel grátis!</span> Peça a partir de <span className="font-bold">R$ {(tent.minimumOrderForFeeWaiver * (cart[rentalKit?.id as string]?.quantity || 0)).toFixed(2)}</span> em consumo e ganhe a isenção da taxa de aluguel.
                                         </div>
                                     </div>
                                 )}
                             </div>
                             
-                            {loadingMenu ? (
-                                <Loader2 className="mx-auto my-8 h-8 w-8 animate-spin text-primary" />
-                            ) : menuItems && menuItems.length > 0 ? (
-                                <Accordion type="multiple" defaultValue={Object.keys(menuByCategory)} className="w-full mt-6">
-                                {Object.entries(menuByCategory).map(([category, items]) => (
-                                    <AccordionItem key={category} value={category}>
-                                    <AccordionTrigger className="text-lg font-semibold">{t_categories(category as any)}</AccordionTrigger>
-                                    <AccordionContent>
-                                        <div className="space-y-4 pt-2">
-                                        {items.map((item) => (
-                                            <div key={item.id} className="flex items-center justify-between">
-                                            <div>
-                                                <p className="font-medium">{item.name}</p>
-                                                <p className="text-sm text-muted-foreground">{item.description}</p>
-                                                <p className="text-sm font-bold text-primary">R$ {item.price.toFixed(2)}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', -1)} disabled={isSubmitting}><Minus className="h-4 w-4"/></Button>
-                                                <Input type="number" readOnly value={cart[item.id]?.quantity || 0} className="h-8 w-12 text-center" disabled={isSubmitting}/>
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item, 'menu', 1)} disabled={isSubmitting}><Plus className="h-4 w-4"/></Button>
-                                            </div>
-                                            </div>
-                                        ))}
-                                        </div>
-                                    </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                                </Accordion>
-                            ) : (
-                                <div className="py-12 text-center text-muted-foreground">
-                                    <Utensils className="mx-auto h-10 w-10" />
-                                    <h3 className="mt-4 text-lg font-semibold text-card-foreground">Cardápio Indisponível</h3>
-                                    <p className="mt-1 text-sm">Esta barraca ainda não cadastrou itens no cardápio.</p>
-                                </div>
-                            )}
+                            <MenuList menuItems={menuItems} isLoading={loadingMenu} isSubmitting={isSubmitting} />
                         </TabsContent>
 
                         <TabsContent value="reviews" className="mt-0">
@@ -773,101 +618,15 @@ export default function TentPage() {
                 </Tabs>
             </div>
             <div className="lg:col-span-1 mt-8 lg:mt-0">
-                <Card className="sticky top-24">
-                    <CardHeader>
-                        <CardTitle>Sua Reserva</CardTitle>
-                        <CardDescription>Revise seus itens antes de fazer a reserva.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {isCartEmpty ? (
-                            <p className="text-center text-muted-foreground">Seu carrinho está vazio.</p>
-                        ) : (
-                           <ul className="space-y-2 text-sm text-muted-foreground">
-                                {Object.values(cart).map(({ item, quantity, type }) => (
-                                     <li key={`${item.id}-${type}`} className="flex justify-between">
-                                        <span>{quantity}x {type === 'rental' ? t_products(item.name as any) : item.name}</span>
-                                        <span>R$ {(item.price * quantity).toFixed(2)}</span>
-                                    </li>
-                                ))}
-                           </ul>
-                        )}
-                        <div className="border-t pt-4 space-y-2">
-                           <div className="flex justify-between text-sm">
-                               <span>Consumo</span>
-                               <span>R$ {menuTotal.toFixed(2)}</span>
-                           </div>
-                           <div className="flex justify-between text-sm">
-                               <span>Aluguel</span>
-                               <span className={cn(isFeeWaived && "line-through")}>R$ {rentalTotal.toFixed(2)}</span>
-                           </div>
-                            {isFeeWaived && (
-                                <div className="flex justify-between text-sm font-semibold text-primary">
-                                    <span>Isenção de Aluguel</span>
-                                    <span>- R$ {rentalTotal.toFixed(2)}</span>
-                                </div>
-                           )}
-                           {user && user.outstandingBalance && user.outstandingBalance > 0 && (
-                                <div className="flex justify-between text-sm font-semibold text-destructive">
-                                    <span>Taxa pendente</span>
-                                    <span>R$ {user.outstandingBalance.toFixed(2)}</span>
-                                </div>
-                            )}
-                        </div>
-
-                    </CardContent>
-                     <CardFooter className="flex-col items-stretch gap-4">
-                         <div className="flex justify-between items-baseline">
-                            <p className="text-sm text-muted-foreground">Total</p>
-                            <p className="text-2xl font-bold">R$ {finalTotal.toFixed(2)}</p>
-                        </div>
-                        
-                        {hasActiveReservation ? (
-                            <div className="p-3 bg-destructive/10 rounded-md text-center text-sm text-destructive-foreground">
-                                <AlertTriangle className="mx-auto mb-2 h-5 w-5 text-destructive" />
-                                <p className="font-semibold">Você já tem uma reserva ativa.</p>
-                                <p>Finalize sua reserva atual para poder criar uma nova.</p>
-                                <Button asChild variant="link" className="text-destructive p-0 h-auto mt-1">
-                                    <Link href="/dashboard/my-reservations">Ver Minhas Reservas</Link>
-                                </Button>
-                            </div>
-                        ) : isOwnerViewingOwnTent ? (
-                            <div className="p-3 bg-muted rounded-md text-center text-sm text-muted-foreground">
-                                <Info className="mx-auto mb-2 h-5 w-5" />
-                                <p className="font-semibold">Esta é a sua barraca.</p>
-                                <p>Você não pode fazer uma reserva na sua própria barraca.</p>
-                                <Button asChild variant="link" className="text-primary p-0 h-auto mt-1">
-                                    <Link href="/dashboard">Ir para o Painel</Link>
-                                </Button>
-                            </div>
-                        ) : activeTab === 'reserve' ? (
-                             <Button size="lg" className="w-full" onClick={handleProceedToMenu} disabled={!hasRentalKitInCart || isSubmitting || !reservationDate || !reservationTime}>
-                                {isSubmitting ? <Loader2 className="animate-spin" /> : <>Próximo Passo <ArrowRight className="ml-2" /></>}
-                            </Button>
-                        ) : (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button size="lg" className="w-full" disabled={!hasRentalKitInCart || isSubmitting || !reservationDate || !reservationTime}>
-                                        {isSubmitting ? <Loader2 className="animate-spin" /> : <>Fazer Reserva <ShoppingCart className="ml-2" /></>}
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Confirmar Reserva</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Você está prestes a confirmar a sua reserva no valor de R$ {finalTotal.toFixed(2)}. Deseja continuar?
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleCreateReservation}>
-                                            Confirmar Reserva
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
-                    </CardFooter>
-                </Card>
+                <CartSummary
+                  tent={tent}
+                  isOwnerViewingOwnTent={isOwnerViewingOwnTent}
+                  hasActiveReservation={hasActiveReservation}
+                  isSubmitting={isSubmitting || !reservationDate || !reservationTime}
+                  activeTab={activeTab}
+                  handleProceedToMenu={handleProceedToMenu}
+                  handleCreateReservation={handleCreateReservation}
+                />
             </div>
           </div>
         </div>
