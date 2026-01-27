@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Star } from 'lucide-react';
 import { useState } from 'react';
-import { useFirebase, useUser } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { doc, runTransaction, collection, serverTimestamp } from 'firebase/firestore';
 import type { Reservation, Tent } from '@/lib/types';

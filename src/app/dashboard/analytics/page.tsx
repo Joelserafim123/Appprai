@@ -1,6 +1,7 @@
 'use client';
 
-import { useUser, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
+import { useUser, useMemoFirebase, useFirebase } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, DollarSign, BarChart, ShoppingBag, Landmark } from 'lucide-react';

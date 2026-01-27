@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useFirebase } from '@/firebase';
+import { useFirebase } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { signOut, sendEmailVerification } from 'firebase/auth';
 import { Loader2, MailCheck } from 'lucide-react';

@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useUser, useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Building, MapPin, Clock, Upload, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -178,7 +179,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
     }
   }, [existingTent, reset, handleGetCurrentLocation]);
   
-  const daysOfWeek = [
+    const daysOfWeek = [
       { id: 'sunday', label: 'Domingo' },
       { id: 'monday', label: 'Segunda-feira' },
       { id: 'tuesday', label: 'Terça-feira' },
