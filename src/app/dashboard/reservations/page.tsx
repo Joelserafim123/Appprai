@@ -151,17 +151,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
             onFinished();
         } catch(error) {
             console.error("Error confirming payment: ", error);
-            
-            const permissionError = new FirestorePermissionError({
-                path: reservationRef.path,
-                operation: 'update',
-                requestResourceData: {
-                  status: 'completed',
-                  paymentMethod: paymentMethod,
-                  platformFee: platformFee
-                },
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao confirmar pagamento' });
         } finally {
             setIsSubmitting(false);
         }

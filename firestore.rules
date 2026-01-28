@@ -43,7 +43,18 @@ service cloud.firestore {
     // Reservations can be created by users, and read/updated by participants.
     match /reservations/{reservationId} {
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow read: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      allow update: if request.auth != null && (
+        // The owner of the tent can always update the reservation
+        (request.auth.uid == resource.data.tentOwnerId) ||
+        // The user who created the reservation can update it under specific conditions
+        (request.auth.uid == resource.data.userId && (
+            // 1. To cancel a confirmed reservation
+            (request.resource.data.status == 'cancelled' && resource.data.status == 'confirmed') ||
+            // 2. To add items to a checked-in reservation
+            (resource.data.status == 'checked-in' && request.resource.data.status == 'checked-in')
+        ))
+      );
     }
 
     // Chats and messages can be managed by participants.
