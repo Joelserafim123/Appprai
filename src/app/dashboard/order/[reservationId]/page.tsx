@@ -54,21 +54,19 @@ export default function OrderPage() {
         }
 
         setIsSubmitting(true);
-        const newItemsTotal = newItems.reduce((acc, { item, quantity }) => acc + (item.price * quantity), 0);
 
         try {
             const batch = writeBatch(firestore);
             
-            // 1. Update reservation with new items and total
+            // 1. Update reservation with new items to be confirmed by owner
             batch.update(reservationRef!, {
                 items: arrayUnion(...newItems.map(ni => ({
                     itemId: ni.item.id,
                     name: ni.item.name,
                     price: ni.item.price,
                     quantity: ni.quantity,
-                    status: 'pending' as const
+                    status: 'pending_confirmation' as const
                 }))),
-                total: increment(newItemsTotal)
             });
 
             // 2. Find chat and add a system message
@@ -79,11 +77,11 @@ export default function OrderPage() {
             if (!chatSnapshot.empty) {
                 const chatDocRef = chatSnapshot.docs[0].ref;
                 const messagesCollectionRef = collection(chatDocRef, 'messages');
-                const newMessageRef = doc(messagesCollectionRef); // Create a ref for the new message
+                const newMessageRef = doc(messagesCollectionRef);
 
                 const notificationMessage: ChatMessageWrite = {
                     senderId: 'system',
-                    text: 'O cliente adicionou novos itens ao pedido. Por favor, verifique a cozinha.',
+                    text: 'O cliente solicitou novos itens para o pedido. Por favor, aprove ou recuse na tela de reservas.',
                     timestamp: serverTimestamp(),
                     isRead: false
                 };
@@ -101,7 +99,7 @@ export default function OrderPage() {
 
             await batch.commit();
 
-            toast({ title: 'Itens adicionados com sucesso!' });
+            toast({ title: 'Solicitação de itens enviada!', description: 'Aguarde a confirmação da barraca.' });
             clearCart();
             router.push('/dashboard/my-reservations');
 
@@ -111,12 +109,11 @@ export default function OrderPage() {
                 path: reservationRef!.path,
                 operation: 'update',
                 requestResourceData: { 
-                    items: `Adding ${newItems.length} items.`, 
-                    total: `Incrementing by ${newItemsTotal}` 
+                    items: `Adding ${newItems.length} items with pending_confirmation status.`, 
                 }
             });
             errorEmitter.emit('permission-error', permissionError);
-            toast({ variant: 'destructive', title: 'Erro ao adicionar itens' });
+            toast({ variant: 'destructive', title: 'Erro ao solicitar itens' });
         } finally {
             setIsSubmitting(false);
         }
@@ -190,7 +187,7 @@ export default function OrderPage() {
                                     <p className="font-bold text-lg">R$ {newItemsTotal.toFixed(2)}</p>
                                 </div>
                                 <Button onClick={handleAddItems} disabled={isSubmitting || Object.keys(cart).length === 0}>
-                                    {isSubmitting ? <Loader2 className="animate-spin" /> : <>Adicionar ao Pedido <ShoppingCart className="ml-2"/></>}
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : <>Solicitar Itens <ShoppingCart className="ml-2"/></>}
                                 </Button>
                             </CardFooter>
                         </Card>

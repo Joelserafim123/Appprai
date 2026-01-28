@@ -306,35 +306,38 @@ export default function OwnerOrderPage() {
                                     <p className="text-sm text-muted-foreground text-center py-4">Nenhum item no pedido.</p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {editedItems.map((item) => (
-                                            <div key={item.itemId} className="flex items-center justify-between gap-4 py-3 border-b last:border-b-0">
-                                                <div className="flex items-center gap-3">
-                                                    <Checkbox
-                                                        id={`item-status-${item.itemId}`}
-                                                        checked={item.status === 'delivered'}
-                                                        onCheckedChange={(checked) => handleItemStatusChange(item.itemId, checked ? 'delivered' : 'pending')}
-                                                        disabled={isSubmitting}
-                                                        className="h-6 w-6"
-                                                    />
-                                                    <label htmlFor={`item-status-${item.itemId}`} className="cursor-pointer">
-                                                        <p className={cn("font-medium", item.status === 'delivered' && "line-through text-muted-foreground")}>
-                                                            {item.name}
-                                                        </p>
-                                                        <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2)} cada</p>
-                                                    </label>
+                                        {editedItems.map((item) => {
+                                            const isPendingConfirmation = item.status === 'pending_confirmation';
+                                            return (
+                                                <div key={item.itemId} className="flex items-center justify-between gap-4 py-3 border-b last:border-b-0">
+                                                    <div className="flex items-center gap-3">
+                                                        <Checkbox
+                                                            id={`item-status-${item.itemId}`}
+                                                            checked={item.status === 'delivered'}
+                                                            onCheckedChange={(checked) => handleItemStatusChange(item.itemId, checked ? 'delivered' : 'pending')}
+                                                            disabled={isSubmitting || isPendingConfirmation}
+                                                            className="h-6 w-6"
+                                                        />
+                                                        <label htmlFor={`item-status-${item.itemId}`} className={cn("cursor-pointer", isPendingConfirmation && "cursor-not-allowed")}>
+                                                            <p className={cn("font-medium", item.status === 'delivered' && "line-through text-muted-foreground", isPendingConfirmation && "text-muted-foreground italic")}>
+                                                                {item.name} {isPendingConfirmation && "(Pendente)"}
+                                                            </p>
+                                                            <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2)} cada</p>
+                                                        </label>
+                                                    </div>
+                                                
+                                                    <div className="flex items-center gap-2">
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleItemQuantityChange(item.itemId, -1)} disabled={isSubmitting || isPendingConfirmation}>
+                                                            <Minus className="h-4 w-4" />
+                                                        </Button>
+                                                        <span className="w-8 text-center font-bold">{item.quantity}</span>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleItemQuantityChange(item.itemId, 1)} disabled={isSubmitting || isPendingConfirmation}>
+                                                            <Plus className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            
-                                                <div className="flex items-center gap-2">
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleItemQuantityChange(item.itemId, -1)} disabled={isSubmitting}>
-                                                        <Minus className="h-4 w-4" />
-                                                    </Button>
-                                                    <span className="w-8 text-center font-bold">{item.quantity}</span>
-                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleItemQuantityChange(item.itemId, 1)} disabled={isSubmitting}>
-                                                        <Plus className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 )}
                             </CardContent>

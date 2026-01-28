@@ -238,6 +238,12 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     const [reservationForNoShow, setReservationForNoShow] = useState<Reservation | null>(null);
     const [canMarkNoShow, setCanMarkNoShow] = useState(false);
 
+    const pendingItems = useMemo(() => 
+        reservation.items.filter(item => item.status === 'pending_confirmation'),
+        [reservation.items]
+    );
+    const hasPendingItems = pendingItems.length > 0;
+
     useEffect(() => {
         if (reservation.status !== 'confirmed') {
             setCanMarkNoShow(false);
@@ -357,6 +363,106 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         router.push(`/dashboard/chats?reservationId=${reservation.id}`);
     };
     
+    const handleDeclineNewItems = async () => {
+        if (!firestore || !user || !hasPendingItems) return;
+        setIsSubmitting(true);
+        
+        const newItems = reservation.items.filter(item => item.status !== 'pending_confirmation');
+        const reservationRef = doc(firestore, 'reservations', reservation.id);
+        
+        try {
+            const batch = writeBatch(firestore);
+            
+            batch.update(reservationRef, { items: newItems });
+            
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+
+            if (!chatSnapshot.empty) {
+                const chatDocRef = chatSnapshot.docs[0].ref;
+                const messagesCollectionRef = collection(chatDocRef, 'messages');
+                const newMessageRef = doc(messagesCollectionRef);
+
+                const notificationMessage = {
+                    senderId: 'system',
+                    text: 'O seu pedido de novos itens foi recusado pela barraca.',
+                    timestamp: serverTimestamp(),
+                    isRead: false
+                };
+                
+                batch.set(newMessageRef, notificationMessage);
+                batch.update(chatDocRef, {
+                    lastMessage: notificationMessage.text,
+                    lastMessageSenderId: 'system',
+                    lastMessageTimestamp: serverTimestamp(),
+                });
+            }
+            
+            await batch.commit();
+            toast({ title: "Itens recusados com sucesso." });
+            
+        } catch(error) {
+            console.error("Error declining items:", error);
+            toast({ variant: 'destructive', title: "Erro ao recusar itens." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleAcceptNewItems = async () => {
+        if (!firestore || !user || !hasPendingItems) return;
+        setIsSubmitting(true);
+        
+        const priceOfNewItems = pendingItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const newItems = reservation.items.map(item => 
+            item.status === 'pending_confirmation' ? { ...item, status: 'pending' as const } : item
+        );
+        const reservationRef = doc(firestore, 'reservations', reservation.id);
+
+        try {
+            const batch = writeBatch(firestore);
+            
+            batch.update(reservationRef, { 
+                items: newItems,
+                total: increment(priceOfNewItems)
+            });
+            
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+
+            if (!chatSnapshot.empty) {
+                const chatDocRef = chatSnapshot.docs[0].ref;
+                const messagesCollectionRef = collection(chatDocRef, 'messages');
+                const newMessageRef = doc(messagesCollectionRef);
+
+                const notificationMessage = {
+                    senderId: 'system',
+                    text: 'O seu pedido de novos itens foi aceite e está a ser preparado!',
+                    timestamp: serverTimestamp(),
+                    isRead: false
+                };
+                
+                batch.set(newMessageRef, notificationMessage);
+                batch.update(chatDocRef, {
+                    lastMessage: notificationMessage.text,
+                    lastMessageSenderId: 'system',
+                    lastMessageTimestamp: serverTimestamp(),
+                });
+            }
+            
+            await batch.commit();
+            toast({ title: "Itens aceites com sucesso." });
+            
+        } catch(error) {
+            console.error("Error accepting items:", error);
+            toast({ variant: 'destructive', title: "Erro ao aceitar itens." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <>
             <Card className="flex flex-col transition-all hover:shadow-md">
@@ -395,7 +501,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                         <>
                             <h4 className="flex items-center gap-2 text-sm font-semibold mb-2"><History className="w-4 h-4"/> Itens do Pedido</h4>
                             <ul className="space-y-2 text-sm text-muted-foreground">
-                                {reservation.items.map((item, index) => {
+                                {reservation.items.filter(i => i.status !== 'pending_confirmation').map((item, index) => {
                                   const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
                                   return (
                                     <li key={index} className="flex justify-between">
@@ -415,6 +521,27 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                             <Info className="mx-auto h-6 w-6 mb-2" />
                             <p className="text-sm font-semibold">Detalhes do pedido ocultos</p>
                             <p className="text-xs">Os itens e o valor total serão exibidos após o check-in do cliente.</p>
+                        </div>
+                    )}
+                    {hasPendingItems && (
+                        <div className="mt-4 pt-4 border-t border-dashed border-amber-500 bg-amber-50/50 p-3 rounded-md">
+                            <h4 className="flex items-center gap-2 text-sm font-semibold mb-2 text-amber-800"><AlertCircle className="w-4 h-4"/> Novos Itens Pendentes</h4>
+                            <ul className="space-y-1 text-sm text-amber-700">
+                                {pendingItems.map((item, index) => (
+                                    <li key={`pending-${index}`} className="flex justify-between">
+                                        <span>{item.quantity}x {item.name}</span>
+                                        <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="grid grid-cols-2 gap-2 mt-4">
+                                <Button size="sm" variant="outline" onClick={handleDeclineNewItems} disabled={isSubmitting}>
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Recusar'}
+                                </Button>
+                                <Button size="sm" onClick={handleAcceptNewItems} disabled={isSubmitting}>
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Aceitar'}
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </CardContent>

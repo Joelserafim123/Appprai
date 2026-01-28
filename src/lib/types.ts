@@ -83,7 +83,7 @@ export interface RentalItem {
   quantity: number;
 }
 
-export type ItemDeliveryStatus = 'pending' | 'delivered';
+export type ItemDeliveryStatus = 'pending_confirmation' | 'pending' | 'delivered';
 
 // An item within a reservation (can be menu or rental)
 export interface ReservationItem {
