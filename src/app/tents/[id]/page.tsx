@@ -351,7 +351,7 @@ export default function TentPage() {
             createdAt: finalReservationDateTime,
             creationTimestamp: serverTimestamp(),
             reservationTime,
-            orderNumber: Math.random().toString(36).substr(2, 6).toUpperCase(),
+            orderNumber: Math.floor(100000 + Math.random() * 900000).toString(),
             checkinCode: Math.floor(1000 + Math.random() * 9000).toString(),
             status: 'confirmed',
             participantIds: [user.uid, tent.ownerId],
