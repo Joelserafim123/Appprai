@@ -24,7 +24,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 // This is a new component for the menu, as the existing one is tied to useCartStore
 const OwnerMenuList = ({ menuItems, onAddItem, isSubmitting }: { menuItems: MenuItem[], onAddItem: (item: MenuItem) => void, isSubmitting: boolean }) => {
@@ -211,6 +213,15 @@ export default function OwnerOrderPage() {
 
         } catch (error) {
             console.error("Error updating reservation items: ", error);
+            const permissionError = new FirestorePermissionError({
+                path: reservationRef!.path,
+                operation: 'update',
+                requestResourceData: { 
+                    items: editedItems,
+                    total: newTotal,
+                }
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: 'Erro ao atualizar pedido' });
         } finally {
             setIsSubmitting(false);

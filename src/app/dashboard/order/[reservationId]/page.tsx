@@ -14,6 +14,8 @@ import { doc, collection, writeBatch, arrayUnion, increment, serverTimestamp, ge
 import type { Reservation, MenuItem, ChatMessageWrite, Tent } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 export default function OrderPage() {
     const router = useRouter();
@@ -104,6 +106,15 @@ export default function OrderPage() {
 
         } catch (error) {
             console.error("Error adding items to reservation: ", error);
+            const permissionError = new FirestorePermissionError({
+                path: reservationRef!.path,
+                operation: 'update',
+                requestResourceData: { 
+                    items: `Adding ${newItems.length} items.`, 
+                    total: `Incrementing by ${newItemsTotal}` 
+                }
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: 'Erro ao adicionar itens' });
         } finally {
             setIsSubmitting(false);

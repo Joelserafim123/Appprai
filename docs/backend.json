@@ -86,6 +86,7 @@
         "tentId": { "type": "string" },
         "total": { "type": "number" },
         "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
+        "tableNumber": { "type": "number", "description": "The table number assigned at check-in." },
         "participantIds": { "type": "array", "items": { "type": "string" } },
         "createdAt": { "type": "string", "format": "date-time" }
       },

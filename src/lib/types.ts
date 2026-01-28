@@ -118,12 +118,12 @@ export interface Reservation {
   orderNumber: string;
   checkinCode: string;
   status: ReservationStatus;
+  tableNumber?: number;
   paymentMethod?: PaymentMethod;
   platformFee?: number;
   cancellationFee?: number;
   cancellationReason?: string;
   outstandingBalancePaid?: number;
-  tableNumber?: number;
   participantIds: string[];
   reviewed?: boolean;
   completedAt?: Timestamp; // This is when the reservation was paid/completed

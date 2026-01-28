@@ -57,16 +57,24 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
     const { firestore } = useFirebase();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputCode, setInputCode] = useState('');
+    const [tableNumber, setTableNumber] = useState('');
     
     const handleConfirmCheckIn = async () => {
         if (inputCode !== reservation.checkinCode) {
             toast({ variant: 'destructive', title: 'Código de Check-in Inválido' });
             return;
         }
+        if (!tableNumber) {
+            toast({ variant: 'destructive', title: 'Número da Mesa Obrigatório' });
+            return;
+        }
         if (!firestore) return;
         setIsSubmitting(true);
         try {
-            await updateDoc(doc(firestore, 'reservations', reservation.id), { status: 'checked-in' });
+            await updateDoc(doc(firestore, 'reservations', reservation.id), { 
+                status: 'checked-in',
+                tableNumber: parseInt(tableNumber, 10),
+            });
             toast({ title: 'Check-in realizado com sucesso!' });
             onFinished(reservation.id);
         } catch(error) {
@@ -82,7 +90,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
             <DialogHeader>
                 <DialogTitle>Confirmar Check-in</DialogTitle>
                  <DialogDescription>
-                    Peça ao cliente o código de 4 dígitos para confirmar o check-in.
+                    Peça ao cliente o código de 4 dígitos e informe o número da mesa.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -98,10 +106,20 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
                         placeholder="••••"
                     />
                 </div>
+                <div className="space-y-2">
+                    <Label htmlFor="table-number">Número da Mesa</Label>
+                    <Input
+                        id="table-number"
+                        type="number"
+                        value={tableNumber}
+                        onChange={(e) => setTableNumber(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Ex: 15"
+                    />
+                </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost" disabled={isSubmitting}>Cancelar</Button></DialogClose>
-                <Button onClick={handleConfirmCheckIn} disabled={isSubmitting || inputCode.length !== 4}>
+                <Button onClick={handleConfirmCheckIn} disabled={isSubmitting || inputCode.length !== 4 || !tableNumber}>
                     {isSubmitting ? <Loader2 className="animate-spin" /> : 'Sim, Fazer Check-in'}
                 </Button>
             </DialogFooter>
@@ -367,6 +385,9 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                         day: '2-digit', month: 'long', year: 'numeric',
                         })} às {reservation.reservationTime}
                         </p>
+                        {reservation.tableNumber && (
+                            <p className='flex items-center gap-2 font-semibold text-foreground'><Hash className='w-4 h-4'/> Mesa {reservation.tableNumber}</p>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1">
