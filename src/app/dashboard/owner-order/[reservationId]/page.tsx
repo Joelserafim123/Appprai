@@ -140,16 +140,30 @@ export default function OwnerOrderPage() {
 
     const handleItemQuantityChange = (itemId: string, change: number) => {
         setEditedItems(currentItems => {
-            const newItems = [...currentItems];
+            // Create a mutable copy
+            let newItems = [...currentItems];
             const itemIndex = newItems.findIndex(i => i.itemId === itemId);
+
             if (itemIndex > -1) {
-                const newQuantity = newItems[itemIndex].quantity + change;
+                const itemToUpdate = newItems[itemIndex];
+                const newQuantity = itemToUpdate.quantity + change;
+
                 if (newQuantity <= 0) {
-                    newItems.splice(itemIndex, 1); // Remove if quantity is 0 or less
+                    // Item quantity is zero or less, remove it
+                    newItems.splice(itemIndex, 1);
+
+                    // If the main kit is removed, also remove any 'Additional Chair' items,
+                    // as they depend on the main kit.
+                    if (itemToUpdate.name === 'Kit Guarda-sol + 2 Cadeiras') {
+                        newItems = newItems.filter(i => i.name !== 'Cadeira Adicional');
+                    }
                 } else {
-                    newItems[itemIndex] = { ...newItems[itemIndex], quantity: newQuantity };
+                    // Otherwise, just update the item's quantity
+                    newItems[itemIndex] = { ...itemToUpdate, quantity: newQuantity };
                 }
             }
+            
+            // Return the new state
             return newItems;
         });
     };
