@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, Eye } from 'lucide-react';
+import { Loader2, Star, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, Eye, Utensils } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -241,6 +241,13 @@ export default function MyReservationsPage() {
                               Pago com {paymentMethodLabels[reservation.paymentMethod]}
                           </div>
                       )}
+                       {reservation.status === 'checked-in' && (
+                          <Button asChild>
+                              <Link href={`/dashboard/order/${reservation.id}`}>
+                                  <Utensils className="mr-2 h-4 w-4"/> Adicionar Itens ao Pedido
+                              </Link>
+                          </Button>
+                        )}
                       {reservation.status === 'completed' && !reservation.reviewed && (
                           <Button variant="outline" onClick={() => setReservationToReview(reservation)} className="w-full">
                               <Star className="mr-2 h-4 w-4" /> Avaliar Experiência
