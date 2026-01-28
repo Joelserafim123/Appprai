@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode, User as UserIcon } from 'lucide-react';
+import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode, User as UserIcon, Utensils } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimest
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Link from 'next/link';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -401,13 +402,20 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                         </div>
                     )}
                     {reservation.status === 'checked-in' && (
-                        <div className="grid grid-cols-2 gap-2 w-full">
-                            <Button size="sm" variant="secondary" onClick={() => handleCloseBill(reservation.id)} className="w-full">
-                                <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta
+                        <div className="flex w-full flex-col gap-2">
+                            <Button asChild size="sm">
+                                <Link href={`/dashboard/owner-order/${reservation.id}`}>
+                                    <Utensils className="mr-2 h-4 w-4" /> Gerenciar Pedido
+                                </Link>
                             </Button>
-                             <Button size="sm" variant="destructive" onClick={() => setReservationForCancel(reservation)}>
-                                <X className="mr-2 h-4 w-4" /> Cancelar
-                            </Button>
+                            <div className="grid grid-cols-2 gap-2 w-full">
+                                <Button size="sm" variant="secondary" onClick={() => handleCloseBill(reservation.id)} className="w-full">
+                                    <CreditCard className="mr-2 h-4 w-4" /> Fechar Conta
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => setReservationForCancel(reservation)}>
+                                    <X className="mr-2 h-4 w-4" /> Cancelar
+                                </Button>
+                            </div>
                         </div>
                     )}
                     {reservation.status === 'payment-pending' && (
