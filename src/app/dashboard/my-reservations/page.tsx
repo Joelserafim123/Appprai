@@ -234,7 +234,7 @@ export default function MyReservationsPage() {
                 <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
                   <div className="text-right w-full sm:w-auto">
                       {reservation.items.some(i => i.status === 'pending_confirmation') && (
-                          <p className="text-xs text-amber-600 text-left sm:text-right">Aguardando confirmação de novos itens</p>
+                          <p className="text-xs text-amber-600 text-left sm:text-right">Sua solicitação foi enviada para a barraca e aguarda confirmação.</p>
                       )}
                       <p className="text-sm font-medium text-muted-foreground">Total</p>
                       <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>

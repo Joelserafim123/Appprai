@@ -5,7 +5,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode, User as UserIcon, Utensils } from 'lucide-react';
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -679,6 +679,13 @@ export default function OwnerReservationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const prevReservationsRef = useRef<Reservation[]>();
 
+  // Audio state
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const [isSoundPlaying, setIsSoundPlaying] = useState(false);
+
+
   const reservationsQuery = useMemoFirebase(
     () => (user?.role === 'owner' && firestore) ? query(
         collection(firestore, 'reservations'),
@@ -727,6 +734,54 @@ export default function OwnerReservationsPage() {
 
 }, [rawReservations]);
 
+ const startAlertSound = useCallback(() => {
+    if (!audioContextRef.current) {
+      try {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      } catch (e) {
+        console.error("Web Audio API is not supported in this browser.", e);
+        return;
+      }
+    }
+    
+    if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+    }
+
+    if (oscillatorRef.current) return;
+
+    const audioContext = audioContextRef.current;
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 880; 
+    gainNode.gain.value = 0.7; 
+    oscillator.loop = true;
+
+    oscillator.start();
+    
+    oscillatorRef.current = oscillator;
+    gainNodeRef.current = gainNode;
+    setIsSoundPlaying(true);
+  }, []);
+
+  const stopAlertSound = useCallback(() => {
+    if (oscillatorRef.current) {
+      oscillatorRef.current.stop();
+      oscillatorRef.current.disconnect();
+      oscillatorRef.current = null;
+    }
+    if (gainNodeRef.current) {
+        gainNodeRef.current.disconnect();
+        gainNodeRef.current = null;
+    }
+    setIsSoundPlaying(false);
+  }, []);
+  
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];
     // Sort on the client-side for robustness against inconsistent data
@@ -738,6 +793,21 @@ export default function OwnerReservationsPage() {
             return timeB - timeA;
         });
   }, [rawReservations, user]);
+
+  useEffect(() => {
+    const hasPendingItems = reservations.some(r => r.items.some(i => i.status === 'pending_confirmation'));
+
+    if (hasPendingItems && !isSoundPlaying) {
+        startAlertSound();
+    } else if (!hasPendingItems && isSoundPlaying) {
+        stopAlertSound();
+    }
+
+    return () => {
+        stopAlertSound();
+    }
+  }, [reservations, isSoundPlaying, startAlertSound, stopAlertSound]);
+
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
