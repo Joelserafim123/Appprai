@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode } from 'lucide-react';
+import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode, User as UserIcon } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +27,6 @@ import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimest
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/utils';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -334,11 +333,12 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                     <div className='flex flex-col gap-4 sm:flex-row justify-between items-start'>
                         <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={reservation.userPhotoURL ?? undefined} alt={reservation.userName} />
-                                <AvatarFallback>{getInitials(reservation.userName)}</AvatarFallback>
+                                <AvatarImage src={undefined} alt={reservation.userName} />
+                                <AvatarFallback><UserIcon className="h-5 w-5" /></AvatarFallback>
                             </Avatar>
                             <div className="grid gap-0.5">
-                                <CardTitle className="text-lg">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <UserIcon className="h-5 w-5" />
                                     {reservation.userName}
                                 </CardTitle>
                                 <CardDescription>Pedido: {reservation.orderNumber}</CardDescription>

@@ -126,7 +126,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
     : (tentData?.name ?? chat.tentName);
 
   const otherPartyAvatar = amIOwnerInThisChat 
-    ? (otherUserData?.photoURL ?? chat.userPhotoURL) 
+    ? undefined
     : (tentData?.logoUrl ?? chat.tentLogoUrl);
 
 
@@ -137,7 +137,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
              <Avatar>
                 <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                 <AvatarFallback className="bg-primary/20 text-primary">
-                    {getInitials(otherPartyName)}
+                    {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -168,7 +168,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                         <AvatarFallback className="bg-muted text-muted-foreground">
-                          {getInitials(otherPartyName)}
+                          {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
                         </AvatarFallback>
                       </Avatar>
                     )}
@@ -178,8 +178,8 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                         isCurrentUser ? 'items-end' : 'items-start'
                       )}
                     >
-                      <span className="text-xs text-muted-foreground px-2 mb-0.5">
-                        {isCurrentUser ? 'Você' : otherPartyName}
+                      <span className="text-xs text-muted-foreground px-2 mb-0.5 flex items-center gap-1">
+                        {isCurrentUser ? 'Você' : <span className='flex items-center gap-1'>{amIOwnerInThisChat && <UserIcon className='h-3 w-3' />}{otherPartyName}</span>}
                       </span>
                       <div
                         className={cn(
@@ -202,7 +202,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                     </div>
                      {isCurrentUser && (
                        <Avatar className="h-8 w-8">
-                        <AvatarImage src={currentUser.photoURL ?? undefined} alt={currentUser.displayName ?? ''} />
+                        <AvatarImage src={undefined} alt={currentUser.displayName ?? ''} />
                         <AvatarFallback className="bg-primary/20 text-primary">
                           <UserIcon className="h-5 w-5" />
                         </AvatarFallback>

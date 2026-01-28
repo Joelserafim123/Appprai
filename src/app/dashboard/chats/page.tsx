@@ -117,7 +117,7 @@ export default function ChatsPage() {
                        {sortedChats.map((chat) => {
                             const amIOwnerInThisChat = user.uid === chat.tentOwnerId;
                             const otherPartyName = amIOwnerInThisChat ? chat.userName : chat.tentName;
-                            const otherPartyAvatar = amIOwnerInThisChat ? chat.userPhotoURL : chat.tentLogoUrl;
+                            const otherPartyAvatar = amIOwnerInThisChat ? undefined : chat.tentLogoUrl;
                             const lastMessagePrefix = chat.lastMessageSenderId === user.uid ? 'Você: ' : '';
 
                             return (
@@ -135,7 +135,10 @@ export default function ChatsPage() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className='flex-1 overflow-hidden'>
-                                  <p className='font-semibold truncate'>{otherPartyName}</p>
+                                  <div className='font-semibold flex items-center gap-2'>
+                                      {amIOwnerInThisChat && <UserIcon className="h-4 w-4 shrink-0" />}
+                                      <p className='truncate'>{otherPartyName}</p>
+                                  </div>
                                   <p className='text-xs text-muted-foreground truncate'>{lastMessagePrefix}{chat.lastMessage}</p>
                                 </div>
                               </button>

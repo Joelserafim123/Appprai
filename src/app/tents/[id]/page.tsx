@@ -592,14 +592,17 @@ export default function TentPage() {
                                     reviews.map(review => (
                                         <div key={review.id} className="flex gap-4">
                                             <Avatar>
-                                                <AvatarImage src={review.userPhotoURL ?? undefined} alt={review.userName} />
+                                                <AvatarImage src={undefined} alt={review.userName} />
                                                 <AvatarFallback className="bg-primary/20 text-primary">
                                                     <UserIcon className="h-5 w-5" />
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between">
-                                                    <p className="font-semibold">{review.userName}</p>
+                                                    <p className="font-semibold flex items-center gap-2">
+                                                        <UserIcon className="h-4 w-4" />
+                                                        {review.userName}
+                                                    </p>
                                                     <div className="flex items-center">
                                                         {[...Array(5)].map((_, i) => (
                                                             <Star key={i} className={cn("w-4 h-4", i < review.rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground/50")} />
