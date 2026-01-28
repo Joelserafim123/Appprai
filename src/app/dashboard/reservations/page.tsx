@@ -518,7 +518,7 @@ export default function OwnerReservationsPage() {
       ) : null,
     [firestore, user]
   );
-  const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(rawReservations);
+  const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
   
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];
