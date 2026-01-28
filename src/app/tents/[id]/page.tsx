@@ -319,7 +319,7 @@ export default function TentPage() {
 
         const rentalTotal = Object.values(cart).filter(i => i.type === 'rental').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
         const menuTotal = Object.values(cart).filter(i => i.type === 'menu').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
-        const kitsInCart = cart[rentalKit!.id]?.quantity || 0;
+        const kitsInCart = rentalKit ? (cart[rentalKit.id]?.quantity || 0) : 0;
         const baseFeeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
         const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
         const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
