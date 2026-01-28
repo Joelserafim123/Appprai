@@ -112,6 +112,7 @@ function CheckInDialog({ reservation, onFinished }: { reservation: Reservation; 
 function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; onFinished: () => void }) {
     const { toast } = useToast();
     const { firestore } = useFirebase();
+    const { user } = useUser();
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -120,7 +121,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
             toast({ variant: 'destructive', title: 'Selecione um método de pagamento.'});
             return;
         };
-        if (!firestore) return;
+        if (!firestore || !user) return;
         setIsSubmitting(true);
 
         const reservationRef = doc(firestore, 'reservations', reservation.id);
@@ -138,7 +139,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
             batch.update(reservationRef, reservationUpdateData);
 
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
             if (!chatSnapshot.empty) {
                 const chatDoc = chatSnapshot.docs[0];
@@ -151,6 +152,12 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
             onFinished();
         } catch(error) {
             console.error("Error confirming payment: ", error);
+            const permissionError = new FirestorePermissionError({
+              path: `reservations/${reservation.id}`,
+              operation: 'update',
+              requestResourceData: reservationUpdateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: 'Erro ao confirmar pagamento' });
         } finally {
             setIsSubmitting(false);
