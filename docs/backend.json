@@ -1,9 +1,158 @@
 {
-  "entities": {},
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores public and private information about a user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's unique ID." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's full name." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL of the user's profile picture." },
+        "role": { "type": "string", "enum": ["customer", "owner"], "description": "The user's role in the app." },
+        "cpf": { "type": "string", "description": "The user's CPF number." },
+        "cep": { "type": "string", "description": "The user's postal code." },
+        "street": { "type": "string" },
+        "number": { "type": "string" },
+        "neighborhood": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "profileComplete": { "type": "boolean", "description": "Flag indicating if the user has completed their profile." },
+        "outstandingBalance": { "type": "number", "description": "Any pending fees for the user." },
+        "favoriteTentIds": { "type": "array", "items": { "type": "string" } },
+        "fcmTokens": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "email", "displayName", "role"]
+    },
+    "Cpf": {
+      "title": "CPF Record",
+      "description": "Used to ensure CPF uniqueness across users.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user associated with this CPF." }
+      },
+      "required": ["userId"]
+    },
+    "Tent": {
+      "title": "Beach Tent",
+      "description": "Represents a single beach tent business.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "beachName": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "location": { "type": "object", "properties": { "latitude": { "type": "number" }, "longitude": { "type": "number" } } },
+        "minimumOrderForFeeWaiver": { "type": "number" },
+        "hasAvailableKits": { "type": "boolean" },
+        "operatingHours": { "type": "object" },
+        "averageRating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "bannerUrl": { "type": "string", "format": "uri" },
+        "logoUrl": { "type": "string", "format": "uri" }
+      },
+      "required": ["name", "ownerId", "location"]
+    },
+    "MenuItem": {
+      "title": "Menu Item",
+      "description": "A food or drink item on a tent's menu.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["Bebidas", "Petiscos", "Pratos Principais"] }
+      },
+      "required": ["name", "price", "category"]
+    },
+    "RentalItem": {
+      "title": "Rental Item",
+      "description": "An item available for rent, like a chair or umbrella.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "enum": ["Kit Guarda-sol + 2 Cadeiras", "Cadeira Adicional"] },
+        "price": { "type": "number" },
+        "quantity": { "type": "number" }
+      },
+      "required": ["name", "price", "quantity"]
+    },
+    "Reservation": {
+      "title": "Reservation",
+      "description": "A user's reservation at a tent.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "tentId": { "type": "string" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["confirmed", "checked-in", "payment-pending", "completed", "cancelled"] },
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "tentId", "total", "status", "participantIds", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A user's review of a tent.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "tentId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "tentId", "rating", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A conversation between a user and a tent owner.",
+      "type": "object",
+      "properties": {
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "reservationId": { "type": "string" },
+        "lastMessage": { "type": "string" }
+      },
+      "required": ["participantIds", "reservationId"]
+    }
+  },
   "auth": {
     "providers": [
       "password"
     ]
   },
-  "firestore": {}
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores user profile information."
+    },
+    "/cpfs/{cpf}": {
+      "schema": { "$ref": "#/entities/Cpf" },
+      "description": "Ensures CPF uniqueness."
+    },
+    "/tents/{tentId}": {
+      "schema": { "$ref": "#/entities/Tent" },
+      "description": "Collection of all beach tents."
+    },
+    "/tents/{tentId}/menuItems/{menuItemId}": {
+      "schema": { "$ref": "#/entities/MenuItem" },
+      "description": "Menu items for a specific tent."
+    },
+    "/tents/{tentId}/rentalItems/{rentalItemId}": {
+      "schema": { "$ref": "#/entities/RentalItem" },
+      "description": "Rental items for a specific tent."
+    },
+    "/tents/{tentId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Reviews for a specific tent."
+    },
+    "/reservations/{reservationId}": {
+      "schema": { "$ref": "#/entities/Reservation" },
+      "description": "Collection of all reservations."
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Metadata for chat conversations."
+    }
+  }
 }
