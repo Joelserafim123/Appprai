@@ -2,7 +2,7 @@
 
 import { useCartStore, useCartActions } from '@/hooks/use-cart-store';
 import { useUser } from '@/firebase/provider';
-import type { Tent, Reservation } from '@/lib/types';
+import type { Tent, RentalItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -23,6 +23,7 @@ import { useTranslations } from '@/i18n';
 
 interface CartSummaryProps {
   tent: Tent;
+  rentalKit?: RentalItem;
   isOwnerViewingOwnTent: boolean;
   hasActiveReservation: boolean;
   isSubmitting: boolean;
@@ -33,6 +34,7 @@ interface CartSummaryProps {
 
 export function CartSummary({
   tent,
+  rentalKit,
   isOwnerViewingOwnTent,
   hasActiveReservation,
   isSubmitting,
@@ -46,8 +48,7 @@ export function CartSummary({
 
   const rentalTotal = Object.values(cart).filter(i => i.type === 'rental').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
   const menuTotal = Object.values(cart).filter(i => i.type === 'menu').reduce((acc, { item, quantity }) => acc + item.price * quantity, 0);
-  const rentalKit = Object.values(cart).find(c => c.type === 'rental' && c.item.name === 'Kit Guarda-sol + 2 Cadeiras');
-  const kitsInCart = rentalKit?.quantity || 0;
+  const kitsInCart = rentalKit ? (cart[rentalKit.id]?.quantity || 0) : 0;
   
   const baseFeeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
   const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
@@ -58,7 +59,7 @@ export function CartSummary({
   const finalTotal = cartTotal + (user?.outstandingBalance || 0);
 
   const isCartEmpty = Object.keys(cart).length === 0;
-  const hasRentalKitInCart = !!rentalKit && rentalKit.quantity > 0;
+  const hasRentalKitInCart = !!rentalKit && (cart[rentalKit.id]?.quantity || 0) > 0;
 
   return (
     <Card className="sticky top-24">

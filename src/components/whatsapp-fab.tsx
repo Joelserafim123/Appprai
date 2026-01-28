@@ -19,7 +19,8 @@ const WhatsAppIcon = () => (
 
 export function WhatsAppFab() {
   const phoneNumber = '+5581985519813';
-  const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}`;
+  const welcomeMessage = encodeURIComponent('Olá! Bem-vindo ao BeachPal. Como posso ajudar?');
+  const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=${welcomeMessage}`;
   const fabRef = useRef<HTMLDivElement>(null);
   const posRef = useRef({ x: 24, y: 24, isDragging: false, wasDragged: false });
 

@@ -643,6 +643,7 @@ export default function TentPage() {
             <div className="lg:col-span-1 mt-8 lg:mt-0">
                 <CartSummary
                   tent={tent}
+                  rentalKit={rentalKit}
                   isOwnerViewingOwnTent={isOwnerViewingOwnTent}
                   hasActiveReservation={hasActiveReservation}
                   isSubmitting={isSubmitting || !reservationDate || !reservationTime}
