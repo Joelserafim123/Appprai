@@ -100,7 +100,14 @@
         "noAnalyticsTitle": "No analytics to show",
         "noAnalyticsDescription": "Complete some reservations to start seeing your sales analytics.",
         "beneficiaryLabel": "Beneficiary:",
-        "beneficiaryName": "Joel Serafim de Lima Silva"
+        "beneficiaryName": "Joel Serafim de Lima Silva",
+        "salesHistory": "Sales History",
+        "salesHistoryDescription": "View details of each completed transaction.",
+        "historyDate": "Date",
+        "historyCustomer": "Customer",
+        "historyOrder": "Order #",
+        "historyTotal": "Total",
+        "noCompletedReservations": "No completed reservations to display yet."
     },
     "ChatsPage": {
         "title": "Conversations",

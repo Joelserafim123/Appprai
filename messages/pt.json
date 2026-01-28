@@ -100,7 +100,14 @@
         "noAnalyticsTitle": "Nenhuma análise para mostrar",
         "noAnalyticsDescription": "Conclua algumas reservas para começar a ver suas análises de vendas.",
         "beneficiaryLabel": "Favorecido:",
-        "beneficiaryName": "Joel Serafim de Lima Silva"
+        "beneficiaryName": "Joel Serafim de Lima Silva",
+        "salesHistory": "Histórico de Vendas",
+        "salesHistoryDescription": "Veja os detalhes de cada transação finalizada.",
+        "historyDate": "Data",
+        "historyCustomer": "Cliente",
+        "historyOrder": "Pedido Nº",
+        "historyTotal": "Valor",
+        "noCompletedReservations": "Ainda não há reservas finalizadas para exibir."
     },
     "ChatsPage": {
         "title": "Conversas",

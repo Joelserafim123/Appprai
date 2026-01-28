@@ -4,7 +4,7 @@ import { useUser, useMemoFirebase, useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, DollarSign, BarChart as BarChartIcon, ShoppingBag, Landmark, Copy } from 'lucide-react';
+import { Loader2, DollarSign, BarChart as BarChartIcon, ShoppingBag, Landmark, Copy, History } from 'lucide-react';
 import { useMemo } from 'react';
 import Link from 'next/link';
 import type { Reservation, Tent } from '@/lib/types';
@@ -64,6 +64,12 @@ export default function AnalyticsPage() {
   );
   const { data: reservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
 
+  const completedReservationsForHistory = useMemo(() => {
+    if (!reservations || !user) return [];
+    return reservations
+        .filter(r => r.tentOwnerId === user.uid && r.status === 'completed')
+        .sort((a, b) => (b.completedAt?.toMillis() || 0) - (a.completedAt?.toMillis() || 0));
+  }, [reservations, user]);
 
   const analyticsData = useMemo(() => {
     if (!reservations || !user) return null;
@@ -260,6 +266,53 @@ export default function AnalyticsPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><History className="w-5 h-5"/> {t('salesHistory')}</CardTitle>
+                <CardDescription>{t('salesHistoryDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {completedReservationsForHistory.length > 0 ? (
+                    <div className="space-y-2">
+                        <div className="hidden md:grid grid-cols-4 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-t-lg">
+                            <div>{t('historyDate')}</div>
+                            <div>{t('historyCustomer')}</div>
+                            <div className="text-center">{t('historyOrder')}</div>
+                            <div className="text-right">{t('historyTotal')}</div>
+                        </div>
+                        <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+                            {completedReservationsForHistory.map(res => (
+                                <div key={res.id} className="rounded-lg border p-4 hover:bg-muted/50">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 md:hidden">
+                                        <div className="text-sm text-muted-foreground">Cliente</div>
+                                        <div className="text-sm text-muted-foreground text-right">Valor</div>
+                                        <div className="font-medium truncate">{res.userName}</div>
+                                        <div className="font-bold text-right">R$ {res.total.toFixed(2)}</div>
+                                        <div className="text-sm text-muted-foreground">Data</div>
+                                        <div className="text-sm text-muted-foreground text-right">Pedido Nº</div>
+                                        <div className="text-sm">{res.completedAt ? res.completedAt.toDate().toLocaleDateString('pt-BR') : '-'}</div>
+                                        <div className="text-sm font-mono text-right">#{res.orderNumber}</div>
+                                    </div>
+                                    
+                                    <div className="hidden md:grid grid-cols-4 gap-4 items-center">
+                                        <div className="font-medium">{res.completedAt ? res.completedAt.toDate().toLocaleDateString('pt-BR') : '-'}</div>
+                                        <div className="font-medium truncate">{res.userName}</div>
+                                        <div className="font-mono text-center">#{res.orderNumber}</div>
+                                        <div className="font-bold text-right">R$ {res.total.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex h-[150px] w-full items-center justify-center rounded-lg border-2 border-dashed text-center">
+                      <p className="text-muted-foreground">{t('noCompletedReservations')}</p>
+                    </div>
+                )}
+            </CardContent>
+          </Card>
+
         </div>
       ) : (
         <div className="rounded-lg border-2 border-dashed py-16 text-center">
