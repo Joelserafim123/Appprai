@@ -30,6 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { textToSpeech } from '@/ai/flows/tts-flow';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -428,6 +429,12 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             });
         } catch (error) {
             console.error("Error cancelling reservation: ", error);
+            const permissionError = new FirestorePermissionError({
+              path: `reservations/${reservationForCancel.id}`,
+              operation: 'update',
+              requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: 'Erro ao cancelar reserva' });
         } finally {
             setIsSubmitting(false);
@@ -465,6 +472,12 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             toast({ title: 'Reserva cancelada por não comparecimento.', description: 'Uma taxa de R$ 3,00 foi aplicada ao cliente.' });
         } catch (error) {
             console.error("Error marking no-show: ", error);
+            const permissionError = new FirestorePermissionError({
+              path: `reservations/${reservationForNoShow.id}`,
+              operation: 'update',
+              requestResourceData: { status: 'cancelled', cancellationReason: 'no_show'},
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: 'Erro ao marcar não comparecimento' });
         } finally {
             setIsSubmitting(false);
@@ -703,6 +716,15 @@ export default function OwnerReservationsPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const prevReservationsRef = useRef<Reservation[]>();
+  const [notificationSound, setNotificationSound] = useState<string | null>(null);
+
+  useEffect(() => {
+    textToSpeech('Beachpal').then(result => {
+      setNotificationSound(result.media);
+    }).catch(error => {
+      console.error("Failed to generate notification sound:", error);
+    });
+  }, []);
 
   const reservationsQuery = useMemoFirebase(
     () => (user?.role === 'owner' && firestore) ? query(
@@ -720,7 +742,7 @@ export default function OwnerReservationsPage() {
 
     const hasNewPendingRequest = prevReservationsRef.current && rawReservations.some(newRes => {
         const oldRes = prevReservationsRef.current?.find(r => r.id === newRes.id);
-        if (!oldRes) return false;
+        if (!oldRes) return false; // This is a new reservation altogether, not an update
         
         const newPendingCount = newRes.items.filter(i => i.status === 'pending_confirmation').length;
         const oldPendingCount = oldRes.items.filter(i => i.status === 'pending_confirmation').length;
@@ -728,23 +750,24 @@ export default function OwnerReservationsPage() {
         return newPendingCount > oldPendingCount;
     });
 
-    if (hasNewPendingRequest) {
+    if (hasNewPendingRequest && notificationSound) {
         try {
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+            
+            const audioData = notificationSound;
+            
+            fetch(audioData)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                .then(audioBuffer => {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(audioContext.destination);
+                    source.start(0);
+                }).catch(e => {
+                    console.warn("Could not play notification sound.", e);
+                });
 
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(200, audioContext.currentTime); // Lower pitch
-            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
-
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
-
-            oscillator.start();
-            oscillator.stop(audioContext.currentTime + 0.5);
         } catch (e) {
             console.warn("Could not play notification sound. User interaction might be required.", e);
         }
@@ -752,7 +775,7 @@ export default function OwnerReservationsPage() {
 
     prevReservationsRef.current = rawReservations;
 
-}, [rawReservations]);
+}, [rawReservations, notificationSound]);
 
   
   const reservations = useMemo(() => {
