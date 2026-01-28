@@ -137,7 +137,7 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex h-auto items-center gap-2 rounded-full p-1 pr-3">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ''} data-ai-hint="cellphone charger" />
+                        <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? ''} />
                         <AvatarFallback className="bg-primary/20 text-primary">
                             <UserIcon className="h-5 w-5" />
                         </AvatarFallback>

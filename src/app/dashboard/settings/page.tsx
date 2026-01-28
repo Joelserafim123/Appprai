@@ -3,7 +3,7 @@
 
 import { useUser, useFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Info, User as UserIcon, Bell, BellRing } from 'lucide-react';
+import { Loader2, Info, User as UserIcon, Bell, BellRing, Camera } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,15 +11,16 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, writeBatch, updateDoc, query, collection, where, getDocs } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { UserProfile } from '@/lib/types';
 import { isValidCpf, getInitials } from '@/lib/utils';
 import { FirebaseError } from 'firebase/app';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 const profileSchema = z.object({
@@ -40,10 +41,12 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function SettingsPage() {
   const { user, isUserLoading, refresh } = useUser();
-  const { auth, firestore } = useFirebase();
+  const { auth, firestore, storage } = useFirebase();
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { register, handleSubmit, formState: { errors, isDirty }, reset, setValue, watch } = useForm<ProfileFormData>({
       resolver: zodResolver(profileSchema),
@@ -141,9 +144,8 @@ const onSubmit = async (data: ProfileFormData) => {
         const batch = writeBatch(firestore);
         const userDocRef = doc(firestore, 'users', user.uid);
         
-        const firestoreUpdateData: Partial<UserProfile> = {
+        const firestoreUpdateData: Omit<Partial<UserProfile>, 'photoURL'> = {
             displayName: data.displayName,
-            photoURL: null,
             profileComplete: true,
             cep: data.cep?.replace(/\D/g, '') || '',
             street: data.street || '',
@@ -155,7 +157,6 @@ const onSubmit = async (data: ProfileFormData) => {
 
         const isNewCpf = !user.cpf && data.cpf;
         
-        // Only add CPF to the update if it's being set for the first time
         if (isNewCpf) {
             const cpfDigits = data.cpf.replace(/\D/g, '');
             const newCpfDocRef = doc(firestore, 'cpfs', cpfDigits);
@@ -164,18 +165,25 @@ const onSubmit = async (data: ProfileFormData) => {
             if (cpfDocSnap.exists()) {
                 throw new Error('Este CPF já está associado a outra conta.');
             }
-            firestoreUpdateData.cpf = cpfDigits;
+            (firestoreUpdateData as Partial<UserProfile>).cpf = cpfDigits;
             batch.set(newCpfDocRef, { userId: user.uid });
         }
         
         batch.update(userDocRef, firestoreUpdateData);
 
+        const chatsQuery = query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
+        const chatsSnapshot = await getDocs(chatsQuery);
+        chatsSnapshot.forEach(chatDoc => {
+            if (chatDoc.data().userId === user.uid) {
+                batch.update(chatDoc.ref, { userName: data.displayName });
+            }
+        });
+        
         await batch.commit();
 
-        if (currentUser.displayName !== data.displayName || currentUser.photoURL !== null) {
+        if (currentUser.displayName !== data.displayName) {
             await updateProfile(currentUser, {
                 displayName: data.displayName,
-                photoURL: null,
             });
         }
         
@@ -217,6 +225,57 @@ const onSubmit = async (data: ProfileFormData) => {
     }
 };
 
+  const handleAvatarClick = () => {
+    if (isUploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0 || !user || !storage) {
+      return;
+    }
+    const file = event.target.files[0];
+    setIsUploading(true);
+
+    try {
+      const storageRef = ref(storage, `users/${user.uid}/profile.jpg`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const userDocRef = doc(firestore, 'users', user.uid);
+      
+      const batch = writeBatch(firestore);
+      batch.update(userDocRef, { photoURL: downloadURL });
+      
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { photoURL: downloadURL });
+      }
+      
+      const chatsQuery = query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
+      const chatsSnapshot = await getDocs(chatsQuery);
+      chatsSnapshot.forEach(chatDoc => {
+          if (chatDoc.data().userId === user.uid) {
+              batch.update(chatDoc.ref, { userPhotoURL: downloadURL });
+          }
+      });
+      
+      await batch.commit();
+
+      await refresh();
+      toast({ title: 'Foto de perfil atualizada com sucesso!' });
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao enviar foto',
+        description: 'Não foi possível atualizar a sua foto de perfil.',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+
   if (isUserLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -256,12 +315,27 @@ const onSubmit = async (data: ProfileFormData) => {
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
-                <Avatar className="h-24 w-24 rounded-lg">
-                    <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName || "User"} data-ai-hint="cellphone charger" />
-                    <AvatarFallback className="bg-primary/20 text-primary text-3xl">
-                        {getInitials(user.displayName)}
-                    </AvatarFallback>
-                </Avatar>
+                <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                    <Avatar className="h-24 w-24 rounded-lg">
+                        <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName || "User"} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-3xl">
+                            {isUploading ? <Loader2 className="animate-spin" /> : getInitials(user.displayName)}
+                        </AvatarFallback>
+                    </Avatar>
+                     <div 
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                        <Camera className="h-8 w-8 text-white" />
+                    </div>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileChange} 
+                        accept="image/png, image/jpeg" 
+                        className="hidden" 
+                        disabled={isUploading || isSubmitting}
+                    />
+                </div>
                 <div className="space-y-2">
                     <p className="text-lg font-semibold">{user.displayName}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>

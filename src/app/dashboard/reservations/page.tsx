@@ -334,7 +334,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                     <div className='flex flex-col gap-4 sm:flex-row justify-between items-start'>
                         <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={reservation.userPhotoURL ?? undefined} alt={reservation.userName} data-ai-hint="cellphone charger" />
+                                <AvatarImage src={reservation.userPhotoURL ?? undefined} alt={reservation.userName} />
                                 <AvatarFallback>{getInitials(reservation.userName)}</AvatarFallback>
                             </Avatar>
                             <div className="grid gap-0.5">

@@ -135,7 +135,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
       <CardHeader>
         <div className="flex items-center gap-3">
              <Avatar>
-                <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} {...(amIOwnerInThisChat && { 'data-ai-hint': 'cellphone charger' })} />
+                <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                 <AvatarFallback className="bg-primary/20 text-primary">
                     {getInitials(otherPartyName)}
                 </AvatarFallback>
@@ -166,7 +166,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                   >
                     {!isCurrentUser && (
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} {...(amIOwnerInThisChat && { 'data-ai-hint': 'cellphone charger' })}/>
+                        <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                         <AvatarFallback className="bg-muted text-muted-foreground">
                           {getInitials(otherPartyName)}
                         </AvatarFallback>
@@ -202,7 +202,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                     </div>
                      {isCurrentUser && (
                        <Avatar className="h-8 w-8">
-                        <AvatarImage src={currentUser.photoURL ?? undefined} alt={currentUser.displayName ?? ''} data-ai-hint="cellphone charger" />
+                        <AvatarImage src={currentUser.photoURL ?? undefined} alt={currentUser.displayName ?? ''} />
                         <AvatarFallback className="bg-primary/20 text-primary">
                           {getInitials(currentUser.displayName)}
                         </AvatarFallback>

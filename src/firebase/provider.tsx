@@ -27,7 +27,6 @@ import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import type { UserProfile, UserData } from '@/lib/types';
 import { firebaseConfig } from './config';
-import { profileImageUrl } from '@/lib/placeholder-images';
 
 export function initializeFirebase() {
   if (getApps().length) {
@@ -115,7 +114,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           uid: firebaseUser.uid,
           email: firebaseUser.email || '',
           displayName: firebaseUser.displayName || '',
-          photoURL: profileImageUrl,
+          photoURL: firebaseUser.photoURL || null,
           emailVerified: firebaseUser.emailVerified,
           isAnonymous: firebaseUser.isAnonymous,
           // Firestore profile data (or defaults)
