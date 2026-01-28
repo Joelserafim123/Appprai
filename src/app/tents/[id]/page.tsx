@@ -218,7 +218,7 @@ export default function TentPage() {
   }
 
   const bannerSrc = tent.bannerUrl || tentBannerUrl;
-  const hasRentalKitInCart = rentalKit && cart[rentalKit.id] && cart[rentalKit.id].quantity > 0;
+  const hasRentalKitInCart = !!rentalKit && (cart[rentalKit.id]?.quantity || 0) > 0;
   
   const handleProceedToMenu = () => {
     if (!hasRentalKitInCart) {
@@ -374,24 +374,28 @@ export default function TentPage() {
             lastMessageSenderId: 'system',
             lastMessageTimestamp: serverTimestamp(),
         };
-
-        const initialMessageRef = doc(collection(firestore, 'chats', newChatRef.id, 'messages'));
-        const initialMessageData: ChatMessageWrite = {
-            senderId: 'system',
-            text: welcomeMessage,
-            timestamp: serverTimestamp(),
-            isRead: false,
-        };
         
         batch.set(newReservationRef, reservationData);
         batch.set(newChatRef, chatData);
-        batch.set(initialMessageRef, initialMessageData);
         
         if (outstandingBalance > 0) {
             batch.update(userRef, { outstandingBalance: 0 });
         }
 
         await batch.commit();
+
+        // Add welcome message in a separate, non-blocking call
+        const initialMessageData: ChatMessageWrite = {
+            senderId: 'system',
+            text: welcomeMessage,
+            timestamp: serverTimestamp(),
+            isRead: false,
+        };
+        const messagesCollectionRef = collection(firestore, 'chats', newChatRef.id, 'messages');
+        addDoc(messagesCollectionRef, initialMessageData).catch(error => {
+            console.error("Failed to create welcome message:", error);
+            // Non-critical error, so we don't show it to the user
+        });
         
         toast({
             title: "Reserva Confirmada!",
