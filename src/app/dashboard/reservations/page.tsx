@@ -5,7 +5,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode, User as UserIcon, Utensils } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -237,6 +237,112 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     const [reservationForCancel, setReservationForCancel] = useState<Reservation | null>(null);
     const [reservationForNoShow, setReservationForNoShow] = useState<Reservation | null>(null);
     const [canMarkNoShow, setCanMarkNoShow] = useState(false);
+    const [isProcessingPending, setIsProcessingPending] = useState(false);
+
+    const pendingItems = useMemo(() => reservation.items.filter(i => i.status === 'pending_confirmation'), [reservation.items]);
+
+    const handleAcceptPendingItems = async () => {
+        if (!firestore || pendingItems.length === 0) return;
+        setIsProcessingPending(true);
+        
+        const reservationRef = doc(firestore, 'reservations', reservation.id);
+        const newItems = reservation.items.map(item => 
+            item.status === 'pending_confirmation' ? { ...item, status: 'pending' as const } : item
+        );
+        
+        try {
+            const batch = writeBatch(firestore);
+            
+            batch.update(reservationRef, { items: newItems });
+
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+
+            if (!chatSnapshot.empty) {
+                const chatDocRef = chatSnapshot.docs[0].ref;
+                const messagesCollectionRef = collection(chatDocRef, 'messages');
+                const newMessageRef = doc(messagesCollectionRef);
+                const notificationMessage = {
+                    senderId: 'system',
+                    text: 'Seu pedido de novos itens foi aceite pela barraca!',
+                    timestamp: serverTimestamp(),
+                    isRead: false
+                };
+                batch.set(newMessageRef, notificationMessage);
+                batch.update(chatDocRef, {
+                    lastMessage: notificationMessage.text,
+                    lastMessageSenderId: 'system',
+                    lastMessageTimestamp: serverTimestamp(),
+                });
+            }
+            
+            await batch.commit();
+            toast({ title: 'Itens aceites com sucesso!' });
+
+        } catch (error) {
+            const permissionError = new FirestorePermissionError({
+                path: reservationRef.path,
+                operation: 'update',
+                requestResourceData: { items: newItems },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao aceitar itens' });
+        } finally {
+            setIsProcessingPending(false);
+        }
+    };
+
+    const handleRejectPendingItems = async () => {
+        if (!firestore || pendingItems.length === 0) return;
+        setIsProcessingPending(true);
+
+        const reservationRef = doc(firestore, 'reservations', reservation.id);
+        const newItems = reservation.items.filter(item => item.status !== 'pending_confirmation');
+        
+        try {
+            const batch = writeBatch(firestore);
+            batch.update(reservationRef, { items: newItems });
+
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+
+            if (!chatSnapshot.empty) {
+                const chatDocRef = chatSnapshot.docs[0].ref;
+                const messagesCollectionRef = collection(chatDocRef, 'messages');
+                const newMessageRef = doc(messagesCollectionRef);
+                const itemNames = pendingItems.map(i => i.name).join(', ');
+                const notificationMessage = {
+                    senderId: 'system',
+                    text: `Lamentamos, mas não foi possível adicionar os seguintes itens ao seu pedido: ${itemNames}.`,
+                    timestamp: serverTimestamp(),
+                    isRead: false
+                };
+                batch.set(newMessageRef, notificationMessage);
+                batch.update(chatDocRef, {
+                    lastMessage: 'Alguns itens do seu pedido foram recusados.',
+                    lastMessageSenderId: 'system',
+                    lastMessageTimestamp: serverTimestamp(),
+                });
+            }
+            
+            await batch.commit();
+            toast({ title: 'Itens recusados.' });
+
+        } catch (error) {
+            const permissionError = new FirestorePermissionError({
+                path: reservationRef.path,
+                operation: 'update',
+                requestResourceData: { items: newItems },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            toast({ variant: 'destructive', title: 'Erro ao recusar itens' });
+        } finally {
+            setIsProcessingPending(false);
+        }
+    };
+
 
     useEffect(() => {
         if (reservation.status !== 'confirmed') {
@@ -418,6 +524,26 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                         </div>
                     )}
                 </CardContent>
+                {pendingItems.length > 0 && (
+                    <div className="bg-amber-50 border-amber-200 border-t p-4 space-y-3">
+                        <h4 className="font-semibold text-amber-800 text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4" /> Novos Itens Pendentes</h4>
+                        <ul className="space-y-1 text-sm text-amber-900 list-disc list-inside">
+                            {pendingItems.map((item, index) => (
+                                <li key={index}>
+                                    {item.quantity}x {item.name}
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="flex gap-2">
+                            <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleAcceptPendingItems} disabled={isProcessingPending}>
+                                {isProcessingPending ? <Loader2 className="animate-spin" /> : 'Aceitar'}
+                            </Button>
+                            <Button size="sm" variant="destructive" className="flex-1" onClick={handleRejectPendingItems} disabled={isProcessingPending}>
+                                {isProcessingPending ? <Loader2 className="animate-spin" /> : 'Recusar'}
+                            </Button>
+                        </div>
+                    </div>
+                )}
                 <CardFooter className="flex-col gap-2">
                         {reservation.status === 'confirmed' && (
                         <div className="grid grid-cols-1 gap-2 w-full">
@@ -551,6 +677,7 @@ export default function OwnerReservationsPage() {
   const { firestore } = useFirebase();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const prevReservationsRef = useRef<Reservation[]>();
 
   const reservationsQuery = useMemoFirebase(
     () => (user?.role === 'owner' && firestore) ? query(
@@ -561,6 +688,45 @@ export default function OwnerReservationsPage() {
   );
   const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
   
+  useEffect(() => {
+    if (!rawReservations || typeof window === 'undefined') {
+        return;
+    }
+
+    const hasNewPendingRequest = prevReservationsRef.current && rawReservations.some(newRes => {
+        const oldRes = prevReservationsRef.current?.find(r => r.id === newRes.id);
+        if (!oldRes) return false;
+        
+        const newPendingCount = newRes.items.filter(i => i.status === 'pending_confirmation').length;
+        const oldPendingCount = oldRes.items.filter(i => i.status === 'pending_confirmation').length;
+        
+        return newPendingCount > oldPendingCount;
+    });
+
+    if (hasNewPendingRequest) {
+        try {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+            console.warn("Could not play notification sound. User interaction might be required.", e);
+        }
+    }
+
+    prevReservationsRef.current = rawReservations;
+
+}, [rawReservations]);
+
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];
     // Sort on the client-side for robustness against inconsistent data

@@ -58,14 +58,14 @@ export default function OrderPage() {
         try {
             const batch = writeBatch(firestore);
             
-            // 1. Update reservation with new items as 'pending'
+            // 1. Update reservation with new items as 'pending_confirmation'
             batch.update(reservationRef!, {
                 items: arrayUnion(...newItems.map(ni => ({
                     itemId: ni.item.id,
                     name: ni.item.name,
                     price: ni.item.price,
                     quantity: ni.quantity,
-                    status: 'pending' as const
+                    status: 'pending_confirmation' as const
                 }))),
             });
 
@@ -81,7 +81,7 @@ export default function OrderPage() {
 
                 const notificationMessage: ChatMessageWrite = {
                     senderId: 'system',
-                    text: 'O cliente adicionou novos itens ao pedido.',
+                    text: 'O cliente solicitou novos itens. Aguardando sua confirmação.',
                     timestamp: serverTimestamp(),
                     isRead: false
                 };
@@ -99,7 +99,7 @@ export default function OrderPage() {
 
             await batch.commit();
 
-            toast({ title: 'Itens adicionados!', description: 'Os novos itens foram adicionados ao seu pedido e aguardam entrega.' });
+            toast({ title: 'Solicitação Enviada!', description: 'Sua solicitação foi enviada para a barraca e aguarda confirmação.' });
             clearCart();
             router.push('/dashboard/my-reservations');
 
@@ -109,7 +109,7 @@ export default function OrderPage() {
                 path: reservationRef!.path,
                 operation: 'update',
                 requestResourceData: { 
-                    items: `Adding ${newItems.length} items with pending status.`, 
+                    items: `Adding ${newItems.length} items with pending_confirmation status.`, 
                 }
             });
             errorEmitter.emit('permission-error', permissionError);
@@ -187,7 +187,7 @@ export default function OrderPage() {
                                     <p className="font-bold text-lg">R$ {newItemsTotal.toFixed(2)}</p>
                                 </div>
                                 <Button onClick={handleAddItems} disabled={isSubmitting || Object.keys(cart).length === 0}>
-                                    {isSubmitting ? <Loader2 className="animate-spin" /> : <>Adicionar Itens <ShoppingCart className="ml-2"/></>}
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : <>Solicitar Itens <ShoppingCart className="ml-2"/></>}
                                 </Button>
                             </CardFooter>
                         </Card>

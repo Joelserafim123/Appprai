@@ -35,7 +35,7 @@ import { ReviewDialog } from '@/components/reviews/review-dialog';
 import { useTranslations } from '@/i18n';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/utils';
+import { getInitials, cn } from '@/lib/utils';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -215,9 +215,10 @@ export default function MyReservationsPage() {
                   <ul className="space-y-2 text-sm text-muted-foreground">
                       {reservation.items.map((item, index) => {
                         const isRental = ['Kit Guarda-sol + 2 Cadeiras', 'Cadeira Adicional'].includes(item.name);
+                        const isPendingConfirmation = item.status === 'pending_confirmation';
                         return (
-                          <li key={`${item.name}-${index}`} className="flex justify-between">
-                              <span>{item.quantity}x {isRental ? t_products(item.name as 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional') : item.name}</span>
+                          <li key={`${item.name}-${index}`} className={cn("flex justify-between", isPendingConfirmation && "text-amber-600 italic")}>
+                              <span>{item.quantity}x {isRental ? t_products(item.name as 'Kit Guarda-sol + 2 Cadeiras' | 'Cadeira Adicional') : item.name} {isPendingConfirmation && "(Aguardando)"}</span>
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                           </li>
                         )
@@ -232,6 +233,9 @@ export default function MyReservationsPage() {
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
                   <div className="text-right w-full sm:w-auto">
+                      {reservation.items.some(i => i.status === 'pending_confirmation') && (
+                          <p className="text-xs text-amber-600 text-left sm:text-right">Aguardando confirmação de novos itens</p>
+                      )}
                       <p className="text-sm font-medium text-muted-foreground">Total</p>
                       <p className='font-bold text-lg'>R$ {reservation.total.toFixed(2)}</p>
                   </div>
