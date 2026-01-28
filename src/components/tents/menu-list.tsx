@@ -1,6 +1,6 @@
 'use client';
 
-import { useCartStore, useCartActions } from '@/hooks/use-cart-store';
+import { useCartStore } from '@/hooks/use-cart-store';
 import type { MenuItem } from '@/lib/types';
 import { Loader2, Minus, Plus, Utensils } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ interface MenuListProps {
 
 export function MenuList({ menuItems, isLoading, isSubmitting }: MenuListProps) {
   const cart = useCartStore((state) => state.cart);
-  const { handleQuantityChange } = useCartActions();
+  const handleQuantityChange = useCartStore((state) => state.handleQuantityChange);
   const t_categories = useTranslations('Shared.Categories');
 
   if (isLoading) {

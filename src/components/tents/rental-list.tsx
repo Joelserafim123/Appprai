@@ -1,6 +1,6 @@
 'use client';
 
-import { useCartStore, useCartActions } from '@/hooks/use-cart-store';
+import { useCartStore } from '@/hooks/use-cart-store';
 import type { RentalItem } from '@/lib/types';
 import { Armchair, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ interface RentalListProps {
 
 export function RentalList({ rentalKit, additionalChair, isSubmitting }: RentalListProps) {
   const cart = useCartStore((state) => state.cart);
-  const { handleQuantityChange } = useCartActions();
+  const handleQuantityChange = useCartStore((state) => state.handleQuantityChange);
   const t_products = useTranslations('Shared.ProductNames');
 
   if (!rentalKit && !additionalChair) {

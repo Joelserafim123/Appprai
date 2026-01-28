@@ -26,7 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, addDays, getDay, set } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-import { useCartStore, useCartActions } from '@/hooks/use-cart-store';
+import { useCartStore } from '@/hooks/use-cart-store';
 import { CartSummary } from '@/components/tents/cart-summary';
 import { RentalList } from '@/components/tents/rental-list';
 import { MenuList } from '@/components/tents/menu-list';
@@ -87,7 +87,8 @@ export default function TentPage() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const timeSelectTriggerRef = useRef<HTMLButtonElement>(null);
   
-  const { initializeCart, clearCart } = useCartActions();
+  const initializeCart = useCartStore((state) => state.initializeCart);
+  const clearCart = useCartStore((state) => state.clearCart);
   const cart = useCartStore((state) => state.cart);
 
   const tentRef = useMemoFirebase(() => (firestore && tentId) ? doc(firestore, 'tents', tentId) : null, [firestore, tentId]);

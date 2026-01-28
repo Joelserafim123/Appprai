@@ -1,6 +1,6 @@
 'use client';
 
-import { useCartStore, useCartActions } from '@/hooks/use-cart-store';
+import { useCartStore } from '@/hooks/use-cart-store';
 import { useUser } from '@/firebase/provider';
 import type { Tent, RentalItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
