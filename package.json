@@ -2,7 +2,7 @@
   "name": "apppraia",
   "version": "0.1.0",
   "private": true,
-  "description": "Aplicativo completo de praia para aluguel, reservas e pedidos em barracas.",
+  "description": "Aplicativo de praia para aluguel, reservas e pedidos em barracas. Totalmente integrado com Firebase.",
   "scripts": {
     "dev": "next dev",
     "build": "NODE_ENV=production next build",
