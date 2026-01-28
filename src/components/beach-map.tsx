@@ -181,7 +181,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
             strokeWeight: 1,
             strokeColor: '#fff',
             rotation: 0,
-            scale: 1,
+            scale: 1.5,
             anchor: new google.maps.Point(12, 12),
         };
     };
