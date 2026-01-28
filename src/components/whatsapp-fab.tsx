@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, type PointerEvent } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -19,13 +20,67 @@ const WhatsAppIcon = () => (
 export function WhatsAppFab() {
   const phoneNumber = '+5581985519813';
   const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}`;
+  const fabRef = useRef<HTMLDivElement>(null);
+  const posRef = useRef({ x: 24, y: 24, isDragging: false, wasDragged: false });
+
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    posRef.current.isDragging = true;
+    posRef.current.wasDragged = false;
+    fabRef.current?.setPointerCapture(e.pointerId);
+    if(fabRef.current) fabRef.current.style.cursor = 'grabbing';
+  };
+
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (posRef.current.isDragging) {
+      posRef.current.wasDragged = true;
+      const fab = fabRef.current;
+      if (fab) {
+        posRef.current.x -= e.movementX;
+        posRef.current.y -= e.movementY;
+        
+        posRef.current.x = Math.max(0, Math.min(posRef.current.x, window.innerWidth - fab.offsetWidth));
+        posRef.current.y = Math.max(0, Math.min(posRef.current.y, window.innerHeight - fab.offsetHeight));
+
+        fab.style.right = `${posRef.current.x}px`;
+        fab.style.bottom = `${posRef.current.y}px`;
+      }
+    }
+  };
+
+  const handlePointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    posRef.current.isDragging = false;
+    fabRef.current?.releasePointerCapture(e.pointerId);
+    if(fabRef.current) fabRef.current.style.cursor = 'grab';
+  };
+
+  const handleClickCapture = (e: React.MouseEvent) => {
+    if (posRef.current.wasDragged) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div
+      ref={fabRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      style={{
+        position: 'fixed',
+        right: '24px',
+        bottom: '24px',
+        touchAction: 'none',
+        cursor: 'grab',
+      }}
+      className="z-50"
+      onClickCapture={handleClickCapture}
+    >
       <Button
         asChild
         className="h-16 w-16 rounded-full bg-green-500 text-white shadow-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
         aria-label="Contact via WhatsApp"
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
           <WhatsAppIcon />

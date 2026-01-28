@@ -292,7 +292,7 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
             
             <Button
                 size="icon"
-                className="absolute bottom-4 right-4 z-10 rounded-full shadow-lg"
+                className="absolute bottom-4 left-4 z-10 rounded-full shadow-lg"
                 onClick={handleGetCurrentLocation}
                 disabled={isLocating}
                 aria-label="Usar minha localização atual"
