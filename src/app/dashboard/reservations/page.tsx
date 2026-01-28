@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode } from 'lucide-react';
+import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -419,8 +419,8 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                     )}
                     {['confirmed', 'checked-in'].includes(reservation.status) && reservation.status !== 'cancelled' && (
                         <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)}>
-                            <MessageSquare className="mr-2 h-4 w-4" />
-                            Contactar Cliente
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver Conversa
                         </Button>
                     )}
                         {reservation.status === 'completed' && reservation.paymentMethod && (

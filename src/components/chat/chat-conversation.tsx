@@ -8,7 +8,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, Check, CheckCheck, User as UserIcon } from 'lucide-react';
+import { Loader2, Send, Check, Eye, User as UserIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getInitials } from '@/lib/utils';
@@ -196,7 +196,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                             {message.timestamp?.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         {isCurrentUser && (
-                            message.isRead ? <CheckCheck className="h-4 w-4 text-primary" /> : <Check className="h-4 w-4 text-muted-foreground" />
+                            message.isRead ? <Eye className="h-4 w-4 text-primary" /> : <Check className="h-4 w-4 text-muted-foreground" />
                         )}
                       </div>
                     </div>
@@ -204,7 +204,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                        <Avatar className="h-8 w-8">
                         <AvatarImage src={currentUser.photoURL ?? undefined} alt={currentUser.displayName ?? ''} />
                         <AvatarFallback className="bg-primary/20 text-primary">
-                          {getInitials(currentUser.displayName)}
+                          <UserIcon className="h-5 w-5" />
                         </AvatarFallback>
                       </Avatar>
                     )}

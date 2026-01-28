@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, MessageSquare } from 'lucide-react';
+import { Loader2, Star, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -266,8 +266,8 @@ export default function MyReservationsPage() {
                       )}
                        {['confirmed', 'checked-in', 'payment-pending'].includes(reservation.status) && reservation.status !== 'cancelled' && (
                           <Button variant="outline" onClick={() => handleStartChat(reservation)}>
-                              <MessageSquare className="mr-2 h-4 w-4"/>
-                              Contactar Barraca
+                              <Eye className="mr-2 h-4 w-4"/>
+                              Ver Conversa
                           </Button>
                       )}
                       {reservation.status === 'confirmed' && (
