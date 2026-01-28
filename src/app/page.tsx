@@ -8,6 +8,7 @@ import { Logo } from '@/components/icons';
 import { useFirebase, useMemoFirebase, useUser } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where } from 'firebase/firestore';
+import { WhatsAppFab } from '@/components/whatsapp-fab';
 
 
 export default function HomePage() {
@@ -42,6 +43,7 @@ export default function HomePage() {
              </p>
            </div>
          </main>
+         <WhatsAppFab />
        </div>
      );
   }
@@ -51,6 +53,7 @@ export default function HomePage() {
       <Header />
       <main className="flex-1 overflow-hidden">
         <BeachMap tents={tents} favoriteTentIds={user?.favoriteTentIds || []} />
+        <WhatsAppFab />
       </main>
     </div>
   );
