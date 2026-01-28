@@ -10,11 +10,10 @@ import { Header } from '@/components/layout/header';
 import { MenuList } from '@/components/tents/menu-list';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { useCartStore } from '@/hooks/use-cart-store';
-import { doc, collection, writeBatch, arrayUnion, increment, serverTimestamp, addDoc } from 'firebase/firestore';
+import { doc, collection, writeBatch, arrayUnion, increment, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore';
 import type { Reservation, MenuItem, ChatMessageWrite, Tent } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 
 export default function OrderPage() {
     const router = useRouter();
@@ -26,7 +25,7 @@ export default function OrderPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { cart, clearCart, handleQuantityChange } = useCartStore();
+    const { cart, clearCart } = useCartStore();
 
     const reservationRef = useMemoFirebase(() => (firestore && reservationId) ? doc(firestore, 'reservations', reservationId) : null, [firestore, reservationId]);
     const { data: reservation, isLoading: isLoadingReservation } = useDoc<Reservation>(reservationRef);
@@ -69,18 +68,33 @@ export default function OrderPage() {
                 total: increment(newItemsTotal)
             });
 
-            // 2. Add a system message to the chat
-            const chatQuery = collection(firestore, 'chats');
-            const chatDoc = (await doc(chatQuery, `reservationId_${reservation.id}`).get()).ref;
-            const messageRef = collection(chatDoc, 'messages');
-            
-            const notificationMessage: ChatMessageWrite = {
-                senderId: 'system',
-                text: 'O cliente adicionou novos itens ao pedido. Por favor, verifique a cozinha.',
-                timestamp: serverTimestamp(),
-                isRead: false
-            };
-            addDoc(messageRef, notificationMessage);
+            // 2. Find chat and add a system message
+            const chatsRef = collection(firestore, 'chats');
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const chatSnapshot = await getDocs(q);
+
+            if (!chatSnapshot.empty) {
+                const chatDocRef = chatSnapshot.docs[0].ref;
+                const messagesCollectionRef = collection(chatDocRef, 'messages');
+                const newMessageRef = doc(messagesCollectionRef); // Create a ref for the new message
+
+                const notificationMessage: ChatMessageWrite = {
+                    senderId: 'system',
+                    text: 'O cliente adicionou novos itens ao pedido. Por favor, verifique a cozinha.',
+                    timestamp: serverTimestamp(),
+                    isRead: false
+                };
+                
+                batch.set(newMessageRef, notificationMessage);
+
+                // 3. Update the chat's last message
+                batch.update(chatDocRef, {
+                    lastMessage: notificationMessage.text,
+                    lastMessageSenderId: 'system',
+                    lastMessageTimestamp: serverTimestamp(),
+                });
+            }
+
 
             await batch.commit();
 
