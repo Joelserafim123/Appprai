@@ -35,7 +35,17 @@ const signupSchema = z.object({
   email: z.string().email("Por favor, insira um email válido."),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
   role: z.enum(['customer', 'owner'], { required_error: "Você deve escolher um tipo de conta." }),
-})
+  ownerAccessCode: z.string().optional(),
+}).refine(data => {
+    if (data.role === 'owner') {
+        return data.ownerAccessCode === '659011';
+    }
+    return true;
+}, {
+    message: "O código de acesso de barraqueiro é inválido.",
+    path: ["ownerAccessCode"],
+});
+
 
 type SignupFormValues = z.infer<typeof signupSchema>
 
@@ -50,6 +60,7 @@ export function SignUpForm() {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -57,8 +68,18 @@ export function SignUpForm() {
       role: 'customer',
     }
   })
+  
+  const watchedRole = watch("role");
 
   const processForm = (data: SignupFormValues) => {
+    if (data.role === 'owner' && data.ownerAccessCode !== '659011') {
+      toast({
+        variant: "destructive",
+        title: "Erro no Cadastro",
+        description: "O código de acesso de barraqueiro é inválido.",
+      });
+      return;
+    }
     setPendingData(data);
   };
   
@@ -158,6 +179,19 @@ export function SignUpForm() {
           />
           {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
         </div>
+        
+        {watchedRole === 'owner' && (
+          <div className="space-y-2">
+            <Label htmlFor="ownerAccessCode">Código de Acesso de Barraqueiro</Label>
+            <Input
+              id="ownerAccessCode"
+              type="password"
+              {...register("ownerAccessCode")}
+              placeholder="Digite o código de 6 dígitos"
+            />
+            {errors.ownerAccessCode && <p className="text-sm text-destructive">{errors.ownerAccessCode.message}</p>}
+          </div>
+        )}
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
