@@ -2,14 +2,59 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Tents are publicly readable.
     match /tents/{tentId} {
       allow read: if true;
-      allow write: if false;
+      // Only the owner can create/update their tent info.
+      // `resource.data.ownerId` is used for update/delete, `request.resource.data.ownerId` for create.
+      allow write: if request.auth != null && (request.resource.data.ownerId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+    }
+    
+    // Tent subcollections
+    match /tents/{tentId}/{subcollection}/{docId} {
+        // Menu and rental items are publicly readable.
+        allow read: if true;
+        // Owners can manage their menu and rental items.
+        allow write: if (subcollection == 'menuItems' || subcollection == 'rentalItems')
+                      && request.auth != null 
+                      && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
+        // Users can create reviews, but not update/delete them.
+        allow create: if subcollection == 'reviews'
+                       && request.auth != null
+                       && request.resource.data.userId == request.auth.uid;
     }
 
-    match /tents/{tentId}/{document=**} {
-      allow read: if true;
-      allow write: if false;
+    // User profiles can only be read/written by the user themselves.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // CPF documents are used for uniqueness checks.
+    match /cpfs/{cpf} {
+      // Allow any authenticated user to check if a CPF exists.
+      allow get: if request.auth != null;
+      // Allow a user to create a CPF document for themselves.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Prevent listing all CPFs or modifying/deleting them.
+      allow list, update, delete: if false;
+    }
+
+    // Reservations can be created by users, and read/updated by participants.
+    match /reservations/{reservationId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+    }
+
+    // Chats and messages can be managed by participants.
+    match /chats/{chatId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        allow update, delete: if false;
+      }
     }
   }
 }
