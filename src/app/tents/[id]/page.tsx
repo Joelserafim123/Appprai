@@ -345,7 +345,8 @@ export default function TentPage() {
                 itemId: item.id,
                 name: item.name,
                 price: item.price,
-                quantity: quantity
+                quantity: quantity,
+                status: 'pending' as const
             })),
             total: finalTotal,
             outstandingBalancePaid: outstandingBalance,

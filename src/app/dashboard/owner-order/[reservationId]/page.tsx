@@ -9,7 +9,7 @@ import { Loader2, Utensils, ArrowLeft, Plus, Minus } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { doc, collection, writeBatch, serverTimestamp, getDocs, query, where, limit } from 'firebase/firestore';
-import type { Reservation, MenuItem, Tent, ReservationItem } from '@/lib/types';
+import type { Reservation, MenuItem, Tent, ReservationItem, ItemDeliveryStatus } from '@/lib/types';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 // This is a new component for the menu, as the existing one is tied to useCartStore
 const OwnerMenuList = ({ menuItems, onAddItem, isSubmitting }: { menuItems: MenuItem[], onAddItem: (item: MenuItem) => void, isSubmitting: boolean }) => {
@@ -77,6 +79,7 @@ export default function OwnerOrderPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editedItems, setEditedItems] = useState<ReservationItem[]>([]);
+    const [originalItemsJSON, setOriginalItemsJSON] = useState<string>('[]');
 
     const reservationRef = useMemoFirebase(() => (firestore && reservationId) ? doc(firestore, 'reservations', reservationId) : null, [firestore, reservationId]);
     const { data: reservation, isLoading: isLoadingReservation } = useDoc<Reservation>(reservationRef);
@@ -89,8 +92,13 @@ export default function OwnerOrderPage() {
 
     useEffect(() => {
         if (reservation) {
-            // Deep copy to avoid direct mutation
-            setEditedItems(JSON.parse(JSON.stringify(reservation.items)));
+            // Deep copy and add default status if missing for backward compatibility
+            const itemsWithStatus = reservation.items.map(item => ({
+                ...item,
+                status: item.status || 'pending'
+            })) as ReservationItem[];
+            setEditedItems(itemsWithStatus);
+            setOriginalItemsJSON(JSON.stringify(itemsWithStatus));
         }
     }, [reservation]);
 
@@ -126,8 +134,8 @@ export default function OwnerOrderPage() {
 
     const hasChanges = useMemo(() => {
         if (!reservation) return false;
-        return newTotal.toFixed(2) !== originalTotal.toFixed(2) || JSON.stringify(editedItems) !== JSON.stringify(reservation.items);
-    }, [newTotal, originalTotal, editedItems, reservation]);
+        return JSON.stringify(editedItems) !== originalItemsJSON;
+    }, [editedItems, originalItemsJSON, reservation]);
 
 
     const handleItemQuantityChange = (itemId: string, change: number) => {
@@ -146,6 +154,14 @@ export default function OwnerOrderPage() {
         });
     };
 
+    const handleItemStatusChange = (itemId: string, status: ItemDeliveryStatus) => {
+        setEditedItems(currentItems => {
+            return currentItems.map(item => 
+                item.itemId === itemId ? { ...item, status } : item
+            );
+        });
+    };
+
     const handleAddItem = (menuItem: MenuItem) => {
         setEditedItems(currentItems => {
             const newItems = [...currentItems];
@@ -157,7 +173,8 @@ export default function OwnerOrderPage() {
                     itemId: menuItem.id,
                     name: menuItem.name,
                     price: menuItem.price,
-                    quantity: 1
+                    quantity: 1,
+                    status: 'pending'
                 });
             }
             return newItems;
@@ -169,7 +186,7 @@ export default function OwnerOrderPage() {
         
         setIsSubmitting(true);
         const totalDifference = newTotal - originalTotal;
-        const changeDescription = totalDifference > 0 ? `Itens totalizando R$ ${totalDifference.toFixed(2)} foram adicionados.` : 'Itens foram removidos/alterados.';
+        const changeDescription = "O proprietário da barraca alterou o pedido.";
         
         try {
             const batch = writeBatch(firestore);
@@ -192,7 +209,7 @@ export default function OwnerOrderPage() {
 
                 const notificationMessage = {
                     senderId: 'system',
-                    text: `O proprietário da barraca alterou o pedido. ${changeDescription}`,
+                    text: changeDescription,
                     timestamp: serverTimestamp(),
                     isRead: false
                 };
@@ -261,7 +278,7 @@ export default function OwnerOrderPage() {
                         <ArrowLeft className="mr-2"/> Voltar para Reservas
                     </Button>
                     <h1 className="text-3xl font-bold tracking-tight">Gerenciar Pedido de {reservation.userName}</h1>
-                    <p className="text-muted-foreground">Adicione ou remova itens do pedido Nº {reservation.orderNumber}.</p>
+                    <p className="text-muted-foreground">Adicione, remova ou marque itens como entregues para o Pedido Nº {reservation.orderNumber}.</p>
                 </div>
                 
                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -274,13 +291,25 @@ export default function OwnerOrderPage() {
                                 {editedItems.length === 0 ? (
                                     <p className="text-sm text-muted-foreground text-center py-4">Nenhum item no pedido.</p>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-2">
                                         {editedItems.map((item) => (
-                                            <div key={item.itemId} className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-medium">{item.name}</p>
-                                                    <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2)} cada</p>
+                                            <div key={item.itemId} className="flex items-center justify-between gap-4 py-3 border-b last:border-b-0">
+                                                <div className="flex items-center gap-3">
+                                                    <Checkbox
+                                                        id={`item-status-${item.itemId}`}
+                                                        checked={item.status === 'delivered'}
+                                                        onCheckedChange={(checked) => handleItemStatusChange(item.itemId, checked ? 'delivered' : 'pending')}
+                                                        disabled={isSubmitting}
+                                                        className="h-6 w-6"
+                                                    />
+                                                    <label htmlFor={`item-status-${item.itemId}`} className="cursor-pointer">
+                                                        <p className={cn("font-medium", item.status === 'delivered' && "line-through text-muted-foreground")}>
+                                                            {item.name}
+                                                        </p>
+                                                        <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2)} cada</p>
+                                                    </label>
                                                 </div>
+                                            
                                                 <div className="flex items-center gap-2">
                                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleItemQuantityChange(item.itemId, -1)} disabled={isSubmitting}>
                                                         <Minus className="h-4 w-4" />

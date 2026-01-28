@@ -83,12 +83,15 @@ export interface RentalItem {
   quantity: number;
 }
 
+export type ItemDeliveryStatus = 'pending' | 'delivered';
+
 // An item within a reservation (can be menu or rental)
 export interface ReservationItem {
     itemId: string;
     name: string;
     price: number;
     quantity: number;
+    status: ItemDeliveryStatus;
 };
 
 // Overall status of a reservation

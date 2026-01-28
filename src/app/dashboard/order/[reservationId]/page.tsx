@@ -66,6 +66,7 @@ export default function OrderPage() {
                     name: ni.item.name,
                     price: ni.item.price,
                     quantity: ni.quantity,
+                    status: 'pending' as const
                 }))),
                 total: increment(newItemsTotal)
             });
