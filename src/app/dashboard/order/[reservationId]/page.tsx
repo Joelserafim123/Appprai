@@ -73,7 +73,7 @@ export default function OrderPage() {
 
             // 2. Find chat and add a system message
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
 
             if (!chatSnapshot.empty) {
