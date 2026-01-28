@@ -369,14 +369,15 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         
         const newItems = reservation.items.filter(item => item.status !== 'pending_confirmation');
         const reservationRef = doc(firestore, 'reservations', reservation.id);
+        const updateData = { items: newItems };
         
         try {
             const batch = writeBatch(firestore);
             
-            batch.update(reservationRef, { items: newItems });
+            batch.update(reservationRef, updateData);
             
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
 
             if (!chatSnapshot.empty) {
@@ -404,6 +405,12 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             
         } catch(error) {
             console.error("Error declining items:", error);
+            const permissionError = new FirestorePermissionError({
+                path: reservationRef.path,
+                operation: 'update',
+                requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: "Erro ao recusar itens." });
         } finally {
             setIsSubmitting(false);
@@ -418,16 +425,15 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             item.status === 'pending_confirmation' ? { ...item, status: 'pending' as const } : item
         );
         const reservationRef = doc(firestore, 'reservations', reservation.id);
+        const updateData = { items: newItems };
 
         try {
             const batch = writeBatch(firestore);
             
-            batch.update(reservationRef, { 
-                items: newItems,
-            });
+            batch.update(reservationRef, updateData);
             
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
 
             if (!chatSnapshot.empty) {
@@ -455,6 +461,12 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             
         } catch(error) {
             console.error("Error accepting items:", error);
+            const permissionError = new FirestorePermissionError({
+                path: reservationRef.path,
+                operation: 'update',
+                requestResourceData: updateData
+            });
+            errorEmitter.emit('permission-error', permissionError);
             toast({ variant: 'destructive', title: "Erro ao aceitar itens." });
         } finally {
             setIsSubmitting(false);
