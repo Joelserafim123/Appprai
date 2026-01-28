@@ -11,7 +11,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { Tent, OperatingHoursDay, Reservation, Review, Chat, MenuItem, RentalItem, ReservationWrite, ChatWrite } from '@/lib/types';
+import type { Tent, OperatingHoursDay, Reservation, Review, Chat, MenuItem, RentalItem, ReservationWrite, ChatWrite, ChatMessageWrite } from '@/lib/types';
 import { cn, getInitials } from '@/lib/utils';
 import { tentBannerUrl } from '@/lib/placeholder-images';
 import { Label } from '@/components/ui/label';
@@ -357,6 +357,8 @@ export default function TentPage() {
             participantIds: [user.uid, tent.ownerId],
         };
 
+        const welcomeMessage = "Bem-vindo à BeachPal! Sou seu assistente virtual. Se precisar de ajuda com seu pedido ou tiver qualquer outra dúvida, é só me avisar por aqui.";
+
         const chatData: ChatWrite = {
             reservationId: newReservationRef.id,
             userId: user.uid,
@@ -368,13 +370,22 @@ export default function TentPage() {
             tentLogoUrl: tent.logoUrl || null,
             participantIds: [user.uid, tent.ownerId],
             status: 'active',
-            lastMessage: 'Reserva criada. Inicie a conversa!',
+            lastMessage: welcomeMessage,
             lastMessageSenderId: 'system',
             lastMessageTimestamp: serverTimestamp(),
+        };
+
+        const initialMessageRef = doc(collection(firestore, 'chats', newChatRef.id, 'messages'));
+        const initialMessageData: ChatMessageWrite = {
+            senderId: 'system',
+            text: welcomeMessage,
+            timestamp: serverTimestamp(),
+            isRead: false,
         };
         
         batch.set(newReservationRef, reservationData);
         batch.set(newChatRef, chatData);
+        batch.set(initialMessageRef, initialMessageData);
         
         if (outstandingBalance > 0) {
             batch.update(userRef, { outstandingBalance: 0 });

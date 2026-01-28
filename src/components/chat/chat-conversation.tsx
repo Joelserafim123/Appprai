@@ -8,7 +8,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, Check, Eye, User as UserIcon } from 'lucide-react';
+import { Loader2, Send, Check, Eye, User as UserIcon, Sun } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getInitials } from '@/lib/utils';
@@ -155,6 +155,25 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
             ) : (
               messages?.map((message) => {
                 const isCurrentUser = message.senderId === currentUser.uid;
+                const isSystemMessage = message.senderId === 'system';
+
+                if (isSystemMessage) {
+                  return (
+                     <div key={message.id} className="flex items-start gap-3 justify-center my-4">
+                        <div className="flex flex-col items-center gap-2 max-w-[85%]">
+                           <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                             <div className="p-1.5 bg-primary/20 text-primary rounded-full">
+                                <Sun className="h-4 w-4" />
+                             </div>
+                              BeachPal
+                           </div>
+                           <div className="rounded-lg px-4 py-3 bg-muted text-center text-card-foreground/90">
+                              <p className='text-sm' style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message.text}</p>
+                           </div>
+                        </div>
+                     </div>
+                  );
+                }
 
                 return (
                   <div
