@@ -80,6 +80,7 @@ export default function OwnerOrderPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editedItems, setEditedItems] = useState<ReservationItem[]>([]);
     const [originalItemsJSON, setOriginalItemsJSON] = useState<string>('[]');
+    const [itemToDelete, setItemToDelete] = useState<ReservationItem | null>(null);
 
     const reservationRef = useMemoFirebase(() => (firestore && reservationId) ? doc(firestore, 'reservations', reservationId) : null, [firestore, reservationId]);
     const { data: reservation, isLoading: isLoadingReservation } = useDoc<Reservation>(reservationRef);
@@ -139,33 +140,37 @@ export default function OwnerOrderPage() {
 
 
     const handleItemQuantityChange = (itemId: string, change: number) => {
+        const itemIndex = editedItems.findIndex(i => i.itemId === itemId);
+        if (itemIndex === -1) return;
+        
+        const itemToUpdate = editedItems[itemIndex];
+        const newQuantity = itemToUpdate.quantity + change;
+
+        if (newQuantity <= 0) {
+            setItemToDelete(itemToUpdate); // Set state to trigger dialog
+        } else {
+            setEditedItems(currentItems => {
+                const newItems = [...currentItems];
+                newItems[itemIndex] = { ...itemToUpdate, quantity: newQuantity };
+                return newItems;
+            });
+        }
+    };
+    
+    const handleConfirmDeleteItem = () => {
+        if (!itemToDelete) return;
+
         setEditedItems(currentItems => {
-            // Create a mutable copy
-            let newItems = [...currentItems];
-            const itemIndex = newItems.findIndex(i => i.itemId === itemId);
+            let newItems = currentItems.filter(i => i.itemId !== itemToDelete.itemId);
 
-            if (itemIndex > -1) {
-                const itemToUpdate = newItems[itemIndex];
-                const newQuantity = itemToUpdate.quantity + change;
-
-                if (newQuantity <= 0) {
-                    // Item quantity is zero or less, remove it
-                    newItems.splice(itemIndex, 1);
-
-                    // If the main kit is removed, also remove any 'Additional Chair' items,
-                    // as they depend on the main kit.
-                    if (itemToUpdate.name === 'Kit Guarda-sol + 2 Cadeiras') {
-                        newItems = newItems.filter(i => i.name !== 'Cadeira Adicional');
-                    }
-                } else {
-                    // Otherwise, just update the item's quantity
-                    newItems[itemIndex] = { ...itemToUpdate, quantity: newQuantity };
-                }
+            if (itemToDelete.name === 'Kit Guarda-sol + 2 Cadeiras') {
+                newItems = newItems.filter(i => i.name !== 'Cadeira Adicional');
             }
             
-            // Return the new state
             return newItems;
         });
+        
+        setItemToDelete(null);
     };
 
     const handleItemStatusChange = (itemId: string, status: ItemDeliveryStatus) => {
@@ -394,6 +399,20 @@ export default function OwnerOrderPage() {
                         </Card>
                     </div>
                 </div>
+                <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta ação removerá permanentemente o item "{itemToDelete?.name}" do pedido. Deseja continuar?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleConfirmDeleteItem}>Sim, Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </main>
         </div>
     );
