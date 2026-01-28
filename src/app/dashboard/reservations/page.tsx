@@ -28,6 +28,8 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -120,17 +122,20 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
         };
         if (!firestore) return;
         setIsSubmitting(true);
+
+        const reservationRef = doc(firestore, 'reservations', reservation.id);
+        const platformFee = Math.max(reservation.total * 0.10, 3);
+        const reservationUpdateData = {
+            status: 'completed' as const,
+            paymentMethod: paymentMethod,
+            platformFee: platformFee,
+            completedAt: serverTimestamp(),
+        };
+
         try {
             const batch = writeBatch(firestore);
             
-            const reservationRef = doc(firestore, 'reservations', reservation.id);
-            const platformFee = Math.max(reservation.total * 0.10, 3);
-            batch.update(reservationRef, {
-                status: 'completed',
-                paymentMethod: paymentMethod,
-                platformFee: platformFee,
-                completedAt: serverTimestamp(),
-            });
+            batch.update(reservationRef, reservationUpdateData);
 
             const chatsRef = collection(firestore, 'chats');
             const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
@@ -146,7 +151,17 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
             onFinished();
         } catch(error) {
             console.error("Error confirming payment: ", error);
-            toast({ variant: 'destructive', title: 'Erro ao confirmar pagamento' });
+            
+            const permissionError = new FirestorePermissionError({
+                path: reservationRef.path,
+                operation: 'update',
+                requestResourceData: {
+                  status: 'completed',
+                  paymentMethod: paymentMethod,
+                  platformFee: platformFee
+                },
+            });
+            errorEmitter.emit('permission-error', permissionError);
         } finally {
             setIsSubmitting(false);
         }
