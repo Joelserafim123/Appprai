@@ -257,7 +257,7 @@ const onSubmit = async (data: ProfileFormData) => {
           <CardContent className="space-y-6 pt-6">
              <div className="flex items-center gap-6">
                 <Avatar className="h-24 w-24 rounded-lg">
-                    <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName || "User"} />
+                    <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName || "User"} data-ai-hint="cellphone charger" />
                     <AvatarFallback className="bg-primary/20 text-primary text-3xl">
                         {getInitials(user.displayName)}
                     </AvatarFallback>

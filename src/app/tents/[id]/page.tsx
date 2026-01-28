@@ -592,7 +592,7 @@ export default function TentPage() {
                                     reviews.map(review => (
                                         <div key={review.id} className="flex gap-4">
                                             <Avatar>
-                                                <AvatarImage src={review.userPhotoURL ?? undefined} />
+                                                <AvatarImage src={review.userPhotoURL ?? undefined} alt={review.userName} data-ai-hint="cellphone charger" />
                                                 <AvatarFallback className="bg-primary/20 text-primary">
                                                     <UserIcon className="h-5 w-5" />
                                                 </AvatarFallback>
