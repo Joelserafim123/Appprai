@@ -21,10 +21,19 @@ import {
 } from '@/components/ui/dialog';
 import { useTranslations } from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import dynamic from 'next/dynamic';
+
+const SalesChart = dynamic(
+  () => import('@/components/analytics/sales-chart').then((mod) => mod.SalesChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[250px] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 
 
 export default function AnalyticsPage() {
@@ -107,14 +116,6 @@ export default function AnalyticsPage() {
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [reservations]);
-  
-  const chartConfig = {
-    revenue: {
-      label: "Receita",
-      color: "hsl(var(--primary))",
-    },
-  } satisfies ChartConfig;
-
 
   if (isUserLoading || isLoadingTent) {
     return (
@@ -251,34 +252,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {chartData && chartData.length > 0 ? (
-                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                    <BarChart accessibilityLayer data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
-                        <XAxis
-                            dataKey="date"
-                            tickLine={false}
-                            axisLine={false}
-                            tickMargin={8}
-                            tickFormatter={(value) => format(new Date(value), "dd/MM", { locale: ptBR })}
-                        />
-                        <YAxis
-                            stroke="#888888"
-                            fontSize={12}
-                            tickLine={false}
-                            axisLine={false}
-                            tickMargin={8}
-                            tickFormatter={(value) => `R$${value}`}
-                        />
-                        <Tooltip
-                            cursor={false}
-                            content={<ChartTooltipContent
-                                formatter={(value) => `R$ ${Number(value).toFixed(2)}`}
-                                labelFormatter={(label) => format(new Date(label), "PPP", { locale: ptBR })}
-                                indicator="dot"
-                            />}
-                        />
-                        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                    </BarChart>
-                </ChartContainer>
+                 <SalesChart chartData={chartData} />
               ) : (
                 <div className="flex h-[250px] w-full items-center justify-center rounded-lg border-2 border-dashed text-center">
                     <p className="text-muted-foreground">{t('noChartData')}</p>
