@@ -1,9 +1,11 @@
 {
     "Shared": {
         "Categories": {
-            "Bebidas": "Bebidas",
             "Petiscos": "Petiscos",
             "Pratos Principais": "Pratos Principais",
+            "Bebidas sem Álcool": "Bebidas sem Álcool",
+            "Bebidas com Álcool": "Bebidas com Álcool",
+            "Drinks": "Drinks",
             "Outros": "Outros"
         },
         "ProductNames": {

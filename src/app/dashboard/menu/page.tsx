@@ -26,19 +26,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { MenuItem, Tent } from '@/lib/types';
+import type { MenuItem, Tent, MenuItemCategory } from '@/lib/types';
 import { collection, query, where, limit, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { useTranslations } from '@/i18n';
+import { menuItemSchema, MenuItemCategories } from '@/lib/types';
 
-
-const menuItemSchema = z.object({
-  name: z.string().min(2, 'O nome é obrigatório.'),
-  description: z.string().optional(),
-  price: z.coerce.number().min(0, 'O preço deve ser positivo.'),
-  category: z.enum(['Bebidas', 'Petiscos', 'Pratos Principais'], { required_error: 'A categoria é obrigatória.' }),
-});
 
 type MenuItemFormData = z.infer<typeof menuItemSchema>;
 
@@ -129,9 +123,9 @@ function MenuItemForm({ tent, item, onFinished }: { tent: Tent; item?: MenuItem,
                 <SelectValue placeholder="Selecione a categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Bebidas">{t_categories('Bebidas')}</SelectItem>
-                <SelectItem value="Petiscos">{t_categories('Petiscos')}</SelectItem>
-                <SelectItem value="Pratos Principais">{t_categories('Pratos Principais')}</SelectItem>
+                {MenuItemCategories.map(category => (
+                  <SelectItem key={category} value={category}>{t_categories(category)}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}

@@ -63,13 +63,16 @@ export interface Tent {
   logoUrl?: string | null;
 }
 
+export const MenuItemCategories = ["Petiscos", "Pratos Principais", "Bebidas sem Álcool", "Bebidas com Álcool", "Drinks"] as const;
+export type MenuItemCategory = typeof MenuItemCategories[number];
+
 // An item on the tent's food/drink menu
 export interface MenuItem {
   id: string;
   name: string;
   description: string;
   price: number;
-  category: 'Bebidas' | 'Petiscos' | 'Pratos Principais';
+  category: MenuItemCategory;
 }
 
 // A rentable item (e.g., umbrella kit)
@@ -208,6 +211,14 @@ export const profileSchema = z.object({
   neighborhood: z.string().optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
   state: z.string().optional().or(z.literal('')),
+});
+
+
+export const menuItemSchema = z.object({
+  name: z.string().min(2, 'O nome é obrigatório.'),
+  description: z.string().optional(),
+  price: z.coerce.number().min(0, 'O preço deve ser positivo.'),
+  category: z.enum(MenuItemCategories, { required_error: 'A categoria é obrigatória.' }),
 });
 
 
