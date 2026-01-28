@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User as UserIcon, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode } from 'lucide-react';
+import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, MessageSquare, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,8 @@ import {
 import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment, limit, orderBy } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getInitials } from '@/lib/utils';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -329,17 +331,24 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         <>
             <Card className="flex flex-col transition-all hover:shadow-md">
                 <CardHeader>
-                    <div className='flex flex-col gap-2 sm:flex-row justify-between items-start'>
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <UserIcon className="w-5 h-5"/>
-                            Reserva de {reservation.userName}
-                        </CardTitle>
+                    <div className='flex flex-col gap-4 sm:flex-row justify-between items-start'>
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                                <AvatarImage src={reservation.userPhotoURL ?? undefined} alt={reservation.userName} />
+                                <AvatarFallback>{getInitials(reservation.userName)}</AvatarFallback>
+                            </Avatar>
+                            <div className="grid gap-0.5">
+                                <CardTitle className="text-lg">
+                                    {reservation.userName}
+                                </CardTitle>
+                                <CardDescription>Pedido: {reservation.orderNumber}</CardDescription>
+                            </div>
+                        </div>
                         <Badge variant={statusConfig[reservation.status].variant}>
-                        {statusConfig[reservation.status].text}
+                            {statusConfig[reservation.status].text}
                         </Badge>
                     </div>
                     <div className='text-sm text-muted-foreground space-y-1 pt-2'>
-                        <p className='flex items-center gap-2'><Hash className='w-4 h-4'/> Pedido: {reservation.orderNumber}</p>
                         <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
                         {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
                         day: '2-digit', month: 'long', year: 'numeric',
@@ -509,7 +518,7 @@ export default function OwnerReservationsPage() {
       ) : null,
     [firestore, user]
   );
-  const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
+  const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(rawReservations);
   
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];

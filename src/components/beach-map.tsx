@@ -241,6 +241,10 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
                         onClick={() => handleTentSelect(tent)}
                         icon={getMarkerIcon(tent)}
                         title={tent.name}
+                        label={{
+                            text: tent.name,
+                            className: "map-marker-label"
+                        }}
                     />
                 )
                 ))}

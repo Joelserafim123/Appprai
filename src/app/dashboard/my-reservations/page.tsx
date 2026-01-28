@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Tent, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, MessageSquare } from 'lucide-react';
+import { Loader2, Star, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -34,6 +34,8 @@ import { useMemo, useState } from 'react';
 import { ReviewDialog } from '@/components/reviews/review-dialog';
 import { useTranslations } from '@/i18n';
 import { useRouter } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getInitials } from '@/lib/utils';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -170,20 +172,23 @@ export default function MyReservationsPage() {
             {reservations.map((reservation) => (
               <Card key={reservation.id} className="transition-all hover:shadow-md">
                 <CardHeader className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Tent className="w-5 h-5"/>
-                      {reservation.tentName}
-                    </CardTitle>
-                    <div className="text-sm text-muted-foreground space-y-1 mt-1">
-                      <p className='flex items-center gap-2 text-xs'><User className="w-3 h-3"/> Por: {reservation.tentOwnerName}</p>
-                      <p>
-                          {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric',
-                          })} às {reservation.reservationTime}
-                      </p>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={reservation.tentLogoUrl ?? undefined} alt={reservation.tentName} />
+                      <AvatarFallback>{getInitials(reservation.tentName)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle>{reservation.tentName}</CardTitle>
+                      <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                        <p className='flex items-center gap-2 text-xs'><User className="w-3 h-3"/> Por: {reservation.tentOwnerName}</p>
+                        <p>
+                            {reservation.createdAt.toDate().toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                            })} às {reservation.reservationTime}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   <div className='flex flex-col items-start sm:items-end gap-2'>
