@@ -8,7 +8,7 @@ import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, E
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
+import type { Reservation, ReservationStatus, PaymentMethod, Tent } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment, limit, orderBy, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -249,11 +249,36 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         const newItems = reservation.items.map(item => 
             item.status === 'pending_confirmation' ? { ...item, status: 'pending' as const } : item
         );
+
+        // Fetch tent data to recalculate total
+        const tentRef = doc(firestore, 'tents', reservation.tentId);
         
         try {
+            const tentSnap = await getDoc(tentRef);
+            if (!tentSnap.exists()) {
+                toast({ variant: 'destructive', title: 'Erro: Barraca não encontrada.' });
+                setIsProcessingPending(false);
+                return;
+            }
+            const tentData = tentSnap.data() as Tent;
+
+            // Recalculate total
+            const rentalItems = newItems.filter(item => item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional');
+            const menuItems = newItems.filter(item => !(item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional'));
+            const rentalTotal = rentalItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            const menuTotal = menuItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            
+            const kitsInCart = rentalItems.find(i => i.name === 'Kit Guarda-sol + 2 Cadeiras')?.quantity || 0;
+            const baseFeeWaiverAmount = tentData.minimumOrderForFeeWaiver || 0;
+            const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
+            const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
+
+            const cartTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
+            const newTotal = cartTotal + (reservation.outstandingBalancePaid || 0);
+
             const batch = writeBatch(firestore);
             
-            batch.update(reservationRef, { items: newItems });
+            batch.update(reservationRef, { items: newItems, total: newTotal });
 
             const chatsRef = collection(firestore, 'chats');
             const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));

@@ -65,7 +65,7 @@ export default function OrderPage() {
                     name: ni.item.name,
                     price: ni.item.price,
                     quantity: ni.quantity,
-                    status: 'pending' as const
+                    status: 'pending_confirmation' as const
                 }))),
             });
 
@@ -81,7 +81,7 @@ export default function OrderPage() {
 
                 const notificationMessage: ChatMessageWrite = {
                     senderId: 'system',
-                    text: 'O cliente adicionou novos itens ao pedido.',
+                    text: 'O cliente solicitou novos itens para o pedido.',
                     timestamp: serverTimestamp(),
                     isRead: false
                 };
@@ -99,7 +99,7 @@ export default function OrderPage() {
 
             await batch.commit();
 
-            toast({ title: 'Itens Adicionados!', description: 'Os novos itens foram adicionados ao seu pedido.' });
+            toast({ title: 'Solicitação Enviada!', description: 'Os novos itens foram enviados para a barraca e aguardam confirmação.' });
             clearCart();
             router.push('/dashboard/my-reservations');
 
@@ -109,7 +109,7 @@ export default function OrderPage() {
                 path: reservationRef!.path,
                 operation: 'update',
                 requestResourceData: { 
-                    items: `Adding ${newItems.length} items with pending status.`, 
+                    items: `Adding ${newItems.length} items with pending_confirmation status.`, 
                 }
             });
             errorEmitter.emit('permission-error', permissionError);
