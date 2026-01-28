@@ -105,28 +105,28 @@ export default function OwnerOrderPage() {
     const originalTotal = reservation?.total || 0;
     
     const newTotal = useMemo(() => {
-        // Recalculate total based on edited items, preserving rental fees logic if possible
         if (!reservation || !tent) return 0;
 
-        const rentalItemsFromOrder = editedItems.filter(item => {
-            const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
-            return isRental;
-        });
-        const menuItemsFromOrder = editedItems.filter(item => {
-            const isRental = item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional';
-            return !isRental;
-        });
-
-        const rentalTotal = rentalItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-        const menuTotal = menuItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        // Totals of ALL items in the order (delivered or not) for fee waiver calculation
+        const rentalItemsFromOrder = editedItems.filter(item => item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional');
+        const menuItemsFromOrder = editedItems.filter(item => !(item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional'));
+        const rentalTotalForWaiver = rentalItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const menuTotalForWaiver = menuItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         
         const kitsInCart = rentalItemsFromOrder.find(i => i.name === 'Kit Guarda-sol + 2 Cadeiras')?.quantity || 0;
         const baseFeeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
         const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
+        const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotalForWaiver > 0 && menuTotalForWaiver >= proportionalFeeWaiverAmount;
 
-        const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
+        // Totals of ONLY DELIVERED items for the final bill
+        const deliveredItems = editedItems.filter(item => item.status === 'delivered');
+        const deliveredRentalItems = deliveredItems.filter(item => item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional');
+        const deliveredMenuItems = deliveredItems.filter(item => !(item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional'));
+
+        const deliveredRentalTotal = deliveredRentalItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const deliveredMenuTotal = deliveredMenuItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         
-        const cartTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
+        const cartTotal = isFeeWaived ? deliveredMenuTotal : deliveredMenuTotal + deliveredRentalTotal;
 
         return cartTotal + (reservation.outstandingBalancePaid || 0);
 

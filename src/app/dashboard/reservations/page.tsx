@@ -414,7 +414,6 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         if (!firestore || !user || !hasPendingItems) return;
         setIsSubmitting(true);
         
-        const priceOfNewItems = pendingItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const newItems = reservation.items.map(item => 
             item.status === 'pending_confirmation' ? { ...item, status: 'pending' as const } : item
         );
@@ -425,7 +424,6 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             
             batch.update(reservationRef, { 
                 items: newItems,
-                total: increment(priceOfNewItems)
             });
             
             const chatsRef = collection(firestore, 'chats');
@@ -453,7 +451,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             }
             
             await batch.commit();
-            toast({ title: "Itens aceites com sucesso." });
+            toast({ title: "Itens aceites!", description: "O valor será adicionado à conta após a confirmação da entrega." });
             
         } catch(error) {
             console.error("Error accepting items:", error);
