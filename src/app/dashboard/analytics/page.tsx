@@ -4,7 +4,7 @@ import { useUser, useMemoFirebase, useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, DollarSign, BarChart, ShoppingBag, Landmark } from 'lucide-react';
+import { Loader2, DollarSign, BarChart, ShoppingBag, Landmark, Copy } from 'lucide-react';
 import { useMemo } from 'react';
 import Link from 'next/link';
 import type { Reservation, Tent } from '@/lib/types';
@@ -20,12 +20,23 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { useTranslations } from '@/i18n';
+import { useToast } from '@/hooks/use-toast';
 
 
 export default function AnalyticsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
   const t = useTranslations('AnalyticsPage');
+  const { toast } = useToast();
+  const platformPixKey = 'fd9b14d6-856c-484f-aabf-4636ed73f06a';
+
+  const handleCopyToClipboard = () => {
+    navigator.clipboard.writeText(platformPixKey);
+    toast({
+      title: t('pixKeyCopiedTitle'),
+      description: t('pixKeyCopiedDescription'),
+    });
+  };
 
   const tentQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid)) : null,
@@ -147,12 +158,15 @@ export default function AnalyticsPage() {
                     <p className="text-3xl font-bold text-destructive">R$ {analyticsData.totalPlatformFee.toFixed(2)}</p>
                   </div>
                   <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-                    <h4 className="font-semibold">{t('bankDetailsTitle')}</h4>
-                    <p className="text-sm"><strong>{t('pixKey')}</strong> 99.999.999/0001-99</p>
-                    <p className="text-sm"><strong>{t('bank')}</strong> 999 - Banco da Praia</p>
-                    <p className="text-sm"><strong>{t('agency')}</strong> 0001</p>
-                    <p className="text-sm"><strong>{t('account')}</strong> 123456-7</p>
-                    <p className="text-sm"><strong>{t('name')}</strong> BeachPal Plataforma Ltda.</p>
+                    <h4 className="font-semibold">{t('pixTransferTitle')}</h4>
+                    <p className="text-sm text-muted-foreground">{t('pixKeyLabel')}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-mono text-sm break-all flex-1 p-2 bg-background rounded-md">{platformPixKey}</p>
+                        <Button variant="outline" size="icon" onClick={handleCopyToClipboard}>
+                            <Copy className="h-4 w-4" />
+                            <span className="sr-only">Copiar Chave PIX</span>
+                        </Button>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">{t('afterTransferNotice')}</p>
                 </div>
