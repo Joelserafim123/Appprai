@@ -242,7 +242,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     const pendingItems = useMemo(() => reservation.items.filter(i => i.status === 'pending_confirmation'), [reservation.items]);
 
     const handleAcceptPendingItems = async () => {
-        if (!firestore || pendingItems.length === 0) return;
+        if (!firestore || !user || pendingItems.length === 0) return;
         setIsProcessingPending(true);
         
         const reservationRef = doc(firestore, 'reservations', reservation.id);
@@ -256,7 +256,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             batch.update(reservationRef, { items: newItems });
 
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
 
             if (!chatSnapshot.empty) {
@@ -294,7 +294,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     };
 
     const handleRejectPendingItems = async () => {
-        if (!firestore || pendingItems.length === 0) return;
+        if (!firestore || !user || pendingItems.length === 0) return;
         setIsProcessingPending(true);
 
         const reservationRef = doc(firestore, 'reservations', reservation.id);
@@ -305,7 +305,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             batch.update(reservationRef, { items: newItems });
 
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
 
             if (!chatSnapshot.empty) {
@@ -371,7 +371,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
 
 
     const handleCancelReservation = async () => {
-        if (!firestore || !reservationForCancel) return;
+        if (!firestore || !reservationForCancel || !user) return;
         setIsSubmitting(true);
         
         try {
@@ -388,7 +388,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             batch.update(reservationRef, updateData);
             
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservationForCancel.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservationForCancel.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
             if (!chatSnapshot.empty) {
                 batch.update(chatSnapshot.docs[0].ref, { status: 'archived' });
@@ -411,7 +411,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
     };
     
     const handleNoShow = async () => {
-        if (!firestore || !reservationForNoShow) return;
+        if (!firestore || !reservationForNoShow || !user) return;
         setIsSubmitting(true);
 
         try {
@@ -430,7 +430,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             });
 
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservationForNoShow.id), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservationForNoShow.id), where('participantIds', 'array-contains', user.uid), limit(1));
             const chatSnapshot = await getDocs(q);
             if (!chatSnapshot.empty) {
                 batch.update(chatSnapshot.docs[0].ref, { status: 'archived' });
