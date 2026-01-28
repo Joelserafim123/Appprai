@@ -108,26 +108,18 @@ export default function OwnerOrderPage() {
     const newTotal = useMemo(() => {
         if (!reservation || !tent) return 0;
 
-        // Totals of ALL items in the order (delivered or not) for fee waiver calculation
+        // Totals of ALL items in the order for fee waiver calculation and final bill
         const rentalItemsFromOrder = editedItems.filter(item => item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional');
         const menuItemsFromOrder = editedItems.filter(item => !(item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional'));
-        const rentalTotalForWaiver = rentalItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-        const menuTotalForWaiver = menuItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const rentalTotal = rentalItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const menuTotal = menuItemsFromOrder.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         
         const kitsInCart = rentalItemsFromOrder.find(i => i.name === 'Kit Guarda-sol + 2 Cadeiras')?.quantity || 0;
         const baseFeeWaiverAmount = tent.minimumOrderForFeeWaiver || 0;
         const proportionalFeeWaiverAmount = baseFeeWaiverAmount * kitsInCart;
-        const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotalForWaiver > 0 && menuTotalForWaiver >= proportionalFeeWaiverAmount;
-
-        // Totals of ONLY DELIVERED items for the final bill
-        const deliveredItems = editedItems.filter(item => item.status === 'delivered');
-        const deliveredRentalItems = deliveredItems.filter(item => item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional');
-        const deliveredMenuItems = deliveredItems.filter(item => !(item.name === 'Kit Guarda-sol + 2 Cadeiras' || item.name === 'Cadeira Adicional'));
-
-        const deliveredRentalTotal = deliveredRentalItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-        const deliveredMenuTotal = deliveredMenuItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        const isFeeWaived = proportionalFeeWaiverAmount > 0 && rentalTotal > 0 && menuTotal >= proportionalFeeWaiverAmount;
         
-        const cartTotal = isFeeWaived ? deliveredMenuTotal : deliveredMenuTotal + deliveredRentalTotal;
+        const cartTotal = isFeeWaived ? menuTotal : menuTotal + rentalTotal;
 
         return cartTotal + (reservation.outstandingBalancePaid || 0);
 

@@ -704,13 +704,6 @@ export default function OwnerReservationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const prevReservationsRef = useRef<Reservation[]>();
 
-  // Audio state
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const [isSoundPlaying, setIsSoundPlaying] = useState(false);
-
-
   const reservationsQuery = useMemoFirebase(
     () => (user?.role === 'owner' && firestore) ? query(
         collection(firestore, 'reservations'),
@@ -745,11 +738,13 @@ export default function OwnerReservationsPage() {
             gainNode.connect(audioContext.destination);
 
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime); // Lower pitch
             gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
 
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+
             oscillator.start();
-            oscillator.stop(audioContext.currentTime + 0.3);
+            oscillator.stop(audioContext.currentTime + 0.5);
         } catch (e) {
             console.warn("Could not play notification sound. User interaction might be required.", e);
         }
@@ -759,53 +754,6 @@ export default function OwnerReservationsPage() {
 
 }, [rawReservations]);
 
- const startAlertSound = useCallback(() => {
-    if (!audioContextRef.current) {
-      try {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      } catch (e) {
-        console.error("Web Audio API is not supported in this browser.", e);
-        return;
-      }
-    }
-    
-    if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
-    }
-
-    if (oscillatorRef.current) return;
-
-    const audioContext = audioContextRef.current;
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 880; 
-    gainNode.gain.value = 0.7; 
-    oscillator.loop = true;
-
-    oscillator.start();
-    
-    oscillatorRef.current = oscillator;
-    gainNodeRef.current = gainNode;
-    setIsSoundPlaying(true);
-  }, []);
-
-  const stopAlertSound = useCallback(() => {
-    if (oscillatorRef.current) {
-      oscillatorRef.current.stop();
-      oscillatorRef.current.disconnect();
-      oscillatorRef.current = null;
-    }
-    if (gainNodeRef.current) {
-        gainNodeRef.current.disconnect();
-        gainNodeRef.current = null;
-    }
-    setIsSoundPlaying(false);
-  }, []);
   
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];
@@ -818,21 +766,6 @@ export default function OwnerReservationsPage() {
             return timeB - timeA;
         });
   }, [rawReservations, user]);
-
-  useEffect(() => {
-    const hasPendingItems = reservations.some(r => r.items.some(i => i.status === 'pending_confirmation'));
-
-    if (hasPendingItems && !isSoundPlaying) {
-        startAlertSound();
-    } else if (!hasPendingItems && isSoundPlaying) {
-        stopAlertSound();
-    }
-
-    return () => {
-        stopAlertSound();
-    }
-  }, [reservations, isSoundPlaying, startAlertSound, stopAlertSound]);
-
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
