@@ -164,21 +164,21 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
                 <RadioGroup onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} value={paymentMethod ?? undefined} className="grid grid-cols-3 gap-4">
                     <div>
                         <RadioGroupItem value="card" id="owner-card" className="peer sr-only" />
-                        <Label htmlFor="owner-card" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                        <Label htmlFor="owner-card" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary">
                             <CreditCard className="mb-3 h-6 w-6" />
                             Cartão
                         </Label>
                     </div>
                      <div>
                         <RadioGroupItem value="pix" id="owner-pix" className="peer sr-only" />
-                         <Label htmlFor="owner-pix" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                         <Label htmlFor="owner-pix" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary">
                             <QrCode className="mb-3 h-6 w-6" />
                             PIX
                         </Label>
                     </div>
                     <div>
                         <RadioGroupItem value="cash" id="owner-cash" className="peer sr-only" />
-                        <Label htmlFor="owner-cash" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                        <Label htmlFor="owner-cash" className="flex h-full flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary">
                             <HandCoins className="mb-3 h-6 w-6" />
                             Dinheiro
                         </Label>
