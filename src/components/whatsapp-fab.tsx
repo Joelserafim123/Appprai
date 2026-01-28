@@ -2,8 +2,6 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
-import { X } from 'lucide-react';
 
 const WhatsAppIcon = () => (
     <svg
@@ -21,23 +19,9 @@ const WhatsAppIcon = () => (
 export function WhatsAppFab() {
   const phoneNumber = '+5581985519813';
   const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}`;
-  const [isVisible, setIsVisible] = useState(true);
-
-  if (!isVisible) {
-    return null;
-  }
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-       <Button
-        variant="ghost"
-        size="icon"
-        className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-destructive text-destructive-foreground shadow-lg hover:bg-destructive/90"
-        onClick={() => setIsVisible(false)}
-        aria-label="Remover botão do WhatsApp"
-      >
-        <X className="h-5 w-5" />
-      </Button>
       <Button
         asChild
         className="h-16 w-16 rounded-full bg-green-500 text-white shadow-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"

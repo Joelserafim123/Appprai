@@ -4,7 +4,7 @@ import { useUser, useMemoFirebase, useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, DollarSign, BarChart, ShoppingBag, Landmark, Copy } from 'lucide-react';
+import { Loader2, DollarSign, BarChart as BarChartIcon, ShoppingBag, Landmark, Copy } from 'lucide-react';
 import { useMemo } from 'react';
 import Link from 'next/link';
 import type { Reservation, Tent } from '@/lib/types';
@@ -21,6 +21,10 @@ import {
 } from '@/components/ui/dialog';
 import { useTranslations } from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 
 export default function AnalyticsPage() {
@@ -78,6 +82,39 @@ export default function AnalyticsPage() {
     };
   }, [reservations, user]);
 
+  const chartData = useMemo(() => {
+    if (!reservations) return [];
+
+    const completedReservations = reservations.filter(
+      (r) => r.status === 'completed' && r.completedAt
+    );
+
+    const revenueByDay = completedReservations.reduce(
+      (acc, res) => {
+        const date = res.completedAt!.toDate().toISOString().split('T')[0];
+        acc[date] = (acc[date] || 0) + res.total;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    if (Object.keys(revenueByDay).length === 0) return [];
+
+    return Object.entries(revenueByDay)
+      .map(([date, revenue]) => ({
+        date,
+        revenue,
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [reservations]);
+  
+  const chartConfig = {
+    revenue: {
+      label: "Receita",
+      color: "hsl(var(--primary))",
+    },
+  } satisfies ChartConfig;
+
 
   if (isUserLoading || isLoadingTent) {
     return (
@@ -94,7 +131,7 @@ export default function AnalyticsPage() {
   if (hasTent === false) {
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-lg max-w-lg mx-auto">
-              <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
+              <BarChartIcon className="mx-auto h-12 w-12 text-muted-foreground" />
               <h3 className="mt-4 text-lg font-medium">{t('noTentTitle')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{t('noTentDescription')}</p>
               <Button asChild className="mt-6">
@@ -157,15 +194,21 @@ export default function AnalyticsPage() {
                     <p className='text-sm text-muted-foreground'>{t('totalAmountToForward')}</p>
                     <p className="text-3xl font-bold text-destructive">R$ {analyticsData.totalPlatformFee.toFixed(2)}</p>
                   </div>
-                  <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+                  <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
                     <h4 className="font-semibold">{t('pixTransferTitle')}</h4>
-                    <p className="text-sm text-muted-foreground">{t('pixKeyLabel')}</p>
-                    <div className="flex items-center gap-2">
-                        <p className="font-mono text-sm break-all flex-1 p-2 bg-background rounded-md">{platformPixKey}</p>
-                        <Button variant="outline" size="icon" onClick={handleCopyToClipboard}>
-                            <Copy className="h-4 w-4" />
-                            <span className="sr-only">Copiar Chave PIX</span>
-                        </Button>
+                     <div>
+                        <p className="text-sm text-muted-foreground">{t('beneficiaryLabel')}</p>
+                        <p className="font-semibold">{t('beneficiaryName')}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">{t('pixKeyLabel')}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-mono text-sm break-all flex-1 p-2 bg-background rounded-md">{platformPixKey}</p>
+                            <Button variant="outline" size="icon" onClick={handleCopyToClipboard}>
+                                <Copy className="h-4 w-4" />
+                                <span className="sr-only">Copiar Chave PIX</span>
+                            </Button>
+                        </div>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">{t('afterTransferNotice')}</p>
@@ -190,7 +233,7 @@ export default function AnalyticsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{t('averageTicket')}</CardTitle>
-                <BarChart className="h-4 w-4 text-muted-foreground" />
+                <BarChartIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">R$ {analyticsData.averageOrderValue.toFixed(2)}</div>
@@ -207,15 +250,46 @@ export default function AnalyticsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex h-[250px] w-full items-center justify-center rounded-lg border-2 border-dashed text-center">
-                  <p className="text-muted-foreground">O gráfico de receita está temporariamente indisponível.</p>
-              </div>
+              {chartData && chartData.length > 0 ? (
+                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <BarChart accessibilityLayer data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
+                        <XAxis
+                            dataKey="date"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                            tickFormatter={(value) => format(new Date(value), "dd/MM", { locale: ptBR })}
+                        />
+                        <YAxis
+                            stroke="#888888"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                            tickFormatter={(value) => `R$${value}`}
+                        />
+                        <Tooltip
+                            cursor={false}
+                            content={<ChartTooltipContent
+                                formatter={(value) => `R$ ${Number(value).toFixed(2)}`}
+                                labelFormatter={(label) => format(new Date(label), "PPP", { locale: ptBR })}
+                                indicator="dot"
+                            />}
+                        />
+                        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
+                    </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="flex h-[250px] w-full items-center justify-center rounded-lg border-2 border-dashed text-center">
+                    <p className="text-muted-foreground">{t('noChartData')}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       ) : (
         <div className="rounded-lg border-2 border-dashed py-16 text-center">
-          <BarChart className="mx-auto h-12 w-12 text-muted-foreground" />
+          <BarChartIcon className="mx-auto h-12 w-12 text-muted-foreground" />
           <h3 className="mt-4 text-lg font-medium">{t('noAnalyticsTitle')}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
             {t('noAnalyticsDescription')}

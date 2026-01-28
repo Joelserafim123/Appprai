@@ -96,7 +96,9 @@
         "revenueByDayDescription": "Acompanhe a evolução de suas vendas diárias. Apenas reservas com status \"Completa\" são contabilizadas.",
         "noChartData": "Ainda não há dados de receita para exibir no gráfico.",
         "noAnalyticsTitle": "Nenhuma análise para mostrar",
-        "noAnalyticsDescription": "Conclua algumas reservas para começar a ver suas análises de vendas."
+        "noAnalyticsDescription": "Conclua algumas reservas para começar a ver suas análises de vendas.",
+        "beneficiaryLabel": "Favorecido:",
+        "beneficiaryName": "Joel Serafim de Lima Silva"
     },
     "ChatsPage": {
         "title": "Conversas",

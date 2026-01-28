@@ -83,7 +83,7 @@
         "forwardingInstructionsDescription": "The amount to be forwarded must be manually transferred to the platform's PIX key every Monday.",
         "totalAmountToForward": "Total amount to be forwarded:",
         "pixTransferTitle": "Transfer via PIX",
-        "pixKeyLabel": "PIX Key (Email):",
+        "pixKeyLabel": "PIX Key:",
         "pixKeyCopiedTitle": "PIX Key Copied!",
         "pixKeyCopiedDescription": "The key has been copied to your clipboard.",
         "afterTransferNotice": "After making the transfer, no additional action is required on the platform. Our financial system will reconcile the payment.",
@@ -96,7 +96,9 @@
         "revenueByDayDescription": "Track the evolution of your daily sales. Only reservations with \"Completed\" status are counted.",
         "noChartData": "No revenue data to display in the chart yet.",
         "noAnalyticsTitle": "No analytics to show",
-        "noAnalyticsDescription": "Complete some reservations to start seeing your sales analytics."
+        "noAnalyticsDescription": "Complete some reservations to start seeing your sales analytics.",
+        "beneficiaryLabel": "Beneficiary:",
+        "beneficiaryName": "Joel Serafim de Lima Silva"
     },
     "ChatsPage": {
         "title": "Conversations",
