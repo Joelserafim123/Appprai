@@ -107,7 +107,13 @@
         "historyCustomer": "Cliente",
         "historyOrder": "Pedido Nº",
         "historyTotal": "Valor",
-        "noCompletedReservations": "Ainda não há reservas finalizadas para exibir."
+        "noCompletedReservations": "Ainda não há reservas finalizadas para exibir.",
+        "productSalesAnalysisTitle": "Análise de Itens Vendidos",
+        "productSalesAnalysisDescription": "Veja os seus itens mais populares e o desempenho de cada um.",
+        "itemColumn": "Item",
+        "quantitySoldColumn": "Qtd. Vendida",
+        "revenueGeneratedColumn": "Receita Gerada",
+        "noItemsSold": "Nenhum item foi vendido ainda para aparecer aqui."
     },
     "ChatsPage": {
         "title": "Conversas",

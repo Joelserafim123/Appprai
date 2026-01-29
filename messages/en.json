@@ -107,7 +107,13 @@
         "historyCustomer": "Customer",
         "historyOrder": "Order #",
         "historyTotal": "Total",
-        "noCompletedReservations": "No completed reservations to display yet."
+        "noCompletedReservations": "No completed reservations to display yet.",
+        "productSalesAnalysisTitle": "Product Sales Analysis",
+        "productSalesAnalysisDescription": "See your most popular items and their performance.",
+        "itemColumn": "Item",
+        "quantitySoldColumn": "Qty Sold",
+        "revenueGeneratedColumn": "Revenue Generated",
+        "noItemsSold": "No items have been sold yet to be displayed here."
     },
     "ChatsPage": {
         "title": "Conversations",

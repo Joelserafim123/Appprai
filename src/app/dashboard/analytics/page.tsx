@@ -4,7 +4,7 @@ import { useUser, useMemoFirebase, useFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, DollarSign, BarChart as BarChartIcon, ShoppingBag, Landmark, Copy, History } from 'lucide-react';
+import { Loader2, DollarSign, BarChart as BarChartIcon, ShoppingBag, Landmark, Copy, History, Utensils } from 'lucide-react';
 import { useMemo } from 'react';
 import Link from 'next/link';
 import type { Reservation, Tent } from '@/lib/types';
@@ -122,6 +122,31 @@ export default function AnalyticsPage() {
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [reservations]);
+  
+  const productSalesData = useMemo(() => {
+    if (!reservations || !user) return [];
+    
+    const ownerCompletedReservations = reservations.filter(
+        r => r.tentOwnerId === user.uid && r.status === 'completed'
+    );
+
+    const itemMap = new Map<string, { quantity: number; revenue: number }>();
+
+    ownerCompletedReservations.forEach(res => {
+        res.items.forEach(item => {
+            const existing = itemMap.get(item.name) || { quantity: 0, revenue: 0 };
+            existing.quantity += item.quantity;
+            existing.revenue += item.quantity * item.price;
+            itemMap.set(item.name, existing);
+        });
+    });
+
+    const sortedItems = Array.from(itemMap.entries())
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.quantity - a.quantity);
+        
+    return sortedItems;
+}, [reservations, user]);
 
   if (isUserLoading || isLoadingTent) {
     return (
@@ -312,6 +337,50 @@ export default function AnalyticsPage() {
                 )}
             </CardContent>
           </Card>
+          
+          <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Utensils className="w-5 h-5"/> {t('productSalesAnalysisTitle')}</CardTitle>
+                <CardDescription>{t('productSalesAnalysisDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {productSalesData.length > 0 ? (
+                    <div className="space-y-2">
+                        <div className="hidden md:grid grid-cols-3 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-t-lg">
+                            <div>{t('itemColumn')}</div>
+                            <div className="text-center">{t('quantitySoldColumn')}</div>
+                            <div className="text-right">{t('revenueGeneratedColumn')}</div>
+                        </div>
+                        <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+                            {productSalesData.map(item => (
+                                <div key={item.name} className="rounded-lg border p-4 hover:bg-muted/50">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 md:hidden">
+                                        <div className="col-span-2 font-medium truncate">{item.name}</div>
+                                        
+                                        <div className="text-sm text-muted-foreground">Qtd. Vendida</div>
+                                        <div className="text-sm text-muted-foreground text-right">Receita</div>
+
+                                        <div className="font-bold">{item.quantity}</div>
+                                        <div className="font-bold text-right">R$ {item.revenue.toFixed(2)}</div>
+                                    </div>
+                                    
+                                    <div className="hidden md:grid grid-cols-3 gap-4 items-center">
+                                        <div className="font-medium truncate">{item.name}</div>
+                                        <div className="font-mono text-center">{item.quantity}</div>
+                                        <div className="font-bold text-right">R$ {item.revenue.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex h-[150px] w-full items-center justify-center rounded-lg border-2 border-dashed text-center">
+                      <p className="text-muted-foreground">{t('noItemsSold')}</p>
+                    </div>
+                )}
+            </CardContent>
+          </Card>
+
 
         </div>
       ) : (

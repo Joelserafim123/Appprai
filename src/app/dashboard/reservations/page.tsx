@@ -30,7 +30,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { textToSpeech } from '@/ai/flows/tts-flow';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -714,19 +713,22 @@ export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const prevReservationsRef = useRef<Reservation[]>();
-  const [notificationSound, setNotificationSound] = useState<string | null>(null);
 
   useEffect(() => {
-    textToSpeech('Beachpal').then(result => {
-      setNotificationSound(result.media);
-    }).catch(error => {
-      console.error("Failed to generate notification sound:", error);
-    });
-  }, []);
+    // A loud, repeating beep sound. Using a public domain sound.
+    const beepSoundUrl = 'https://cdn.freesound.org/previews/15/15234_35939-lq.mp3';
+    audioRef.current = new Audio(beepSoundUrl);
+    audioRef.current.loop = true;
+    audioRef.current.volume = 1.0;
 
+    // Cleanup function to pause audio when component unmounts
+    return () => {
+        audioRef.current?.pause();
+    };
+  }, []);
+  
   const reservationsQuery = useMemoFirebase(
     () => (user?.role === 'owner' && firestore) ? query(
         collection(firestore, 'reservations'),
@@ -735,60 +737,6 @@ export default function OwnerReservationsPage() {
     [firestore, user]
   );
   const { data: rawReservations, isLoading: reservationsLoading } = useCollection<Reservation>(reservationsQuery);
-  
-  useEffect(() => {
-    if (!rawReservations || typeof window === 'undefined') {
-        return;
-    }
-
-    const previousReservations = prevReservationsRef.current;
-    let playSound = false;
-
-    // Only compare if we have a previous state to compare against
-    if (previousReservations) {
-        const prevIds = new Set(previousReservations.map(r => r.id));
-        
-        // 1. Check for brand new reservations
-        const newReservations = rawReservations.filter(r => !prevIds.has(r.id));
-        if (newReservations.length > 0) {
-            playSound = true;
-        }
-
-        // 2. Check for new pending items in existing reservations
-        if (!playSound) {
-            const hasNewPendingItems = rawReservations.some(newRes => {
-                const oldRes = previousReservations.find(r => r.id === newRes.id);
-                if (!oldRes) return false; // This is a new reservation, handled above.
-        
-                const newPendingCount = newRes.items.filter(i => i.status === 'pending_confirmation').length;
-                const oldPendingCount = oldRes.items.filter(i => i.status === 'pending_confirmation').length;
-                
-                return newPendingCount > oldPendingCount;
-            });
-
-            if (hasNewPendingItems) {
-                playSound = true;
-            }
-        }
-    }
-    
-    // After comparison, update the ref for the next render cycle.
-    prevReservationsRef.current = rawReservations;
-
-    // `previousReservations` is undefined on first render, so this prevents sound on initial load.
-    if (playSound && previousReservations !== undefined && notificationSound) {
-      const audio = new Audio(notificationSound);
-      audio.play().catch(error => {
-        console.warn("Audio playback failed:", error);
-        // Fallback to a visual toast if audio fails (e.g., due to browser policy)
-        toast({
-            title: "Nova Notificação!",
-            description: "Você tem um novo pedido ou atualização.",
-        });
-      });
-    }
-  }, [rawReservations, notificationSound, toast]);
-
   
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];
@@ -801,6 +749,38 @@ export default function OwnerReservationsPage() {
             return timeB - timeA;
         });
   }, [rawReservations, user]);
+
+  const hasPendingConfirmationItems = useMemo(() => {
+    if (!reservations) return false;
+    // Check if any reservation has at least one item with 'pending_confirmation' status
+    return reservations.some(res => 
+        res.items.some(item => item.status === 'pending_confirmation')
+    );
+  }, [reservations]);
+
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+        if (hasPendingConfirmationItems) {
+            if (audio.paused) {
+                audio.play().catch(error => {
+                    console.warn("A reprodução automática do som falhou. O utilizador poderá ter de interagir com a página primeiro.", error);
+                    toast({
+                        title: "Novo Pedido Pendente!",
+                        description: "Você tem um novo pedido para confirmar.",
+                        duration: 10000,
+                    });
+                });
+            }
+        } else {
+            if (!audio.paused) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+        }
+    }
+  }, [hasPendingConfirmationItems, toast]);
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
