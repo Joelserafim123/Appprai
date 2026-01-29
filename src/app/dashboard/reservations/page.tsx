@@ -713,6 +713,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
 export default function OwnerReservationsPage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
+  const { toast } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
   const prevReservationsRef = useRef<Reservation[]>();
@@ -740,25 +741,24 @@ export default function OwnerReservationsPage() {
         return;
     }
 
-    const previousReservations = prevReservationsRef.current || [];
+    const previousReservations = prevReservationsRef.current;
     let playSound = false;
 
-    // Avoid playing sound on initial load
-    if (previousReservations.length > 0) {
-        // Check for brand new reservations
-        const newReservations = rawReservations.filter(newRes => 
-            !previousReservations.some(oldRes => oldRes.id === newRes.id)
-        );
-
+    // Only compare if we have a previous state to compare against
+    if (previousReservations) {
+        const prevIds = new Set(previousReservations.map(r => r.id));
+        
+        // 1. Check for brand new reservations
+        const newReservations = rawReservations.filter(r => !prevIds.has(r.id));
         if (newReservations.length > 0) {
             playSound = true;
         }
 
-        // Check for new pending items in existing reservations
+        // 2. Check for new pending items in existing reservations
         if (!playSound) {
             const hasNewPendingItems = rawReservations.some(newRes => {
                 const oldRes = previousReservations.find(r => r.id === newRes.id);
-                if (!oldRes) return false;
+                if (!oldRes) return false; // This is a new reservation, handled above.
         
                 const newPendingCount = newRes.items.filter(i => i.status === 'pending_confirmation').length;
                 const oldPendingCount = oldRes.items.filter(i => i.status === 'pending_confirmation').length;
@@ -771,34 +771,23 @@ export default function OwnerReservationsPage() {
             }
         }
     }
-
-
-    if (playSound && notificationSound) {
-        try {
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            
-            const audioData = notificationSound;
-            
-            fetch(audioData)
-                .then(response => response.arrayBuffer())
-                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-                .then(audioBuffer => {
-                    const source = audioContext.createBufferSource();
-                    source.buffer = audioBuffer;
-                    source.connect(audioContext.destination);
-                    source.start(0);
-                }).catch(e => {
-                    console.warn("Could not play notification sound.", e);
-                });
-
-        } catch (e) {
-            console.warn("Could not play notification sound. User interaction might be required.", e);
-        }
-    }
-
+    
+    // After comparison, update the ref for the next render cycle.
     prevReservationsRef.current = rawReservations;
 
-}, [rawReservations, notificationSound]);
+    // `previousReservations` is undefined on first render, so this prevents sound on initial load.
+    if (playSound && previousReservations !== undefined && notificationSound) {
+      const audio = new Audio(notificationSound);
+      audio.play().catch(error => {
+        console.warn("Audio playback failed:", error);
+        // Fallback to a visual toast if audio fails (e.g., due to browser policy)
+        toast({
+            title: "Nova Notificação!",
+            description: "Você tem um novo pedido ou atualização.",
+        });
+      });
+    }
+  }, [rawReservations, notificationSound, toast]);
 
   
   const reservations = useMemo(() => {
