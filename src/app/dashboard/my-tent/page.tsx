@@ -249,13 +249,24 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
         if (error instanceof FirebaseError) {
             switch(error.code) {
-                case 'permission-denied':
+                case 'storage/unauthorized':
+                    title = "Erro de Permissão";
+                    description = "Você não tem permissão para enviar esta imagem. Verifique as regras de segurança do Firebase Storage.";
+                    break;
+                case 'storage/canceled':
+                    title = "Envio Cancelado";
+                    description = "O envio da imagem foi cancelado.";
+                    break;
+                case 'permission-denied': // Firestore permission error
                     title = "Erro de Permissão no Banco de Dados";
                     description = "Você não tem permissão para salvar os dados da barraca. Verifique as regras de segurança do Firestore.";
                     break;
                 default:
+                    title = `Erro do Firebase (${error.code})`;
                     description = error.message || description;
             }
+        } else if (error.message) {
+            description = error.message;
         }
         
         toast({
@@ -461,7 +472,7 @@ export default function MyTentPage() {
 
   const tentQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
-    [firestore, user]
+    [db, user]
   );
   const { data: tents, isLoading: loadingTent, refresh: refreshTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;

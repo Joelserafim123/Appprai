@@ -22,8 +22,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'storage.googleapis.com',
-        pathname: '/cadastro-3c63f/**',
+        hostname: 'firebasestorage.googleapis.com',
       }
     ],
   },
