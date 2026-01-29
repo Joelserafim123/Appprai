@@ -5,7 +5,7 @@ import type { Tent } from "@/lib/types";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, MapPin, Search, Star, AlertTriangle } from "lucide-react";
-import { GoogleMap, InfoWindow, Autocomplete, Marker } from '@react-google-maps/api';
+import { GoogleMap, InfoWindow, Autocomplete, AdvancedMarker } from '@react-google-maps/api';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Input } from "./ui/input";
@@ -53,6 +53,33 @@ const haversineDistance = (
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c;
+};
+
+const TentMarkerIcon = ({ tent, selectedTent, favoriteTentIds }: { tent: Tent, selectedTent: Tent | null, favoriteTentIds: string[] }) => {
+    let color: string;
+    let zIndex = 1;
+
+    if (selectedTent?.id === tent.id) {
+      color = '#FFB347'; // accent orange for selected
+      zIndex = 10;
+    } else if (favoriteTentIds.includes(tent.id)) {
+      color = '#FFD700'; // Gold for favorite
+    } else if (tent.hasAvailableKits) {
+      color = '#22c55e'; // green (available)
+    } else {
+      color = '#ef4444'; // red (unavailable)
+    }
+
+    return (
+        <div className="relative" style={{ zIndex }}>
+            <div className="map-marker-label absolute left-1/2 -translate-x-1/2">
+                {tent.name}
+            </div>
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" fill={color} style={{ stroke: '#fff', strokeWidth: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>
+                <path d="M12,2A9,9 0 0,1 21,11H3A9,9 0 0,1 12,2M11,12V22A1,1 0 0,0 12,23A1,1 0 0,0 13,22V12H11Z" />
+            </svg>
+        </div>
+    );
 };
 
 
@@ -163,29 +190,6 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
     }
   };
   
-    const getMarkerIcon = (tent: Tent): google.maps.Symbol => {
-        let color: string;
-        if (selectedTent?.id === tent.id) {
-          color = '#FFB347'; // accent orange for selected
-        } else if (favoriteTentIds.includes(tent.id)) {
-          color = '#FFD700'; // Gold for favorite
-        } else if (tent.hasAvailableKits) {
-          color = '#22c55e'; // green (available)
-        } else {
-          color = '#ef4444'; // red (unavailable)
-        }
-        return {
-            path: "M12,2A9,9 0 0,1 21,11H3A9,9 0 0,1 12,2M11,12V22A1,1 0 0,0 12,23A1,1 0 0,0 13,22V12H11Z", // Umbrella path from mdi
-            fillColor: color,
-            fillOpacity: 1,
-            strokeWeight: 1,
-            strokeColor: '#fff',
-            rotation: 0,
-            scale: 1.5,
-            anchor: new google.maps.Point(12, 12),
-        };
-    };
-
   if (apiKeyIsMissing) {
     return (
         <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted p-4">
@@ -235,17 +239,14 @@ export function BeachMap({ tents, favoriteTentIds }: { tents: Tent[], favoriteTe
             >
                 {sortedTents.map((tent) => (
                 tent.location.latitude && tent.location.longitude && (
-                    <Marker
+                    <AdvancedMarker
                         key={tent.id}
                         position={{ lat: tent.location.latitude, lng: tent.location.longitude }}
                         onClick={() => handleTentSelect(tent)}
-                        icon={getMarkerIcon(tent)}
                         title={tent.name}
-                        label={{
-                            text: tent.name,
-                            className: "map-marker-label"
-                        }}
-                    />
+                    >
+                       <TentMarkerIcon tent={tent} selectedTent={selectedTent} favoriteTentIds={favoriteTentIds} />
+                    </AdvancedMarker>
                 )
                 ))}
 

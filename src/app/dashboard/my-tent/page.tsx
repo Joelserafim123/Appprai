@@ -18,7 +18,7 @@ import type { Tent, OperatingHours, TentFormData } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebase/firestore';
-import { GoogleMap, Marker } from '@react-google-maps/api';
+import { GoogleMap, AdvancedMarker } from '@react-google-maps/api';
 import { FirebaseError } from 'firebase/app';
 import { useGoogleMaps } from '@/components/google-maps-provider';
 
@@ -281,7 +281,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
                 }}
             >
                 {markerPosition?.latitude && markerPosition?.longitude && (
-                    <Marker
+                    <AdvancedMarker
                         position={{ lat: markerPosition.latitude, lng: markerPosition.longitude }}
                         draggable={true}
                         onDragEnd={onMarkerDragEnd}
@@ -397,11 +397,11 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
 export default function MyTentPage() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
+  const { firestore: db } = useFirebase();
 
   const tentQuery = useMemoFirebase(
-    () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
-    [firestore, user]
+    () => (user && db) ? query(collection(db, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
+    [db, user]
   );
   const { data: tents, isLoading: loadingTent, refresh: refreshTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;
