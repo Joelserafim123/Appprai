@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
@@ -223,7 +224,10 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         const logoStorageRef = storageRef(storage, `tents/${tentId}/logo.jpg`);
         await uploadBytes(logoStorageRef, logoFile, { customMetadata: { ownerUid: user.uid } });
         tentDataForFirestore.logoUrl = await getDownloadURL(logoStorageRef);
+      } else if (existingTent) {
+        tentDataForFirestore.logoUrl = existingTent.logoUrl;
       }
+
 
       if (existingTent) {
         await updateDoc(tentDocRef, tentDataForFirestore);
@@ -472,7 +476,7 @@ export default function MyTentPage() {
 
   const tentQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'tents'), where('ownerId', '==', user.uid), limit(1)) : null,
-    [db, user]
+    [firestore, user]
   );
   const { data: tents, isLoading: loadingTent, refresh: refreshTent } = useCollection<Tent>(tentQuery);
   const tent = tents?.[0] || null;
