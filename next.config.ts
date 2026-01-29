@@ -1,6 +1,6 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  // Forçando uma nova compilação para resolver problemas de cache de implantação.
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
   output: 'standalone',
   images: {
     remotePatterns: [
