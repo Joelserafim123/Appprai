@@ -30,6 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { cn } from '@/lib/utils';
 
 
 const statusConfig: Record<ReservationStatus, { text: string; variant: "default" | "secondary" | "destructive" }> = {
@@ -225,7 +226,7 @@ function PaymentDialog({ reservation, onFinished }: { reservation: Reservation; 
     );
 }
 
-const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
+const ReservationCard = ({ reservation, acknowledge, isNew }: { reservation: Reservation; acknowledge: (id: string) => void; isNew: boolean }) => {
     const { user } = useUser();
     const { firestore } = useFirebase();
     const { toast } = useToast();
@@ -330,7 +331,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             batch.update(reservationRef, { items: newItems });
 
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservation.id), where('participantIds', 'array-contains', user.uid), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservation.id), limit(1));
             const chatSnapshot = await getDocs(q);
 
             if (!chatSnapshot.empty) {
@@ -399,10 +400,11 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         if (!firestore || !reservationForCancel || !user) return;
         setIsSubmitting(true);
         
+        const updateData: { status: ReservationStatus, platformFee?: number, cancellationReason?: string } = { status: 'cancelled' };
+        
         try {
             const batch = writeBatch(firestore);
             const reservationRef = doc(firestore, 'reservations', reservationForCancel.id);
-            const updateData: { status: ReservationStatus, platformFee?: number, cancellationReason?: string } = { status: 'cancelled' };
             let feeApplied = false;
 
             if (isLateCancellation || reservationForCancel?.status === 'checked-in') {
@@ -413,7 +415,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             batch.update(reservationRef, updateData);
             
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservationForCancel.id), where('participantIds', 'array-contains', user.uid), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservationForCancel.id), limit(1));
             const chatSnapshot = await getDocs(q);
             if (!chatSnapshot.empty) {
                 batch.update(chatSnapshot.docs[0].ref, { status: 'archived' });
@@ -461,7 +463,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
             });
 
             const chatsRef = collection(firestore, 'chats');
-            const q = query(chatsRef, where('reservationId', '==', reservationForNoShow.id), where('participantIds', 'array-contains', user.uid), limit(1));
+            const q = query(chatsRef, where('reservationId', '==', reservationForNoShow.id), limit(1));
             const chatSnapshot = await getDocs(q);
             if (!chatSnapshot.empty) {
                 batch.update(chatSnapshot.docs[0].ref, { status: 'archived' });
@@ -500,9 +502,29 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
         router.push(`/dashboard/chats?reservationId=${reservation.id}`);
     };
 
+    const handleCheckInClick = () => {
+        if (reservation.status === 'confirmed') acknowledge(reservation.id);
+        setReservationForCheckIn(reservation);
+    };
+
+    const handleCancelClick = () => {
+        if (reservation.status === 'confirmed') acknowledge(reservation.id);
+        setReservationForCancel(reservation);
+    };
+    
+    const handleNoShowClick = () => {
+        if (reservation.status === 'confirmed') acknowledge(reservation.id);
+        setReservationForNoShow(reservation);
+    };
+
+    const handleStartChatClick = () => {
+        if (reservation.status === 'confirmed') acknowledge(reservation.id);
+        handleStartChat(reservation);
+    };
+
     return (
         <>
-            <Card className="flex flex-col transition-all hover:shadow-md">
+            <Card className={cn("flex flex-col transition-all hover:shadow-md", isNew && "border-primary ring-2 ring-primary ring-offset-2")}>
                 <CardHeader>
                     <div className='flex flex-col gap-4 sm:flex-row justify-between items-start'>
                         <div className="flex items-center gap-3">
@@ -518,9 +540,17 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                                 <CardDescription>Pedido: {reservation.orderNumber}</CardDescription>
                             </div>
                         </div>
-                        <Badge variant={statusConfig[reservation.status].variant}>
-                            {statusConfig[reservation.status].text}
-                        </Badge>
+                         <div className="relative">
+                            {isNew && (
+                                <span className="absolute -top-2 -right-2 flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                                </span>
+                            )}
+                            <Badge variant={statusConfig[reservation.status].variant}>
+                                {statusConfig[reservation.status].text}
+                            </Badge>
+                        </div>
                     </div>
                     <div className='text-sm text-muted-foreground space-y-1 pt-2'>
                         <p className='flex items-center gap-2'><Calendar className='w-4 h-4'/>
@@ -584,14 +614,14 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                 <CardFooter className="flex-col gap-2">
                         {reservation.status === 'confirmed' && (
                         <div className="grid grid-cols-1 gap-2 w-full">
-                            <Button size="sm" onClick={() => setReservationForCheckIn(reservation)}>
+                            <Button size="sm" onClick={handleCheckInClick}>
                                 <Check className="mr-2 h-4 w-4" /> Fazer Check-in
                             </Button>
                              <div className="grid grid-cols-2 gap-2 w-full">
-                                <Button size="sm" variant="destructive" onClick={() => setReservationForCancel(reservation)}>
+                                <Button size="sm" variant="destructive" onClick={handleCancelClick}>
                                     <X className="mr-2 h-4 w-4" /> Cancelar
                                 </Button>
-                                <Button size="sm" variant="secondary" onClick={() => setReservationForNoShow(reservation)} disabled={!canMarkNoShow}>
+                                <Button size="sm" variant="secondary" onClick={handleNoShowClick} disabled={!canMarkNoShow}>
                                     <UserX className="mr-2 h-4 w-4" /> Não Compareceu
                                 </Button>
                              </div>
@@ -622,7 +652,7 @@ const ReservationCard = ({ reservation }: { reservation: Reservation }) => {
                         </div>
                     )}
                     {['confirmed', 'checked-in'].includes(reservation.status) && reservation.status !== 'cancelled' && (
-                        <Button size="sm" variant="outline" className="w-full" onClick={() => handleStartChat(reservation)}>
+                        <Button size="sm" variant="outline" className="w-full" onClick={handleStartChatClick}>
                             <Eye className="mr-2 h-4 w-4" />
                             Ver Conversa
                         </Button>
@@ -715,6 +745,7 @@ export default function OwnerReservationsPage() {
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [acknowledgedReservations, setAcknowledgedReservations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // A loud, repeating beep sound. Using a public domain sound.
@@ -727,6 +758,22 @@ export default function OwnerReservationsPage() {
     return () => {
         audioRef.current?.pause();
     };
+  }, []);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('acknowledgedReservations');
+    if (stored) {
+        setAcknowledgedReservations(new Set(JSON.parse(stored)));
+    }
+  }, []);
+
+  const acknowledgeReservation = useCallback((reservationId: string) => {
+    setAcknowledgedReservations(prev => {
+        const newSet = new Set(prev);
+        newSet.add(reservationId);
+        sessionStorage.setItem('acknowledgedReservations', JSON.stringify(Array.from(newSet)));
+        return newSet;
+    });
   }, []);
   
   const reservationsQuery = useMemoFirebase(
@@ -750,19 +797,29 @@ export default function OwnerReservationsPage() {
         });
   }, [rawReservations, user]);
 
-  const hasPendingConfirmationItems = useMemo(() => {
+  const hasPendingActions = useMemo(() => {
     if (!reservations) return false;
-    // Check if any reservation has at least one item with 'pending_confirmation' status
-    return reservations.some(res => 
+
+    // Check for new item requests
+    const hasPendingItems = reservations.some(res => 
         res.items.some(item => item.status === 'pending_confirmation')
     );
-  }, [reservations]);
+    if (hasPendingItems) {
+        return true;
+    }
+
+    // Check for new, unacknowledged reservations
+    const hasNewConfirmed = reservations.some(res => 
+        res.status === 'confirmed' && !acknowledgedReservations.has(res.id)
+    );
+    return hasNewConfirmed;
+  }, [reservations, acknowledgedReservations]);
 
 
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) {
-        if (hasPendingConfirmationItems) {
+        if (hasPendingActions) {
             if (audio.paused) {
                 audio.play().catch(error => {
                     console.warn("A reprodução automática do som falhou. O utilizador poderá ter de interagir com a página primeiro.", error);
@@ -780,7 +837,7 @@ export default function OwnerReservationsPage() {
             }
         }
     }
-  }, [hasPendingConfirmationItems, toast]);
+  }, [hasPendingActions, toast]);
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
@@ -826,9 +883,10 @@ export default function OwnerReservationsPage() {
 
     {filteredReservations && filteredReservations.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredReservations.map((reservation) => (
-            <ReservationCard key={reservation.id} reservation={reservation} />
-        ))}
+        {filteredReservations.map((reservation) => {
+             const isNew = reservation.status === 'confirmed' && !acknowledgedReservations.has(reservation.id);
+             return <ReservationCard key={reservation.id} reservation={reservation} acknowledge={acknowledgeReservation} isNew={isNew} />;
+        })}
         </div>
     ) : (
         <div className="rounded-lg border-2 border-dashed py-16 text-center">
