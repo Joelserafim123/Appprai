@@ -6,9 +6,20 @@ service cloud.firestore {
     // Tents are publicly readable.
     match /tents/{tentId} {
       allow read: if true;
-      // Only the owner can create/update their tent info.
-      // `resource.data.ownerId` is used for update/delete, `request.resource.data.ownerId` for create.
-      allow write: if request.auth != null && (request.resource.data.ownerId == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+      
+      // Update rule for tents
+      allow update: if request.auth != null && (
+        // The owner can update their tent.
+        resource.data.ownerId == request.auth.uid ||
+        // A customer can update rating fields when submitting a review.
+        // This is less secure than a Cloud Function but is required for client-side aggregation.
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['averageRating', 'reviewCount']) &&
+          request.resource.data.reviewCount == resource.data.reviewCount + 1
+        )
+      );
     }
     
     // Tent subcollections
@@ -18,7 +29,7 @@ service cloud.firestore {
         // Owners can manage their menu and rental items.
         allow write: if (subcollection == 'menuItems' || subcollection == 'rentalItems')
                       && request.auth != null 
-                      && request.auth.uid == get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId;
+                      && get(/databases/$(database)/documents/tents/$(tentId)).data.ownerId == request.auth.uid;
         // Users can create reviews, but not update/delete them.
         allow create: if subcollection == 'reviews'
                        && request.auth != null
@@ -52,7 +63,14 @@ service cloud.firestore {
             // 1. To cancel a confirmed reservation
             (request.resource.data.status == 'cancelled' && resource.data.status == 'confirmed') ||
             // 2. To add items to a checked-in reservation
-            (resource.data.status == 'checked-in' && request.resource.data.status == 'checked-in')
+            (resource.data.status == 'checked-in' && request.resource.data.status == 'checked-in') ||
+            // 3. To mark a completed reservation as reviewed
+            (
+                resource.data.status == 'completed' &&
+                (!('reviewed' in resource.data) || resource.data.reviewed == false) &&
+                request.resource.data.reviewed == true &&
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewed'])
+            )
         ))
       );
     }
