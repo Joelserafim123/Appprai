@@ -21,8 +21,6 @@ import { collection, query, where, limit, setDoc, doc, updateDoc } from 'firebas
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import { FirebaseError } from 'firebase/app';
 import { useGoogleMaps } from '@/components/google-maps-provider';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 const operatingHoursSchema = z.object({
@@ -83,7 +81,7 @@ const defaultCenter = {
 
 function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?: Tent | null; onFinished: () => void }) {
   const { toast } = useToast();
-  const { firestore, storage } = useFirebase();
+  const { firestore } = useFirebase();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
@@ -217,14 +215,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
         if (error instanceof FirebaseError) {
             switch(error.code) {
-                case 'storage/unauthorized':
-                    title = "Erro de Permissão";
-                    description = "Você não tem permissão para enviar esta imagem. Verifique as regras de segurança do Firebase Storage.";
-                    break;
-                case 'storage/canceled':
-                    title = "Envio Cancelado";
-                    description = "O envio da imagem foi cancelado.";
-                    break;
                 case 'permission-denied': // Firestore permission error
                     title = "Erro de Permissão no Banco de Dados";
                     description = "Você não tem permissão para salvar os dados da barraca. Verifique as regras de segurança do Firestore.";
@@ -460,5 +450,3 @@ export default function MyTentPage() {
     </div>
   );
 }
-
-    
