@@ -8,7 +8,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, Check, Eye, User as UserIcon, Sun } from 'lucide-react';
+import { Loader2, Send, Check, Eye, User as UserIcon, Sun, Tent as TentIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getInitials } from '@/lib/utils';
@@ -137,7 +137,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
              <Avatar>
                 <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                 <AvatarFallback className="bg-primary/20 text-primary">
-                    {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
+                    {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : <TentIcon className="h-5 w-5" />}
                 </AvatarFallback>
              </Avatar>
              <div>
@@ -187,7 +187,7 @@ export function ChatConversation({ chat, currentUser }: ChatConversationProps) {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                         <AvatarFallback className="bg-muted text-muted-foreground">
-                          {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : getInitials(otherPartyName)}
+                          {amIOwnerInThisChat ? <UserIcon className="h-5 w-5" /> : <TentIcon className="h-5 w-5" />}
                         </AvatarFallback>
                       </Avatar>
                     )}

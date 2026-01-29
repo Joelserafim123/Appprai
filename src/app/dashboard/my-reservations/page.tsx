@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, Eye, Utensils } from 'lucide-react';
+import { Loader2, Star, User, X, MapPin, AlertCircle, AlertTriangle, CreditCard, Check, Eye, Utensils, Tent as TentIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Reservation, ReservationStatus, PaymentMethod } from '@/lib/types';
@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
@@ -175,7 +174,7 @@ export default function MyReservationsPage() {
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={reservation.tentLogoUrl ?? undefined} alt={reservation.tentName} />
-                      <AvatarFallback>{getInitials(reservation.tentName)}</AvatarFallback>
+                      <AvatarFallback><TentIcon className="w-6 h-6" /></AvatarFallback>
                     </Avatar>
                     <div>
                       <CardTitle>{reservation.tentName}</CardTitle>
@@ -285,20 +284,6 @@ export default function MyReservationsPage() {
                         <Button variant="destructive" onClick={() => setReservationToCancel(reservation)}>
                             <X className="mr-2 h-4 w-4"/> Cancelar Reserva
                         </Button>
-                      )}
-                      {reservation.status === 'checked-in' && (
-                          <Tooltip>
-                              <TooltipTrigger asChild>
-                                  <div className="cursor-not-allowed">
-                                      <Button variant="destructive" disabled>
-                                          <X className="mr-2 h-4 w-4"/> Cancelar Reserva
-                                      </Button>
-                                  </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                  <p>Não é possível cancelar uma reserva após o check-in.</p>
-                              </TooltipContent>
-                          </Tooltip>
                       )}
                   </div>
                 </CardFooter>

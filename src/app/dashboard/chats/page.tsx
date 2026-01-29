@@ -3,7 +3,7 @@
 import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, MessageSquare, User as UserIcon, ArrowLeft } from 'lucide-react';
+import { Loader2, MessageSquare, User as UserIcon, ArrowLeft, Tent as TentIcon } from 'lucide-react';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -131,7 +131,7 @@ export default function ChatsPage() {
                                 <Avatar className='h-10 w-10'>
                                   <AvatarImage src={otherPartyAvatar ?? undefined} alt={otherPartyName} />
                                   <AvatarFallback className="bg-primary/20 text-primary">
-                                    {amIOwnerInThisChat ? <UserIcon className="h-6 w-6" /> : getInitials(otherPartyName)}
+                                    {amIOwnerInThisChat ? <UserIcon className="h-6 w-6" /> : <TentIcon className="h-6 w-6" />}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div className='flex-1 overflow-hidden'>
