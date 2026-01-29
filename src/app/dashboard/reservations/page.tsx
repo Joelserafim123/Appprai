@@ -740,17 +740,40 @@ export default function OwnerReservationsPage() {
         return;
     }
 
-    const hasNewPendingRequest = prevReservationsRef.current && rawReservations.some(newRes => {
-        const oldRes = prevReservationsRef.current?.find(r => r.id === newRes.id);
-        if (!oldRes) return false; // This is a new reservation altogether, not an update
-        
-        const newPendingCount = newRes.items.filter(i => i.status === 'pending_confirmation').length;
-        const oldPendingCount = oldRes.items.filter(i => i.status === 'pending_confirmation').length;
-        
-        return newPendingCount > oldPendingCount;
-    });
+    const previousReservations = prevReservationsRef.current || [];
+    let playSound = false;
 
-    if (hasNewPendingRequest && notificationSound) {
+    // Avoid playing sound on initial load
+    if (previousReservations.length > 0) {
+        // Check for brand new reservations
+        const newReservations = rawReservations.filter(newRes => 
+            !previousReservations.some(oldRes => oldRes.id === newRes.id)
+        );
+
+        if (newReservations.length > 0) {
+            playSound = true;
+        }
+
+        // Check for new pending items in existing reservations
+        if (!playSound) {
+            const hasNewPendingItems = rawReservations.some(newRes => {
+                const oldRes = previousReservations.find(r => r.id === newRes.id);
+                if (!oldRes) return false;
+        
+                const newPendingCount = newRes.items.filter(i => i.status === 'pending_confirmation').length;
+                const oldPendingCount = oldRes.items.filter(i => i.status === 'pending_confirmation').length;
+                
+                return newPendingCount > oldPendingCount;
+            });
+
+            if (hasNewPendingItems) {
+                playSound = true;
+            }
+        }
+    }
+
+
+    if (playSound && notificationSound) {
         try {
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             
