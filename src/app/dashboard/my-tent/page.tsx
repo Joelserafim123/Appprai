@@ -4,7 +4,7 @@
 import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Building, MapPin, Clock, AlertTriangle, UploadCloud } from 'lucide-react';
+import { Loader2, Building, MapPin, Clock, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,6 @@ import { GoogleMap, Marker } from '@react-google-maps/api';
 import { FirebaseError } from 'firebase/app';
 import { useGoogleMaps } from '@/components/google-maps-provider';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
@@ -89,10 +88,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const [isLocating, setIsLocating] = useState(false);
   const [mapCenter, setMapCenter] = useState(existingTent?.location ? { lat: existingTent.location.latitude, lng: existingTent.location.longitude } : defaultCenter);
   
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-
   const { register, handleSubmit, formState: { errors }, setValue, watch, control, reset } = useForm<TentFormData>({
     resolver: zodResolver(tentSchema),
     defaultValues: {
@@ -109,26 +104,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   const markerPosition = watchedLocation;
 
   const { isLoaded, loadError, apiKeyIsMissing } = useGoogleMaps();
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        toast({
-          variant: 'destructive',
-          title: 'Arquivo muito grande',
-          description: 'O logo não pode exceder 2MB.',
-        });
-        return;
-      }
-      setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleGetCurrentLocation = useCallback((panMap = false) => {
     if(navigator.geolocation) {
@@ -163,7 +138,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         location: existingTent.location || undefined,
         operatingHours: existingTent.operatingHours || defaultOperatingHours,
       });
-      setLogoPreview(existingTent.logoUrl || null);
       if (existingTent.location) {
         setMapCenter({ lat: existingTent.location.latitude, lng: existingTent.location.longitude });
       } else {
@@ -178,7 +152,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
             location: undefined,
             operatingHours: defaultOperatingHours,
         });
-        setLogoPreview(null);
         handleGetCurrentLocation(true);
     }
   }, [existingTent, reset, handleGetCurrentLocation]);
@@ -206,7 +179,7 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
   }, [setValue]);
 
   const onSubmit = async (data: TentFormData) => {
-    if (!firestore || !user || !storage) return;
+    if (!firestore || !user) return;
     setIsSubmitting(true);
     toast({ title: "A guardar alterações..." });
 
@@ -218,16 +191,8 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         ...data,
         ownerId: user.uid,
         ownerName: user.displayName,
+        logoUrl: existingTent?.logoUrl || null,
       };
-
-      if (logoFile) {
-        const logoStorageRef = storageRef(storage, `tents/${tentId}/logo.jpg`);
-        await uploadBytes(logoStorageRef, logoFile, { customMetadata: { ownerUid: user.uid } });
-        tentDataForFirestore.logoUrl = await getDownloadURL(logoStorageRef);
-      } else if (existingTent) {
-        tentDataForFirestore.logoUrl = existingTent.logoUrl;
-      }
-
 
       if (existingTent) {
         await updateDoc(tentDocRef, tentDataForFirestore);
@@ -236,7 +201,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
         const newTentData = {
           ...tentDataForFirestore,
           bannerUrl: null,
-          logoUrl: tentDataForFirestore.logoUrl || null,
           hasAvailableKits: false,
           averageRating: 0,
           reviewCount: 0,
@@ -341,35 +305,6 @@ function TentForm({ user, existingTent, onFinished }: { user: any; existingTent?
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-       <div className="flex flex-col sm:flex-row items-center gap-6 p-4 border rounded-lg">
-          <div className="relative group">
-            <Avatar className="h-24 w-24 rounded-lg cursor-pointer" onClick={() => logoInputRef.current?.click()}>
-                <AvatarImage src={logoPreview ?? undefined} alt={watch('name') || "Logo"} />
-                <AvatarFallback className="bg-primary/10 text-primary/80 text-3xl hover:bg-primary/20 transition-colors">
-                    <div className='flex flex-col items-center gap-1'>
-                        <UploadCloud className="w-8 h-8" />
-                        <span className="text-xs font-medium">Upload</span>
-                    </div>
-                </AvatarFallback>
-            </Avatar>
-            <Input 
-                id="logo-upload" 
-                ref={logoInputRef}
-                type="file" 
-                accept="image/png, image/jpeg, image/webp" 
-                onChange={handleLogoChange} 
-                disabled={isSubmitting}
-                className="hidden"
-            />
-          </div>
-          <div className="w-full text-center sm:text-left">
-              <Label htmlFor="logo-upload">Logo da Barraca</Label>
-              <p className="text-xs text-muted-foreground mt-1">Clique no ícone para fazer o upload de uma nova imagem. <br/> Recomendado: 200x200px, PNG ou JPG (máx 2MB).</p>
-               <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => logoInputRef.current?.click()} disabled={isSubmitting}>
-                  Selecionar arquivo
-              </Button>
-          </div>
-      </div>
       <div className="space-y-2">
         <Label htmlFor="name">Nome da Barraca</Label>
         <Input id="name" {...register('name')} disabled={isSubmitting} />
@@ -525,3 +460,5 @@ export default function MyTentPage() {
     </div>
   );
 }
+
+    

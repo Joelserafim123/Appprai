@@ -4,7 +4,7 @@ import { useUser, useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode, User as UserIcon, Utensils } from 'lucide-react';
+import { Loader2, Star, Calendar, Hash, Check, X, CreditCard, History, Search, Eye, AlertCircle, UserX, Info, AlertTriangle, HandCoins, QrCode, User as UserIcon, Utensils, BellRinging, VolumeX } from 'lucide-react';
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +23,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { collection, query, where, doc, updateDoc, addDoc, getDocs, serverTimestamp, writeBatch, increment, limit, orderBy, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/i18n';
@@ -748,13 +753,11 @@ export default function OwnerReservationsPage() {
   const [acknowledgedReservations, setAcknowledgedReservations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // A loud, repeating beep sound. Using a public domain sound.
-    const beepSoundUrl = 'https://cdn.freesound.org/previews/15/15234_35939-lq.mp3';
+    const beepSoundUrl = 'https://cdn.freesound.org/previews/249/249463_2123549-lq.mp3';
     audioRef.current = new Audio(beepSoundUrl);
     audioRef.current.loop = true;
     audioRef.current.volume = 1.0;
 
-    // Cleanup function to pause audio when component unmounts
     return () => {
         audioRef.current?.pause();
     };
@@ -787,7 +790,6 @@ export default function OwnerReservationsPage() {
   
   const reservations = useMemo(() => {
     if (!rawReservations || !user) return [];
-    // Sort on the client-side for robustness against inconsistent data
     return rawReservations
         .filter(r => r.tentOwnerId === user.uid)
         .sort((a, b) => {
@@ -800,7 +802,6 @@ export default function OwnerReservationsPage() {
   const hasPendingActions = useMemo(() => {
     if (!reservations) return false;
 
-    // Check for new item requests
     const hasPendingItems = reservations.some(res => 
         res.items.some(item => item.status === 'pending_confirmation')
     );
@@ -808,7 +809,6 @@ export default function OwnerReservationsPage() {
         return true;
     }
 
-    // Check for new, unacknowledged reservations
     const hasNewConfirmed = reservations.some(res => 
         res.status === 'confirmed' && !acknowledgedReservations.has(res.id)
     );
@@ -838,6 +838,27 @@ export default function OwnerReservationsPage() {
         }
     }
   }, [hasPendingActions, toast]);
+
+    const stopAndAcknowledgeAll = useCallback(() => {
+        if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        }
+        if (reservations) {
+        const pendingIds = reservations
+            .filter(r => r.status === 'confirmed' && !acknowledgedReservations.has(r.id))
+            .map(r => r.id);
+
+        if (pendingIds.length > 0) {
+            setAcknowledgedReservations(prev => {
+            const newSet = new Set(prev);
+            pendingIds.forEach(id => newSet.add(id));
+            sessionStorage.setItem('acknowledgedReservations', JSON.stringify(Array.from(newSet)));
+            return newSet;
+            });
+        }
+        }
+  }, [reservations, acknowledgedReservations]);
 
   const filteredReservations = useMemo(() => {
     if (!reservations) return [];
@@ -870,6 +891,20 @@ export default function OwnerReservationsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Reservas da Barraca</h1>
             <p className="text-muted-foreground">Gerencie todas as reservas para sua barraca.</p>
         </div>
+        {hasPendingActions && (
+            <Alert variant="destructive" className="flex items-center justify-between gap-4">
+                <div>
+                    <AlertTitle className="flex items-center gap-2"><BellRinging /> Nova Atividade!</AlertTitle>
+                    <AlertDescription>
+                        Você tem novas reservas ou pedidos pendentes. Verifique os itens destacados.
+                    </AlertDescription>
+                </div>
+                <Button onClick={stopAndAcknowledgeAll} variant="outline" className="shrink-0 bg-destructive-foreground/10 hover:bg-destructive-foreground/20">
+                    <VolumeX className="mr-2 h-4 w-4" />
+                    Dispensar
+                </Button>
+            </Alert>
+        )}
         <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -900,3 +935,5 @@ export default function OwnerReservationsPage() {
     </div>
   );
 }
+
+    
